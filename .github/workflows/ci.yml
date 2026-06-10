@@ -95,6 +95,8 @@ jobs:
             CODE_SIGNING_ALLOWED=NO | xcbeautify
 
       # Build the Watch app (no simulator suffix needed; SDK is present on macos-26).
+      # EXCLUDED_ARCHS=x86_64: macos-26 runners are Apple Silicon; the x86_64 slice is
+      # unused and causes linker failures when dependencies only produce an arm64 slice.
       - name: Build — DiveFreeWatch
         run: |
           set -o pipefail
@@ -102,9 +104,12 @@ jobs:
             -workspace DiveFree.xcworkspace \
             -scheme DiveFreeWatch \
             -destination "generic/platform=watchOS Simulator" \
-            CODE_SIGNING_ALLOWED=NO | xcbeautify
+            CODE_SIGNING_ALLOWED=NO \
+            EXCLUDED_ARCHS=x86_64 | xcbeautify
 
       # Build the iPhone app (embeds the Watch app — requires watchOS SDK to be present).
+      # EXCLUDED_ARCHS=x86_64: same reason as above; generic/platform builds all archs by
+      # default, but the arm64-only Domain framework causes a link failure for x86_64.
       - name: Build — DiveFree (iPhone)
         run: |
           set -o pipefail
@@ -112,7 +117,8 @@ jobs:
             -workspace DiveFree.xcworkspace \
             -scheme DiveFree \
             -destination "generic/platform=iOS Simulator" \
-            CODE_SIGNING_ALLOWED=NO | xcbeautify
+            CODE_SIGNING_ALLOWED=NO \
+            EXCLUDED_ARCHS=x86_64 | xcbeautify
 
       # Upload xcresult bundles on failure so you can open them in Xcode locally.
       - name: Upload test results (on failure)
