@@ -57,9 +57,12 @@ let watchApp = Target.target(
         "NSHealthShareUsageDescription": "Used to read workout and health data for your dive sessions.",
         "NSHealthUpdateUsageDescription": "Used to save your dive sessions as workouts.",
         "NSLocationWhenInUseUsageDescription": "Used to record where your dives happen.",
+        // Keeps the app alive in the background for the duration of the HKWorkoutSession.
+        "WKBackgroundModes": ["workout-processing"],
     ]),
     sources: ["Apps/WatchApp/Sources/**"],
     resources: ["Apps/WatchApp/Resources/**"],
+    entitlements: .file(path: "Apps/WatchApp/DiveFreeWatch.entitlements"),
     dependencies: [
         .target(name: "Domain"),
         .target(name: "Persistence"),
