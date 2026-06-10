@@ -5,6 +5,18 @@
 ## User settings
 xcuserdata/
 
+## Tuist generated artifacts (regenerate with `tuist generate`)
+*.xcodeproj
+*.xcworkspace
+.tuist/
+Derived/
+graph.png
+
+## Xcode build output
+DerivedData/
+build/
+.swiftpm/
+
 ## Obj-C/Swift specific
 *.hmap
 
