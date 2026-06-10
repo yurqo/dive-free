@@ -26,7 +26,7 @@ struct SessionRootView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Button("End Session", role: .destructive) {
-                    session.stop()
+                    Task { await session.stop() }
                 }
                 .buttonStyle(.bordered)
             }

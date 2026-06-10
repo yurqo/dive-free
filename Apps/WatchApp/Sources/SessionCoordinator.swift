@@ -19,6 +19,7 @@ final class SessionCoordinator {
 
     private(set) var state: State = .idle
     let sensors: SensorManager
+    let workout = WorkoutController()
 
     private let detector = DiveDetector()
     private let sync = SyncManager()
@@ -33,17 +34,23 @@ final class SessionCoordinator {
     func start() async {
         guard state == .idle else { return }
         do {
+            try await workout.requestAuthorization()
+            try await workout.start()
             try await sensors.start()
             state = .active(start: Date())
         } catch {
+            // On the simulator or when HealthKit is unavailable, workout.start()
+            // will throw. We still fall back cleanly to idle so dev builds work.
             state = .idle
         }
     }
 
-    /// Stops sensing, builds the session from collected samples, and queues it for the phone.
+    /// Ends the workout, stops sensing, builds the session from collected samples,
+    /// and queues it for the phone.
     @discardableResult
-    func stop() -> DiveSession? {
+    func stop() async -> DiveSession? {
         guard case let .active(start) = state else { return nil }
+        await workout.end()
         sensors.stop()
         let dives = detector.detectDives(from: sensors.samples)
         let session = DiveSession(startTime: start, endTime: Date(), dives: dives)
