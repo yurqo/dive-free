@@ -1,0 +1,124 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Cancel any in-progress run for the same branch when a new commit arrives.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    name: Build & Test
+    runs-on: macos-26
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Pin the Xcode minor version; patch is resolved automatically.
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "~> 26.4"
+
+      # Installs Tuist at the version pinned in mise.toml.
+      - name: Install Tuist (via mise)
+        uses: jdx/mise-action@v2
+
+      # Regenerate the Xcode workspace from Project.swift.
+      # The generated .xcodeproj/.xcworkspace are git-ignored; always regenerate on CI.
+      - name: Generate Xcode workspace
+        run: tuist generate --no-open
+
+      # Discover the first available iPhone simulator so the test step is
+      # resilient to the exact device names changing between runner images.
+      - name: Select iOS simulator
+        run: |
+          DEVICE=$(xcrun simctl list devices available | grep -m1 -oE 'iPhone [0-9][^(]+' | xargs)
+          echo "Selected simulator: $DEVICE"
+          echo "SIM_DEVICE=$DEVICE" >> "$GITHUB_ENV"
+
+      # Run the unit-test suite for every framework package.
+      # Each produces a .xcresult bundle; on failure all bundles are uploaded as artifacts.
+      - name: Test — Domain
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -workspace DiveFree.xcworkspace \
+            -scheme Domain \
+            -destination "platform=iOS Simulator,name=$SIM_DEVICE" \
+            -resultBundlePath TestResults-Domain.xcresult \
+            CODE_SIGNING_ALLOWED=NO | xcbeautify
+
+      - name: Test — Persistence
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -workspace DiveFree.xcworkspace \
+            -scheme Persistence \
+            -destination "platform=iOS Simulator,name=$SIM_DEVICE" \
+            -resultBundlePath TestResults-Persistence.xcresult \
+            CODE_SIGNING_ALLOWED=NO | xcbeautify
+
+      - name: Test — Sensors
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -workspace DiveFree.xcworkspace \
+            -scheme Sensors \
+            -destination "platform=iOS Simulator,name=$SIM_DEVICE" \
+            -resultBundlePath TestResults-Sensors.xcresult \
+            CODE_SIGNING_ALLOWED=NO | xcbeautify
+
+      - name: Test — Sync
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -workspace DiveFree.xcworkspace \
+            -scheme Sync \
+            -destination "platform=iOS Simulator,name=$SIM_DEVICE" \
+            -resultBundlePath TestResults-Sync.xcresult \
+            CODE_SIGNING_ALLOWED=NO | xcbeautify
+
+      - name: Test — Strava
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -workspace DiveFree.xcworkspace \
+            -scheme Strava \
+            -destination "platform=iOS Simulator,name=$SIM_DEVICE" \
+            -resultBundlePath TestResults-Strava.xcresult \
+            CODE_SIGNING_ALLOWED=NO | xcbeautify
+
+      # Build the Watch app (no simulator suffix needed; SDK is present on macos-26).
+      - name: Build — DiveFreeWatch
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -workspace DiveFree.xcworkspace \
+            -scheme DiveFreeWatch \
+            -destination "generic/platform=watchOS Simulator" \
+            CODE_SIGNING_ALLOWED=NO | xcbeautify
+
+      # Build the iPhone app (embeds the Watch app — requires watchOS SDK to be present).
+      - name: Build — DiveFree (iPhone)
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -workspace DiveFree.xcworkspace \
+            -scheme DiveFree \
+            -destination "generic/platform=iOS Simulator" \
+            CODE_SIGNING_ALLOWED=NO | xcbeautify
+
+      # Upload xcresult bundles on failure so you can open them in Xcode locally.
+      - name: Upload test results (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: "*.xcresult"
+          if-no-files-found: ignore

@@ -1,0 +1,4 @@
+[tools]
+# Pin Tuist so CI and local environments use the same version.
+# Update this when upgrading Tuist (also run `tuist generate --no-open` locally first).
+tuist = "4.198.2"
