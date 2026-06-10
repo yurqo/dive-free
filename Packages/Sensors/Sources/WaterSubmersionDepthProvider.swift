@@ -20,15 +20,16 @@ import CoreMotion
 /// `DepthSample` values via an `AsyncStream`. The stream and its continuation
 /// are created in `init()` so no values are dropped between `start()` (which
 /// enables the delegate) and the caller's first `for await` on `depthStream()`.
-public final class WaterSubmersionDepthProvider: DepthProvider, @unchecked Sendable {
+public final class WaterSubmersionDepthProvider: NSObject, DepthProvider, CMWaterSubmersionManagerDelegate, @unchecked Sendable {
     private let manager = CMWaterSubmersionManager()
     private var continuation: AsyncStream<DepthSample>.Continuation?
     private let _stream: AsyncStream<DepthSample>
 
-    public init() {
+    override public init() {
         var cap: AsyncStream<DepthSample>.Continuation?
         _stream = AsyncStream { cap = $0 }
         continuation = cap
+        super.init()
     }
 
     public func start() async throws {
@@ -45,21 +46,21 @@ public final class WaterSubmersionDepthProvider: DepthProvider, @unchecked Senda
     }
 
     public func depthStream() -> AsyncStream<DepthSample> { _stream }
-}
 
-extension WaterSubmersionDepthProvider: CMWaterSubmersionManagerDelegate {
-    public func manager(
-        _ manager: CMWaterSubmersionManager,
-        didUpdate measurement: CMWaterSubmersionMeasurement
-    ) {
+    // MARK: - CMWaterSubmersionManagerDelegate
+
+    public func manager(_ manager: CMWaterSubmersionManager, didUpdate measurement: CMWaterSubmersionMeasurement) {
         guard let depth = measurement.depth else { return }
         continuation?.yield(makeDepthSample(depth: depth, date: measurement.date))
     }
 
-    public func manager(
-        _ manager: CMWaterSubmersionManager,
-        errorOccurred error: Error
-    ) {
+    // Required by the protocol; not used for depth tracking.
+    public func manager(_ manager: CMWaterSubmersionManager, didUpdate event: CMWaterSubmersionEvent) {}
+
+    // Required by the protocol; not used for depth tracking.
+    public func manager(_ manager: CMWaterSubmersionManager, didUpdate measurement: CMWaterTemperature) {}
+
+    public func manager(_ manager: CMWaterSubmersionManager, errorOccurred error: any Error) {
         continuation?.finish()
         continuation = nil
     }
