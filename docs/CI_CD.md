@@ -42,9 +42,16 @@ DerivedData reuse when available).
 
 ## Enabling TestFlight delivery (CD)
 
-The **TestFlight** workflow (`.github/workflows/testflight.yml`) is currently
-**manual-only** (`workflow_dispatch`) and exits early if any required secret is
-missing. Nothing will accidentally deploy.
+The **TestFlight** workflow (`.github/workflows/testflight.yml`) is **wired up**:
+it runs on every `v*` tag (and on manual `workflow_dispatch`), archives, exports,
+and uploads to TestFlight. It is **safe by default** — a Preflight step exits
+early with clear guidance if any required secret is missing, so a tag pushed
+before the steps below are complete won't attempt (or break) a real upload.
+
+To go live you only need to complete the **prerequisites** and add the
+**secrets** below; the workflow code and `ExportOptions.plist` are already in the
+repo. Do at least one **manual dispatch** to confirm signing before relying on
+tag-triggered delivery.
 
 ### Prerequisites
 
@@ -53,7 +60,7 @@ You need all four of these before wiring CD:
 | Prerequisite | How to get it |
 |---|---|
 | **Apple Developer Program** membership | [developer.apple.com/programs](https://developer.apple.com/programs/) — USD $99/year |
-| **Bundle ID registered** | Register `net.perekupko.divefree` in [Identifiers](https://developer.apple.com/account/resources/identifiers/list) |
+| **Bundle ID registered** | Register `org.yurko.divefree` (the `bundlePrefix` in `Project.swift`) in [Identifiers](https://developer.apple.com/account/resources/identifiers/list) — the App Store Connect record must use this exact ID |
 | **App record in App Store Connect** | Create an app at [appstoreconnect.apple.com](https://appstoreconnect.apple.com) with the bundle ID above |
 | **App Store Connect API key** | In App Store Connect → Users & Access → Integrations → App Store Connect API — create a key with **App Manager** role; download the `.p8` file (only downloadable once) |
 
@@ -68,40 +75,25 @@ Go to **GitHub → Settings → Secrets and variables → Actions** and add:
 | `APP_STORE_CONNECT_API_KEY` | The `.p8` file contents, **base64-encoded**: `base64 -i AuthKey_XXX.p8 | pbcopy` |
 | `TEAM_ID` | Your Apple Team ID (10-char string shown in developer.apple.com under Membership) |
 
-### Enabling automatic delivery on tags
+### Triggering delivery
 
-Once the secrets are set and you've done at least one manual dispatch to confirm
-the archive and upload steps work:
+The workflow trigger, the archive/export/upload steps, and the repo-root
+`ExportOptions.plist` are **already committed** — there's nothing left to
+uncomment. `ExportOptions.plist` deliberately omits `teamID`: the signing team is
+resolved from the App Store Connect API key (`-allowProvisioningUpdates`), and the
+archive is signed with the `TEAM_ID` secret via `DEVELOPMENT_TEAM`.
 
-1. Open `.github/workflows/testflight.yml`.
-2. Replace the trigger block:
-   ```yaml
-   on:
-     workflow_dispatch:
+Once the prerequisites and secrets above are in place:
+
+1. **Validate manually first.** GitHub → Actions → **TestFlight** → *Run
+   workflow*. Confirm the archive, export, and upload steps succeed and a build
+   shows up in App Store Connect → TestFlight.
+2. **Then tag a release:**
+   ```sh
+   git tag v0.1.0 && git push --tags
    ```
-   with:
-   ```yaml
-   on:
-     workflow_dispatch:      # keep for manual runs
-     push:
-       tags: ['v*']         # auto-deliver on version tags like v1.0.0
-   ```
-3. Uncomment the four TODO steps in the workflow (write key, archive, export, upload).
-4. Create an `ExportOptions.plist` at the repo root:
-   ```xml
-   <?xml version="1.0" encoding="UTF-8"?>
-   <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
-     "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-   <plist version="1.0">
-   <dict>
-     <key>method</key>
-     <string>app-store</string>
-     <key>teamID</key>
-     <string>YOUR_TEAM_ID</string>
-     <key>uploadBitcode</key>
-     <false/>
-   </dict>
-   </plist>
-   ```
-5. Push the changes and create a tag (`git tag v0.1.0 && git push --tags`) to
-   trigger the first automated delivery.
+   The `push: tags: ['v*']` trigger runs the same job automatically; a build
+   should appear in TestFlight within ~30 minutes.
+
+Until the secrets exist, both paths stop at the Preflight step with a clear
+message — nothing deploys by accident.
