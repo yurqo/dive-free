@@ -46,6 +46,21 @@ public struct EventMarker: Sendable, Equatable, Codable, Identifiable {
     }
 }
 
+/// One point of a dive's depth-over-time profile, with elapsed seconds since
+/// the dive started. `id` is the sample's position in time order, stable for
+/// chart selection within a single dive.
+public struct DepthProfilePoint: Sendable, Equatable, Identifiable {
+    public var id: Int
+    public var secondsFromStart: TimeInterval
+    public var depthMeters: Double
+
+    public init(id: Int, secondsFromStart: TimeInterval, depthMeters: Double) {
+        self.id = id
+        self.secondsFromStart = secondsFromStart
+        self.depthMeters = depthMeters
+    }
+}
+
 /// A single descent/ascent detected within a session.
 public struct Dive: Sendable, Equatable, Codable, Identifiable {
     public var id: UUID
@@ -55,6 +70,22 @@ public struct Dive: Sendable, Equatable, Codable, Identifiable {
     public var samples: [DepthSample]
 
     public var duration: TimeInterval { endTime.timeIntervalSince(startTime) }
+
+    /// Depth samples expressed as seconds-from-dive-start, ordered in time and
+    /// ready to plot (x = elapsed seconds, y = depth). Keeps charting code free
+    /// of timestamp math and makes the transform unit-testable.
+    public var depthProfile: [DepthProfilePoint] {
+        samples
+            .sorted { $0.timestamp < $1.timestamp }
+            .enumerated()
+            .map { index, sample in
+                DepthProfilePoint(
+                    id: index,
+                    secondsFromStart: sample.timestamp.timeIntervalSince(startTime),
+                    depthMeters: sample.depthMeters
+                )
+            }
+    }
 
     public init(
         id: UUID = UUID(),
