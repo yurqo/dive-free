@@ -67,6 +67,7 @@ let watchApp = Target.target(
         .target(name: "Domain"),
         .target(name: "Persistence"),
         .target(name: "Sensors"),
+        .target(name: "Session"),
         .target(name: "Sync"),
     ]
 )
@@ -110,6 +111,14 @@ let project = Project(
         + module("Persistence", dependencies: [.target(name: "Domain")])
         + module("Sensors", dependencies: [.target(name: "Domain")])
         + module("Sync", dependencies: [.target(name: "Domain")])
+        + module(
+            "Session",
+            dependencies: [
+                .target(name: "Domain"),
+                .target(name: "Sensors"),
+                .target(name: "Persistence"),
+            ]
+        )
         + module(
             "Strava",
             dependencies: [.target(name: "Domain")],
