@@ -80,6 +80,31 @@ struct SessionManagerTests {
         #expect(result == nil)
     }
 
+    @Test("markers added during session are persisted to SwiftData")
+    func persistsMarkersAddedDuringSession() async throws {
+        let (manager, store) = try makeManager()
+        defer { _ = store }
+
+        try await manager.startSession()
+        manager.addMarker(kind: .wildlife)
+        manager.addMarker(kind: .note)
+        try await Task.sleep(for: .milliseconds(50))
+        try manager.stopSession()
+
+        let records = try store.container.mainContext.fetch(FetchDescriptor<SessionRecord>())
+        #expect(records.count == 1)
+        let kinds = Set(records[0].markers.map { $0.kind })
+        #expect(kinds == Set(["wildlife", "note"]))
+    }
+
+    @Test("addMarker while idle is a no-op")
+    func addMarkerWhileIdleIsNoop() throws {
+        let (manager, store) = try makeManager()
+        defer { _ = store }
+        manager.addMarker(kind: .hazard)
+        #expect(manager.markers.isEmpty)
+    }
+
     @Test("live detection updates diveCount and maxDepthMeters before stopSession")
     func liveDetectionUpdatesWhileActive() async throws {
         let (manager, store) = try makeManager()
