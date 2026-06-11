@@ -39,6 +39,22 @@ struct SyncManagerTests {
         #expect(decoded == original)
     }
 
+    @Test("a session with markers survives the payload round trip")
+    func roundTripsWithMarkers() throws {
+        let original = DiveSession(
+            startTime: Date(timeIntervalSince1970: 0),
+            endTime: Date(timeIntervalSince1970: 600),
+            markers: [
+                EventMarker(timestamp: Date(timeIntervalSince1970: 30), kind: .wildlife, text: "turtle"),
+                EventMarker(timestamp: Date(timeIntervalSince1970: 90), kind: .hazard),
+            ]
+        )
+        let data = try JSONEncoder().encode(original)
+        let decoded = try JSONDecoder().decode(DiveSession.self, from: data)
+        #expect(decoded == original)
+        #expect(decoded.markers.count == 2)
+    }
+
     @Test("send hands the payload to the transport and marks it pending")
     func sendQueuesPayload() throws {
         let recorder = TransferRecorder()
