@@ -35,9 +35,16 @@ public final class SessionManager {
     /// Running maximum depth observed during the current session (0 when idle).
     public private(set) var maxDepthMeters: Double = 0
 
+    /// Called on `@MainActor` each time a haptic event fires. Install this from
+    /// the app layer (`SessionCoordinator`) to play haptics without importing
+    /// WatchKit into a testable package.
+    @ObservationIgnored
+    public var onHapticEvent: (@MainActor (DiveHapticEvent) -> Void)?
+
     private let sensors: SensorManager
     private let detector: DiveDetector
     private let modelContext: ModelContext
+    private var hapticTracker: DiveHapticTracker
 
     public init(
         sensors: SensorManager = SensorManager(),
@@ -47,6 +54,9 @@ public final class SessionManager {
         self.sensors = sensors
         self.detector = detector
         self.modelContext = modelContext
+        self.hapticTracker = DiveHapticTracker(
+            config: DiveHapticConfig(surfaceThresholdMeters: detector.config.surfaceThresholdMeters)
+        )
     }
 
     /// Starts the depth sensor and marks the session as active.
@@ -54,17 +64,23 @@ public final class SessionManager {
         guard !isActive else { return }
         dives = []
         maxDepthMeters = 0
+        hapticTracker = DiveHapticTracker(
+            config: DiveHapticConfig(surfaceThresholdMeters: detector.config.surfaceThresholdMeters)
+        )
         sensors.onSamplesChanged = { [weak self] in self?.refreshDetection() }
         try await sensors.start()
         startTime = Date()
         isActive = true
     }
 
-    /// Re-runs dive detection over all accumulated samples and updates the
-    /// running depth maximum. Called on every ingested sample via `onSamplesChanged`.
+    /// Re-runs dive detection over all accumulated samples, updates the
+    /// running depth maximum, and fires haptic events for depth transitions.
+    /// Called on every ingested sample via `onSamplesChanged`.
     private func refreshDetection() {
         dives = detector.detectDives(from: sensors.samples)
         maxDepthMeters = max(maxDepthMeters, sensors.currentDepthMeters)
+        let events = hapticTracker.update(depthMeters: sensors.currentDepthMeters)
+        for event in events { onHapticEvent?(event) }
     }
 
     /// Stops sensing, runs a final dive detection pass, persists the session,

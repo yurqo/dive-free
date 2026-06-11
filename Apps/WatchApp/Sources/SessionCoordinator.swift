@@ -36,6 +36,7 @@ final class SessionCoordinator {
 
     init(modelContext: ModelContext) {
         sessionManager = SessionManager(modelContext: modelContext)
+        sessionManager.onHapticEvent = { DiveHapticPlayer.play($0) }
         sync.activate()
     }
 
