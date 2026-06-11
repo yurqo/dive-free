@@ -10,6 +10,9 @@ public enum DiveHapticEvent: Sendable, Equatable {
     case descendMilestone(depthMeters: Double)
     /// The diver passed a depth milestone on the way up.
     case ascendMilestone(depthMeters: Double)
+    /// A user action was confirmed — an event marker was placed, or a
+    /// Crown-menu action fired. Used as touch-free input acknowledgement.
+    case markerPlaced
 }
 
 /// Thresholds that control when haptic events fire.

@@ -16,6 +16,8 @@ enum DiveHapticPlayer {
             type = .directionDown
         case .ascendMilestone:
             type = .directionUp
+        case .markerPlaced:
+            type = .success
         }
         WKInterfaceDevice.current().play(type)
     }
