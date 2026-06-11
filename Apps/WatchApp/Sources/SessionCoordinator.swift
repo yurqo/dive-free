@@ -97,6 +97,11 @@ final class SessionCoordinator {
     /// iPhone. Drives the post-session pending/synced badge.
     private(set) var pendingSyncCount = 0
 
+    /// Set when a session fails to start (HealthKit/sensor unavailable or
+    /// permission denied) so the idle screen can explain it instead of silently
+    /// doing nothing. Cleared on the next start attempt.
+    private(set) var startError: String?
+
     func addMarker(kind: EventKind) {
         sessionManager.addMarker(kind: kind)
     }
@@ -163,6 +168,7 @@ final class SessionCoordinator {
 
     func start() async {
         guard state == .idle else { return }
+        startError = nil
         do {
             try await workout.requestAuthorization()
             try await workout.start()
@@ -171,8 +177,10 @@ final class SessionCoordinator {
             pendingEndConfirmation = false
             state = .active(start: sessionManager.startTime ?? Date())
         } catch {
-            // Graceful fallback: HealthKit unavailable on simulator,
-            // or sensor unavailable — stay idle so the app remains usable.
+            // HealthKit unavailable (e.g. simulator), sensor unavailable, or
+            // permission denied. Surface it so the diver can fix permissions and
+            // retry, rather than tapping Start to no effect.
+            startError = "Couldn't start the session. Check that Motion and Health access are allowed for Dive Free in Settings, then try again."
             state = .idle
         }
     }
