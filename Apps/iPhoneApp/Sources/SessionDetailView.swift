@@ -22,6 +22,18 @@ struct SessionDetailView: View {
                 }
             }
 
+            Section("Location") {
+                if let location = domain.location {
+                    SessionMapView(location: location)
+                        .frame(height: 220)
+                        .listRowInsets(EdgeInsets())
+                } else {
+                    // GPS rarely fixes underwater, so a missing location is normal.
+                    Label("No location recorded", systemImage: "location.slash")
+                        .foregroundStyle(.secondary)
+                }
+            }
+
             if domain.dives.isEmpty {
                 ContentUnavailableView(
                     "No Dives",
