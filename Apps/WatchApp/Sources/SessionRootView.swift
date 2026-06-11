@@ -16,6 +16,7 @@ struct SessionRootView: View {
     @FocusState private var menuFocused: Bool
 
     var body: some View {
+        @Bindable var session = session
         VStack(spacing: 10) {
             switch session.state {
             case .idle:
@@ -37,9 +38,20 @@ struct SessionRootView: View {
                     actionCarousel
                     hint
                 }
+
+            case .summary(let completed):
+                summaryView(completed)
             }
         }
         .padding()
+        .confirmationDialog(
+            "End session?",
+            isPresented: $session.pendingEndConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("End Session", role: .destructive) { session.confirmEnd() }
+            Button("Cancel", role: .cancel) {}
+        }
         .focusable(isActive)
         .focused($menuFocused)
         .digitalCrownRotation(
@@ -160,6 +172,71 @@ struct SessionRootView: View {
             .font(.caption2)
             .foregroundStyle(.secondary)
             .multilineTextAlignment(.center)
+    }
+
+    // MARK: - Post-session summary
+
+    private func summaryView(_ completed: DiveSession) -> some View {
+        ScrollView {
+            VStack(spacing: 8) {
+                Image(systemName: "checkmark.seal.fill")
+                    .font(.title2)
+                    .foregroundStyle(.teal)
+                Text("Session Complete")
+                    .font(.headline)
+
+                VStack(spacing: 4) {
+                    summaryRow("Total", Duration.seconds(completed.totalDuration).formatted(.time(pattern: .hourMinuteSecond)))
+                    summaryRow("Dives", "\(completed.diveCount)")
+                    summaryRow("Max depth", String(format: "%.1f m", completed.maxDepthMeters))
+                    if let average = completed.averageSurfaceInterval {
+                        summaryRow("Avg surface", Duration.seconds(average).formatted(.time(pattern: .minuteSecond)))
+                    }
+                }
+
+                markerSummary(completed)
+
+                Button("Done") { session.dismissSummary() }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.teal)
+            }
+        }
+    }
+
+    private func summaryRow(_ label: String, _ value: String) -> some View {
+        HStack {
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            Spacer()
+            Text(value)
+                .font(.caption)
+                .monospacedDigit()
+        }
+    }
+
+    @ViewBuilder
+    private func markerSummary(_ completed: DiveSession) -> some View {
+        let counts = completed.markerCountsByKind
+        if counts.isEmpty {
+            Text("No markers")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        } else {
+            VStack(spacing: 2) {
+                Text("\(completed.markers.count) markers")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                Text(
+                    counts
+                        .sorted { $0.key.rawValue < $1.key.rawValue }
+                        .map { "\($0.value) \($0.key.rawValue)" }
+                        .joined(separator: " · ")
+                )
+                .font(.caption2)
+                .multilineTextAlignment(.center)
+            }
+        }
     }
 }
 

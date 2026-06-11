@@ -83,6 +83,29 @@ public struct DiveSession: Sendable, Equatable, Codable, Identifiable {
     public var maxDepthMeters: Double { dives.map(\.maxDepthMeters).max() ?? 0 }
     public var diveCount: Int { dives.count }
 
+    /// Total wall-clock duration of the session, or 0 while still in progress.
+    public var totalDuration: TimeInterval {
+        guard let endTime else { return 0 }
+        return endTime.timeIntervalSince(startTime)
+    }
+
+    /// Mean surface interval (recovery time) between consecutive dives, or `nil`
+    /// with fewer than two dives. Dives are ordered by start time before pairing,
+    /// and negative gaps from overlapping dives are clamped to zero.
+    public var averageSurfaceInterval: TimeInterval? {
+        let ordered = dives.sorted { $0.startTime < $1.startTime }
+        guard ordered.count >= 2 else { return nil }
+        let total = zip(ordered, ordered.dropFirst()).reduce(0.0) { sum, pair in
+            sum + max(0, pair.1.startTime.timeIntervalSince(pair.0.endTime))
+        }
+        return total / Double(ordered.count - 1)
+    }
+
+    /// Count of placed markers grouped by kind.
+    public var markerCountsByKind: [EventKind: Int] {
+        markers.reduce(into: [:]) { counts, marker in counts[marker.kind, default: 0] += 1 }
+    }
+
     public init(
         id: UUID = UUID(),
         startTime: Date,

@@ -19,6 +19,8 @@ final class SessionCoordinator {
     enum State: Equatable {
         case idle
         case active(start: Date)
+        /// Stopped: showing the post-session summary until the diver dismisses it.
+        case summary(DiveSession)
     }
 
     /// A single Crown-menu action. On the surface the diver scrolls to one of
@@ -86,6 +88,11 @@ final class SessionCoordinator {
     /// Index of the currently highlighted menu item (Crown-driven).
     private(set) var focusedIndex: Int = 0
 
+    /// True while the end-session confirmation dialog should be shown. Confirming
+    /// End (Crown + Action button, or a tap) arms this rather than ending
+    /// immediately, so an accidental confirm can't cut a session short.
+    var pendingEndConfirmation = false
+
     func addMarker(kind: EventKind) {
         sessionManager.addMarker(kind: kind)
     }
@@ -106,8 +113,20 @@ final class SessionCoordinator {
             addMarker(kind: kind)
             DiveHapticPlayer.play(.markerPlaced)
         case .end:
-            Task { await stop() }
+            pendingEndConfirmation = true
         }
+    }
+
+    /// Confirms the armed end-session request and tears the session down.
+    func confirmEnd() {
+        pendingEndConfirmation = false
+        Task { await stop() }
+    }
+
+    /// Dismisses the post-session summary and returns to the start screen.
+    func dismissSummary() {
+        guard case .summary = state else { return }
+        state = .idle
     }
 
     /// Context-sensitive Action-button handler. Submerged → drop a `.note`
@@ -142,6 +161,7 @@ final class SessionCoordinator {
             try await workout.start()
             try await sessionManager.startSession()
             focusedIndex = 0
+            pendingEndConfirmation = false
             state = .active(start: sessionManager.startTime ?? Date())
         } catch {
             // Graceful fallback: HealthKit unavailable on simulator,
@@ -159,8 +179,10 @@ final class SessionCoordinator {
         let session = try? sessionManager.stopSession()
         if let session {
             try? sync.send(session)
+            state = .summary(session)
+        } else {
+            state = .idle
         }
-        state = .idle
         return session
     }
 }
