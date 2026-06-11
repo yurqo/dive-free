@@ -26,6 +26,15 @@ public final class SessionManager {
         return Date().timeIntervalSince(startTime)
     }
 
+    /// Finalized dives detected so far in the current session (live, updated per sample).
+    public private(set) var dives: [Dive] = []
+
+    /// Number of finalized dives in the current session.
+    public var diveCount: Int { dives.count }
+
+    /// Running maximum depth observed during the current session (0 when idle).
+    public private(set) var maxDepthMeters: Double = 0
+
     private let sensors: SensorManager
     private let detector: DiveDetector
     private let modelContext: ModelContext
@@ -43,24 +52,38 @@ public final class SessionManager {
     /// Starts the depth sensor and marks the session as active.
     public func startSession() async throws {
         guard !isActive else { return }
+        dives = []
+        maxDepthMeters = 0
+        sensors.onSamplesChanged = { [weak self] in self?.refreshDetection() }
         try await sensors.start()
         startTime = Date()
         isActive = true
     }
 
-    /// Stops sensing, runs dive detection, persists the session, and returns the
-    /// completed `DiveSession` domain value (nil if no session was active).
+    /// Re-runs dive detection over all accumulated samples and updates the
+    /// running depth maximum. Called on every ingested sample via `onSamplesChanged`.
+    private func refreshDetection() {
+        dives = detector.detectDives(from: sensors.samples)
+        maxDepthMeters = max(maxDepthMeters, sensors.currentDepthMeters)
+    }
+
+    /// Stops sensing, runs a final dive detection pass, persists the session,
+    /// and returns the completed `DiveSession` domain value (nil if no session
+    /// was active).
     @discardableResult
     public func stopSession() throws -> DiveSession? {
         guard isActive, let start = startTime else { return nil }
+        sensors.onSamplesChanged = nil
         sensors.stop()
-        let dives = detector.detectDives(from: sensors.samples)
-        let session = DiveSession(startTime: start, endTime: Date(), dives: dives)
+        let finalDives = detector.detectDives(from: sensors.samples)
+        let session = DiveSession(startTime: start, endTime: Date(), dives: finalDives)
         let record = SessionRecord(from: session)
         modelContext.insert(record)
         try modelContext.save()
         isActive = false
         startTime = nil
+        dives = []
+        maxDepthMeters = 0
         return session
     }
 }

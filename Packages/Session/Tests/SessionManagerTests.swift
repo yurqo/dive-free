@@ -79,4 +79,23 @@ struct SessionManagerTests {
         let result = try manager.stopSession()
         #expect(result == nil)
     }
+
+    @Test("live detection updates diveCount and maxDepthMeters before stopSession")
+    func liveDetectionUpdatesWhileActive() async throws {
+        let (manager, store) = try makeManager()
+        defer { _ = store }
+
+        try await manager.startSession()
+        // Let the mock burst (profile [0,2,5,8,5,2,0] at 0.01 s/sample) run.
+        try await Task.sleep(for: .milliseconds(200))
+
+        // Dives and max depth are live — detectable before stopping.
+        #expect(manager.diveCount >= 1)
+        #expect(manager.maxDepthMeters >= 8)
+
+        // After stopping, live state is reset.
+        try manager.stopSession()
+        #expect(manager.diveCount == 0)
+        #expect(manager.maxDepthMeters == 0)
+    }
 }
