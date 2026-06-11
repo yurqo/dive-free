@@ -10,9 +10,9 @@ import Sync
 /// dive detection, and local persistence to `SessionManager`, and keeps
 /// HealthKit and WatchConnectivity concerns here where they belong.
 ///
-/// Also owns the Crown-navigable action menu and its timeout confirmation, so
-/// the same focus/confirm state is reachable both from `SessionRootView` and
-/// from `AddMarkerIntent` (the Action button), which runs outside the view.
+/// Also owns the Crown-navigable action menu, so the same focus/confirm state
+/// is reachable both from `SessionRootView` and from `AddMarkerIntent` (the
+/// Action button), which runs outside the view.
 @MainActor
 @Observable
 final class SessionCoordinator {
@@ -22,8 +22,8 @@ final class SessionCoordinator {
     }
 
     /// A single Crown-menu action. On the surface the diver scrolls to one of
-    /// these and confirms it (Action button or timeout); underwater the Action
-    /// button drops a `.note` directly and the menu is reachable via timeout.
+    /// these and confirms it (Action button, or a tap); underwater the Action
+    /// button drops a `.note` directly and the menu can't be confirmed.
     enum SessionAction: Equatable, Identifiable {
         case mark(EventKind)
         case end

@@ -54,6 +54,12 @@ struct SessionRootView: View {
         .onChange(of: crownPosition) { _, newValue in
             session.focus(Int(newValue.rounded()))
         }
+        // On the surface the touchscreen works, so a tap is an equivalent
+        // confirm to the Action button — and the only fallback when no Action
+        // button is assigned. Underwater (water-locked) stray touches are inert.
+        .onTapGesture {
+            if isActive, !session.isSubmerged { session.confirmFocused() }
+        }
         .onChange(of: isActive) { _, active in
             if active {
                 // Re-sync the Crown's value with the coordinator's reset focus
@@ -125,7 +131,7 @@ struct SessionRootView: View {
     }
 
     private var hint: some View {
-        Text(session.isSubmerged ? "Action button → marker" : "Crown to choose · button to confirm")
+        Text(session.isSubmerged ? "Action button → marker" : "Crown to choose · tap or button to confirm")
             .font(.caption2)
             .foregroundStyle(.secondary)
             .multilineTextAlignment(.center)
