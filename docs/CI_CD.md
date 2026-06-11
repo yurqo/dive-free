@@ -73,7 +73,7 @@ Go to **GitHub → Settings → Secrets and variables → Actions** and add:
 | `APP_STORE_CONNECT_KEY_ID` | The Key ID shown in App Store Connect (e.g. `ABC1234DEF`) |
 | `APP_STORE_CONNECT_ISSUER_ID` | The Issuer ID shown on the same page (UUID format) |
 | `APP_STORE_CONNECT_API_KEY` | The `.p8` file contents, **base64-encoded**: `base64 -i AuthKey_XXX.p8 | pbcopy` |
-| `TEAM_ID` | Your Apple Team ID (10-char string shown in developer.apple.com under Membership) |
+| `APPLE_TEAM_ID` | Your Apple Team ID (10-char string shown in developer.apple.com under Membership) |
 
 ### Triggering delivery
 
@@ -81,7 +81,7 @@ The workflow trigger, the archive/export/upload steps, and the repo-root
 `ExportOptions.plist` are **already committed** — there's nothing left to
 uncomment. `ExportOptions.plist` deliberately omits `teamID`: the signing team is
 resolved from the App Store Connect API key (`-allowProvisioningUpdates`), and the
-archive is signed with the `TEAM_ID` secret via `DEVELOPMENT_TEAM`.
+archive is signed with the `APPLE_TEAM_ID` secret via `DEVELOPMENT_TEAM`.
 
 Once the prerequisites and secrets above are in place:
 
