@@ -13,7 +13,7 @@
   <false/>
   <!-- The signing team is resolved from the App Store Connect API key plus
        -allowProvisioningUpdates; the archive is already signed with the
-       TEAM_ID secret (DEVELOPMENT_TEAM), so no teamID is hardcoded here. -->
+       APPLE_TEAM_ID secret (DEVELOPMENT_TEAM), so no teamID is hardcoded here. -->
   <key>signingStyle</key>
   <string>automatic</string>
 </dict>
