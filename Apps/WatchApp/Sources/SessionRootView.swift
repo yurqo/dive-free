@@ -98,6 +98,20 @@ struct SessionRootView: View {
                     Text("Submerged")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
+                } else if let surfaceInterval = session.surfaceInterval {
+                    // Recovery timer between dives: counts up from the moment the
+                    // diver surfaces and resets on the next descent.
+                    Text(Duration.seconds(surfaceInterval).formatted(.time(pattern: .minuteSecond)))
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(
+                            isLuminanceReduced
+                                ? AnyShapeStyle(.primary)
+                                : AnyShapeStyle(surfaceReadinessColor(surfaceInterval))
+                        )
+                        .monospacedDigit()
+                    Text("Surface")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
                 } else {
                     Text(Duration.seconds(session.elapsedTime).formatted(.time(pattern: .minuteSecond)))
                         .font(.caption2)
@@ -128,6 +142,17 @@ struct SessionRootView: View {
             .foregroundStyle(tint)
         }
         .frame(width: 84, height: 84)
+    }
+
+    /// Coarse pacing cue for the surface-interval timer: warm while recovery is
+    /// fresh, cooling to green as the interval builds. A visual nudge only — not
+    /// safety guidance.
+    private func surfaceReadinessColor(_ interval: TimeInterval) -> Color {
+        switch interval {
+        case ..<30: .red
+        case ..<60: .orange
+        default: .green
+        }
     }
 
     private var hint: some View {
