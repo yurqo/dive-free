@@ -44,6 +44,16 @@ public final class SessionManager {
     /// Running maximum depth observed during the current session (0 when idle).
     public private(set) var maxDepthMeters: Double = 0
 
+    /// Start of the dive currently in progress, set on the surface-crossing
+    /// going down and cleared on return to the surface. `nil` when at the
+    /// surface or idle.
+    public private(set) var currentDiveStart: Date?
+
+    /// Elapsed time of the dive in progress, or `nil` when at the surface/idle.
+    public var currentDiveElapsed: TimeInterval? {
+        currentDiveStart.map { Date().timeIntervalSince($0) }
+    }
+
     /// Called on `@MainActor` each time a haptic event fires. Install this from
     /// the app layer (`SessionCoordinator`) to play haptics without importing
     /// WatchKit into a testable package.
@@ -74,6 +84,7 @@ public final class SessionManager {
         dives = []
         markers = []
         maxDepthMeters = 0
+        currentDiveStart = nil
         hapticTracker = DiveHapticTracker(
             config: DiveHapticConfig(surfaceThresholdMeters: detector.config.surfaceThresholdMeters)
         )
@@ -88,8 +99,16 @@ public final class SessionManager {
     /// Called on every ingested sample via `onSamplesChanged`.
     private func refreshDetection() {
         dives = detector.detectDives(from: sensors.samples)
-        maxDepthMeters = max(maxDepthMeters, sensors.currentDepthMeters)
-        let events = hapticTracker.update(depthMeters: sensors.currentDepthMeters)
+        let depth = sensors.currentDepthMeters
+        maxDepthMeters = max(maxDepthMeters, depth)
+        // Edge-track the in-progress dive: start the clock on the way down,
+        // clear it on return to the surface.
+        if depth > detector.config.surfaceThresholdMeters {
+            if currentDiveStart == nil { currentDiveStart = Date() }
+        } else {
+            currentDiveStart = nil
+        }
+        let events = hapticTracker.update(depthMeters: depth)
         for event in events { onHapticEvent?(event) }
     }
 
@@ -111,6 +130,7 @@ public final class SessionManager {
         dives = []
         markers = []
         maxDepthMeters = 0
+        currentDiveStart = nil
         return session
     }
 }

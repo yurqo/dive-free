@@ -33,6 +33,12 @@ final class SessionCoordinator {
     /// Number of markers placed in the current session.
     var markerCount: Int { sessionManager.markers.count }
 
+    /// True while the diver is below the surface threshold.
+    var isSubmerged: Bool { sessionManager.currentDiveStart != nil }
+
+    /// Elapsed time of the dive in progress, or `nil` at the surface.
+    var currentDiveElapsed: TimeInterval? { sessionManager.currentDiveElapsed }
+
     func addMarker(kind: EventKind) {
         sessionManager.addMarker(kind: kind)
     }
