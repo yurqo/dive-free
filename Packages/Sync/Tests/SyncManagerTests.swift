@@ -5,9 +5,9 @@ import Domain
 
 @Suite("SyncManager")
 struct SyncManagerTests {
-    @Test("a session survives a JSON encode/decode round trip")
-    func sessionRoundTrips() throws {
-        let original = DiveSession(
+    private func makeSession(id: UUID = UUID()) -> DiveSession {
+        DiveSession(
+            id: id,
             startTime: Date(timeIntervalSince1970: 0),
             endTime: Date(timeIntervalSince1970: 600),
             dives: [
@@ -19,10 +19,144 @@ struct SyncManagerTests {
             ],
             location: GeoPoint(latitude: 40.0, longitude: -70.0)
         )
+    }
 
+    /// Records every (id, data) handed to the transport.
+    private final class TransferRecorder: @unchecked Sendable {
+        private let lock = NSLock()
+        private(set) var calls: [(id: String, data: Data)] = []
+        func record(_ id: String, _ data: Data) {
+            lock.lock(); defer { lock.unlock() }
+            calls.append((id, data))
+        }
+    }
+
+    @Test("a session survives a JSON encode/decode round trip")
+    func sessionRoundTrips() throws {
+        let original = makeSession()
         let data = try JSONEncoder().encode(original)
         let decoded = try JSONDecoder().decode(DiveSession.self, from: data)
-
         #expect(decoded == original)
+    }
+
+    @Test("send hands the payload to the transport and marks it pending")
+    func sendQueuesPayload() throws {
+        let recorder = TransferRecorder()
+        let manager = SyncManager(performTransfer: { recorder.record($0, $1) })
+
+        #expect(manager.pendingCount == 0)
+        try manager.send(makeSession())
+
+        #expect(recorder.calls.count == 1)
+        #expect(manager.pendingCount == 1)
+    }
+
+    @Test("confirmed delivery clears the pending entry")
+    func completionClearsPending() throws {
+        let recorder = TransferRecorder()
+        let manager = SyncManager(performTransfer: { recorder.record($0, $1) })
+        try manager.send(makeSession())
+
+        let sent = recorder.calls[0]
+        manager.completeTransfer(id: sent.id, data: sent.data, error: nil)
+        #expect(manager.pendingCount == 0)
+    }
+
+    @Test("a failed transfer is retried and stays pending")
+    func failureRetries() throws {
+        struct TransferError: Error {}
+        let recorder = TransferRecorder()
+        let manager = SyncManager(performTransfer: { recorder.record($0, $1) })
+        try manager.send(makeSession())
+
+        let sent = recorder.calls[0]
+        manager.completeTransfer(id: sent.id, data: sent.data, error: TransferError())
+
+        #expect(recorder.calls.count == 2)            // original + retry
+        #expect(recorder.calls[1].id == sent.id)       // same payload
+        #expect(manager.pendingCount == 1)             // still outstanding
+    }
+
+    @Test("repeated failures stop auto-retrying after the cap")
+    func retryCapStopsStorm() throws {
+        struct TransferError: Error {}
+        let recorder = TransferRecorder()
+        let manager = SyncManager(performTransfer: { recorder.record($0, $1) })
+        try manager.send(makeSession())
+        let sent = recorder.calls[0]
+
+        // Drive far more failures than the cap; auto-retries must not run away.
+        for _ in 0..<20 {
+            manager.completeTransfer(id: sent.id, data: sent.data, error: TransferError())
+        }
+        // 1 original + at most a bounded number of retries (cap is 5).
+        #expect(recorder.calls.count <= 6)
+        #expect(manager.pendingCount == 1)            // still outstanding, not dropped
+
+        // A reachability-driven retry resets the budget and tries again.
+        manager.retryPending()
+        #expect(recorder.calls.count >= 7)
+    }
+
+    @Test("retryPending re-sends every outstanding payload")
+    func retryResendsAll() throws {
+        let recorder = TransferRecorder()
+        let manager = SyncManager(performTransfer: { recorder.record($0, $1) })
+        try manager.send(makeSession(id: UUID()))
+        try manager.send(makeSession(id: UUID()))
+
+        manager.retryPending()
+        #expect(recorder.calls.count == 4)             // 2 sends + 2 retries
+        #expect(manager.pendingCount == 2)
+    }
+
+    @Test("pending count changes are reported to the observer")
+    func reportsPendingCount() throws {
+        let recorder = TransferRecorder()
+        let manager = SyncManager(performTransfer: { recorder.record($0, $1) })
+        let counts = Mutex<[Int]>([])
+        manager.onPendingCountChange = { newCount in counts.withLock { $0.append(newCount) } }
+
+        try manager.send(makeSession())
+        let sent = recorder.calls[0]
+        manager.completeTransfer(id: sent.id, data: sent.data, error: nil)
+
+        #expect(counts.withLock { $0 } == [1, 0])
+    }
+
+    @Test("received payloads are decoded and forwarded")
+    func decodesIncoming() throws {
+        let manager = SyncManager(performTransfer: { _, _ in })
+        let original = makeSession()
+        let data = try JSONEncoder().encode(original)
+
+        let received = Mutex<DiveSession?>(nil)
+        manager.onReceiveSession = { session in received.withLock { $0 = session } }
+        manager.handleReceived([SyncManager.payloadKey: data, SyncManager.idKey: original.id.uuidString])
+
+        #expect(received.withLock { $0 } == original)
+    }
+
+    @Test("malformed payloads are ignored")
+    func ignoresGarbage() {
+        let manager = SyncManager(performTransfer: { _, _ in })
+        let received = Mutex<DiveSession?>(nil)
+        manager.onReceiveSession = { session in received.withLock { $0 = session } }
+
+        manager.handleReceived([:])
+        manager.handleReceived([SyncManager.payloadKey: Data([0x00, 0x01])])
+        #expect(received.withLock { $0 } == nil)
+    }
+}
+
+/// Minimal lock-guarded box so test observers can capture values from the
+/// arbitrary thread `SyncManager` callbacks fire on.
+private final class Mutex<Value>: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value: Value
+    init(_ value: Value) { self.value = value }
+    func withLock<R>(_ body: (inout Value) -> R) -> R {
+        lock.lock(); defer { lock.unlock() }
+        return body(&value)
     }
 }

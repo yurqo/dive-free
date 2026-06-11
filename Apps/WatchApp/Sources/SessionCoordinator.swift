@@ -93,6 +93,10 @@ final class SessionCoordinator {
     /// immediately, so an accidental confirm can't cut a session short.
     var pendingEndConfirmation = false
 
+    /// Number of sessions handed to sync but not yet confirmed delivered to the
+    /// iPhone. Drives the post-session pending/synced badge.
+    private(set) var pendingSyncCount = 0
+
     func addMarker(kind: EventKind) {
         sessionManager.addMarker(kind: kind)
     }
@@ -149,6 +153,9 @@ final class SessionCoordinator {
     init(modelContext: ModelContext) {
         sessionManager = SessionManager(modelContext: modelContext)
         sessionManager.onHapticEvent = { DiveHapticPlayer.play($0) }
+        sync.onPendingCountChange = { [weak self] count in
+            Task { @MainActor in self?.pendingSyncCount = count }
+        }
         sync.activate()
         // Let the Action-button intent route into this live coordinator.
         LiveSessionRegistry.shared.coordinator = self

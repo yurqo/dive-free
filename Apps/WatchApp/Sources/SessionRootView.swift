@@ -196,11 +196,26 @@ struct SessionRootView: View {
 
                 markerSummary(completed)
 
+                syncStatus
+
                 Button("Done") { session.dismissSummary() }
                     .buttonStyle(.borderedProminent)
                     .tint(.teal)
             }
         }
+    }
+
+    /// Background-safe transfer status for the just-finished session: still in
+    /// the WatchConnectivity queue, or confirmed delivered to the iPhone.
+    private var syncStatus: some View {
+        let pending = session.pendingSyncCount > 0
+        return Label(
+            pending ? "Syncing to iPhone…" : "Synced to iPhone",
+            systemImage: pending ? "arrow.triangle.2.circlepath" : "checkmark.icloud"
+        )
+        .font(.caption2)
+        .foregroundStyle(pending ? AnyShapeStyle(.secondary) : AnyShapeStyle(.teal))
+        .symbolVariant(pending ? .none : .fill)
     }
 
     private func summaryRow(_ label: String, _ value: String) -> some View {
