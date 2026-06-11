@@ -31,6 +31,21 @@ DerivedData reuse when available).
    `.xcresult` to open it in Xcode's Test Report navigator for the full failure
    details.
 
+### Building a signed app locally (archive)
+
+CI and tests build unsigned, so `DEVELOPMENT_TEAM` is empty by default. To
+produce a signed build/archive locally (e.g. to register App IDs or archive for
+the App Store), pass your Team ID via `TUIST_DEVELOPMENT_TEAM` when generating —
+Tuist only forwards `TUIST_`-prefixed variables into `Project.swift`:
+
+```sh
+TUIST_DEVELOPMENT_TEAM=YOURTEAMID tuist generate
+```
+
+The team is baked into every target; then **Product → Archive** in Xcode with
+automatic signing. (CI's TestFlight job passes the team to `xcodebuild` directly
+via the `APPLE_TEAM_ID` secret, so it doesn't need this.)
+
 ### Updating the Tuist version
 
 1. Run `brew upgrade tuist` locally and note the new version.

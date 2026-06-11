@@ -4,7 +4,12 @@ import Foundation
 // MARK: - Constants
 
 let bundlePrefix = "org.yurko.divefree"
-let developmentTeam = ProcessInfo.processInfo.environment["DEVELOPMENT_TEAM", default: ""]
+// Read from the `TUIST_DEVELOPMENT_TEAM` env var. Tuist sandboxes manifest
+// evaluation and only forwards `TUIST_`-prefixed variables (via `Environment`),
+// so a bare `DEVELOPMENT_TEAM` from the shell never reaches `ProcessInfo` here.
+// Empty by default → unsigned builds in CI/tests (which pass signing flags to
+// xcodebuild directly).
+let developmentTeam = Environment.developmentTeam.getString(default: "")
 let iOSVersion = "18.0"
 let watchVersion = "11.0"
 
