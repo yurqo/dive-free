@@ -84,18 +84,7 @@ public enum StravaOAuth {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-        // Sort for deterministic bodies (easier to test).
-        request.httpBody = fields
-            .sorted { $0.key < $1.key }
-            .map { "\(formEncode($0.key))=\(formEncode($0.value))" }
-            .joined(separator: "&")
-            .data(using: .utf8)
+        request.httpBody = FormEncoding.body(fields)
         return request
-    }
-
-    private static func formEncode(_ value: String) -> String {
-        var allowed = CharacterSet.alphanumerics
-        allowed.insert(charactersIn: "-._~")
-        return value.addingPercentEncoding(withAllowedCharacters: allowed) ?? value
     }
 }

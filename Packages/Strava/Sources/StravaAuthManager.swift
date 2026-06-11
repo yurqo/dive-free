@@ -67,6 +67,20 @@ public final class StravaAuthManager {
         return refreshed.accessToken
     }
 
+    /// Forces a token refresh regardless of the local expiry clock — used to
+    /// recover from a 401 (e.g. a server-side revocation or clock skew).
+    public func refreshedAccessToken() async throws -> String {
+        guard let tokens = store.load() else {
+            isConnected = false
+            throw StravaError.notAuthenticated
+        }
+        let request = StravaOAuth.refreshRequest(refreshToken: tokens.refreshToken, clientSecret: clientSecret)
+        let refreshed = try await exchangeTokens(request)
+        try store.save(refreshed)
+        isConnected = true
+        return refreshed.accessToken
+    }
+
     private func exchangeTokens(_ request: URLRequest) async throws -> StravaTokens {
         let (data, response) = try await perform(request)
         if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
