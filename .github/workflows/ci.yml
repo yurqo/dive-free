@@ -1,9 +1,11 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
   pull_request:
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+      - ".github/workflows/testflight.yml"
 
 # Cancel any in-progress run for the same branch when a new commit arrives.
 concurrency:
@@ -28,6 +30,13 @@ jobs:
       # Installs Tuist at the version pinned in mise.toml.
       - name: Install Tuist (via mise)
         uses: jdx/mise-action@v2
+
+      - name: Cache Tuist binaries
+        uses: actions/cache@v4
+        with:
+          path: ~/.tuist/Cache
+          key: tuist-${{ runner.os }}-${{ hashFiles('Project.swift') }}
+          restore-keys: tuist-${{ runner.os }}-
 
       # Regenerate the Xcode workspace from Project.swift.
       # The generated .xcodeproj/.xcworkspace are git-ignored; always regenerate on CI.
