@@ -39,7 +39,10 @@ struct SessionRootView: View {
                             .font(.title3.weight(.semibold))
                             .foregroundStyle(isLuminanceReduced ? AnyShapeStyle(.primary) : AnyShapeStyle(.teal))
                             .monospacedDigit()
-                        Text("Dive Time")
+                        // Measures time below the surface threshold, which begins
+                        // before a descent qualifies as a counted dive — hence
+                        // "Submerged" rather than "Dive Time".
+                        Text("Submerged")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     } else {
@@ -67,17 +70,19 @@ struct SessionRootView: View {
                         }
                         .buttonStyle(.bordered)
                     }
-                    .confirmationDialog("Add Marker", isPresented: $showMarkerPicker) {
-                        ForEach(EventKind.allCases, id: \.self) { kind in
-                            Button(kind.rawValue.capitalized) {
-                                session.addMarker(kind: kind)
-                            }
-                        }
-                    }
                 }
             }
         }
         .padding()
+        // Attached to the stable root so an open picker survives an Always On
+        // Display transition (which removes the inline controls above).
+        .confirmationDialog("Add Marker", isPresented: $showMarkerPicker) {
+            ForEach(EventKind.allCases, id: \.self) { kind in
+                Button(kind.rawValue.capitalized) {
+                    session.addMarker(kind: kind)
+                }
+            }
+        }
     }
 }
 
