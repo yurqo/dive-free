@@ -19,13 +19,18 @@ struct SessionListView: View {
                     )
                 } else {
                     List(sessions) { session in
-                        VStack(alignment: .leading) {
-                            Text(session.startTime, style: .date)
-                                .font(.headline)
-                            Text("\(session.dives.count) dives · max \(String(format: "%.1f", session.toDomain().maxDepthMeters)) m")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
+                        NavigationLink(value: session) {
+                            VStack(alignment: .leading) {
+                                Text(session.startTime, style: .date)
+                                    .font(.headline)
+                                Text("\(session.dives.count) dives · max \(String(format: "%.1f", session.toDomain().maxDepthMeters)) m")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
+                    }
+                    .navigationDestination(for: SessionRecord.self) { session in
+                        SessionDetailView(session: session)
                     }
                 }
             }
