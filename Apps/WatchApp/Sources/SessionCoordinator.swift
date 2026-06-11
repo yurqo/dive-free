@@ -30,6 +30,13 @@ final class SessionCoordinator {
     /// Running maximum depth (m) observed in the current session.
     var maxDepthMeters: Double { sessionManager.maxDepthMeters }
 
+    /// Number of markers placed in the current session.
+    var markerCount: Int { sessionManager.markers.count }
+
+    func addMarker(kind: EventKind) {
+        sessionManager.addMarker(kind: kind)
+    }
+
     private let sessionManager: SessionManager
     let workout = WorkoutController()
     private let sync = SyncManager()

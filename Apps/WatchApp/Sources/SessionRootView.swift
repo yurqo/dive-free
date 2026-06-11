@@ -1,10 +1,12 @@
 import SwiftUI
+import Domain
 import Persistence
 import Session
 
 /// Watch home: start a session, then watch live depth until you end it.
 struct SessionRootView: View {
     @Environment(SessionCoordinator.self) private var session
+    @State private var showMarkerPicker = false
 
     var body: some View {
         VStack(spacing: 12) {
@@ -34,14 +36,29 @@ struct SessionRootView: View {
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
                 }
-                Text("\(session.diveCount) dives · \(String(format: "%.1f", session.maxDepthMeters)) m max")
+                Text("\(session.diveCount) dives · \(String(format: "%.1f", session.maxDepthMeters)) m max · \(session.markerCount) markers")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
-                Button("End Session", role: .destructive) {
-                    Task { await session.stop() }
+                HStack {
+                    Button {
+                        showMarkerPicker = true
+                    } label: {
+                        Label("Mark", systemImage: "mappin")
+                    }
+                    .buttonStyle(.bordered)
+                    Button("End", role: .destructive) {
+                        Task { await session.stop() }
+                    }
+                    .buttonStyle(.bordered)
                 }
-                .buttonStyle(.bordered)
+                .confirmationDialog("Add Marker", isPresented: $showMarkerPicker) {
+                    ForEach(EventKind.allCases, id: \.self) { kind in
+                        Button(kind.rawValue.capitalized) {
+                            session.addMarker(kind: kind)
+                        }
+                    }
+                }
             }
         }
         .padding()

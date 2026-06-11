@@ -29,8 +29,17 @@ public final class SessionManager {
     /// Finalized dives detected so far in the current session (live, updated per sample).
     public private(set) var dives: [Dive] = []
 
+    /// Event markers placed by the user during the current session.
+    public private(set) var markers: [EventMarker] = []
+
     /// Number of finalized dives in the current session.
     public var diveCount: Int { dives.count }
+
+    /// Appends a timestamped marker to the current session. No-op when idle.
+    public func addMarker(kind: EventKind, text: String? = nil) {
+        guard isActive else { return }
+        markers.append(EventMarker(timestamp: Date(), kind: kind, text: text))
+    }
 
     /// Running maximum depth observed during the current session (0 when idle).
     public private(set) var maxDepthMeters: Double = 0
@@ -63,6 +72,7 @@ public final class SessionManager {
     public func startSession() async throws {
         guard !isActive else { return }
         dives = []
+        markers = []
         maxDepthMeters = 0
         hapticTracker = DiveHapticTracker(
             config: DiveHapticConfig(surfaceThresholdMeters: detector.config.surfaceThresholdMeters)
@@ -92,13 +102,14 @@ public final class SessionManager {
         sensors.onSamplesChanged = nil
         sensors.stop()
         let finalDives = detector.detectDives(from: sensors.samples)
-        let session = DiveSession(startTime: start, endTime: Date(), dives: finalDives)
+        let session = DiveSession(startTime: start, endTime: Date(), dives: finalDives, markers: markers)
         let record = SessionRecord(from: session)
         modelContext.insert(record)
         try modelContext.save()
         isActive = false
         startTime = nil
         dives = []
+        markers = []
         maxDepthMeters = 0
         return session
     }
