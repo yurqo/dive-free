@@ -1,8 +1,10 @@
 import ProjectDescription
+import Foundation
 
 // MARK: - Constants
 
 let bundlePrefix = "org.yurko.divefree"
+let developmentTeam = ProcessInfo.processInfo.environment["DEVELOPMENT_TEAM", default: ""]
 let iOSVersion = "18.0"
 let watchVersion = "11.0"
 
@@ -126,6 +128,8 @@ let project = Project(
         "SWIFT_STRICT_CONCURRENCY": "complete",
         "MARKETING_VERSION": "0.1.0",
         "CURRENT_PROJECT_VERSION": "1",
+        "DEVELOPMENT_TEAM": SettingValue(stringLiteral: developmentTeam),
+        "CODE_SIGN_STYLE": "Automatic",
     ]),
     targets: [iphoneApp, watchApp]
         + module("Domain")

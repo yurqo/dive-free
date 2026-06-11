@@ -29,13 +29,13 @@ jobs:
           KEY_ID:    ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
           API_KEY:   ${{ secrets.APP_STORE_CONNECT_API_KEY }}
-          TEAM_ID:   ${{ secrets.TEAM_ID }}
+          TEAM_ID:   ${{ secrets.APPLE_TEAM_ID }}
         run: |
           missing=()
           [[ -z "$KEY_ID"    ]] && missing+=("APP_STORE_CONNECT_KEY_ID")
           [[ -z "$ISSUER_ID" ]] && missing+=("APP_STORE_CONNECT_ISSUER_ID")
           [[ -z "$API_KEY"   ]] && missing+=("APP_STORE_CONNECT_API_KEY")
-          [[ -z "$TEAM_ID"   ]] && missing+=("TEAM_ID")
+          [[ -z "$TEAM_ID"   ]] && missing+=("APPLE_TEAM_ID")
 
           if [[ ${#missing[@]} -gt 0 ]]; then
             echo "❌ The following required secrets are not set:"
@@ -83,7 +83,7 @@ jobs:
       #       -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8 \
       #       -authenticationKeyID ${{ secrets.APP_STORE_CONNECT_KEY_ID }} \
       #       -authenticationKeyIssuerID ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }} \
-      #       DEVELOPMENT_TEAM=${{ secrets.TEAM_ID }} | xcbeautify
+      #       DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}" | xcbeautify
 
       # ── Export the .ipa ──────────────────────────────────────────────────────
       # TODO(CD): Create ExportOptions.plist (app-store method) and uncomment.
