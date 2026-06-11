@@ -19,4 +19,4 @@ Water Lock disables the touchscreen mid-dive, so the active-session UI is driven
 
 **One-time setup (Watch Ultra):** the diver must assign the action under **Settings → Action Button → App → Dive Free** (third-party Action-button actions are App Intents and cannot be claimed programmatically).
 
-> Foreground delivery of the Action-button press to the already-running app is the documented App Intents pattern but is unverified on-device; if a press launches a fresh process instead, fall back to an app-group store or `NSUserActivity` hand-off.
+Once the session is running, the assigned Action-button intent is delivered to the live app in the foreground — the same mechanism Apple's **Stopwatch** (Action button = lap) and **Workout** (Action button = segment) apps rely on; `openAppWhenRun = false` keeps the live screen foregrounded rather than launching a fresh context. Only exercisable on a physical Watch Ultra (the simulator has no Action button).
