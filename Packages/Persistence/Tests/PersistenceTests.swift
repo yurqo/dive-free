@@ -117,6 +117,23 @@ struct PersistenceTests {
         #expect(fetched.count == 2)
     }
 
+    @Test("round-trips an empty session with no dives or markers")
+    func roundTripsEmptySession() throws {
+        let store = try DiveStore(inMemory: true)
+        let context = store.container.mainContext
+
+        let session = DiveSession(startTime: Date(timeIntervalSince1970: 0), endTime: Date(timeIntervalSince1970: 60))
+        context.insert(SessionRecord(from: session))
+        try context.save()
+
+        let fetched = try context.fetch(FetchDescriptor<SessionRecord>())
+        #expect(fetched.count == 1)
+        let result = fetched[0].toDomain()
+        #expect(result.dives.isEmpty)
+        #expect(result.markers.isEmpty)
+        #expect(result.endTime == session.endTime)
+    }
+
     @Test("cascade-deletes dives and markers when the session is deleted")
     func cascadeDeletesChildren() throws {
         let store = try DiveStore(inMemory: true)
