@@ -1,4 +1,6 @@
 import SwiftUI
+import Persistence
+import Session
 
 /// Watch home: start a session, then watch live depth until you end it.
 struct SessionRootView: View {
@@ -25,6 +27,13 @@ struct SessionRootView: View {
                 Text("Current Depth")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                // Refresh once per second for the timer without manual State.
+                TimelineView(.periodic(from: .now, by: 1)) { _ in
+                    Text(Duration.seconds(session.elapsedTime).formatted(.time(pattern: .minuteSecond)))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
                 Button("End Session", role: .destructive) {
                     Task { await session.stop() }
                 }
@@ -37,5 +46,9 @@ struct SessionRootView: View {
 
 #Preview {
     SessionRootView()
-        .environment(SessionCoordinator())
+        .environment(
+            SessionCoordinator(
+                modelContext: try! DiveStore(inMemory: true).container.mainContext
+            )
+        )
 }

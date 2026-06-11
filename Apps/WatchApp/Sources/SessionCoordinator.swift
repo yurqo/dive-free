@@ -1,14 +1,14 @@
 import Foundation
 import Observation
+import SwiftData
 import Domain
 import Sensors
+import Session
 import Sync
 
-/// Application-layer coordinator for a live watch session. Owns the sensor stream,
-/// runs dive detection over the collected samples, and hands finished sessions to sync.
-///
-/// Lives in the Watch app (not a package) so the lower layers stay dependency-free:
-/// `Sensors` and `Sync` depend on `Domain`, and this glues them together.
+/// Application-layer coordinator for a live watch session. Delegates capture,
+/// dive detection, and local persistence to `SessionManager`, and keeps
+/// HealthKit and WatchConnectivity concerns here where they belong.
 @MainActor
 @Observable
 final class SessionCoordinator {
@@ -18,43 +18,45 @@ final class SessionCoordinator {
     }
 
     private(set) var state: State = .idle
-    let sensors: SensorManager
-    let workout = WorkoutController()
 
-    private let detector = DiveDetector()
+    var currentDepthMeters: Double { sessionManager.currentDepthMeters }
+
+    // Exposed so `SessionRootView` can bind to elapsed time.
+    var elapsedTime: TimeInterval { sessionManager.elapsedTime }
+
+    private let sessionManager: SessionManager
+    let workout = WorkoutController()
     private let sync = SyncManager()
 
-    init(sensors: SensorManager = SensorManager()) {
-        self.sensors = sensors
+    init(modelContext: ModelContext) {
+        sessionManager = SessionManager(modelContext: modelContext)
         sync.activate()
     }
-
-    var currentDepthMeters: Double { sensors.currentDepthMeters }
 
     func start() async {
         guard state == .idle else { return }
         do {
             try await workout.requestAuthorization()
             try await workout.start()
-            try await sensors.start()
-            state = .active(start: Date())
+            try await sessionManager.startSession()
+            state = .active(start: sessionManager.startTime ?? Date())
         } catch {
-            // On the simulator or when HealthKit is unavailable, workout.start()
-            // will throw. We still fall back cleanly to idle so dev builds work.
+            // Graceful fallback: HealthKit unavailable on simulator,
+            // or sensor unavailable — stay idle so the app remains usable.
             state = .idle
         }
     }
 
-    /// Ends the workout, stops sensing, builds the session from collected samples,
-    /// and queues it for the phone.
+    /// Ends the workout, stops the capture loop, persists locally, and queues
+    /// the session for delivery to the paired iPhone.
     @discardableResult
     func stop() async -> DiveSession? {
-        guard case let .active(start) = state else { return nil }
+        guard case .active = state else { return nil }
         await workout.end()
-        sensors.stop()
-        let dives = detector.detectDives(from: sensors.samples)
-        let session = DiveSession(startTime: start, endTime: Date(), dives: dives)
-        try? sync.send(session)
+        let session = try? sessionManager.stopSession()
+        if let session {
+            try? sync.send(session)
+        }
         state = .idle
         return session
     }
