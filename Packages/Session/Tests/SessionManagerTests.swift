@@ -13,10 +13,12 @@ struct SessionManagerTests {
     /// The caller must keep the returned `DiveStore` alive for the duration of the
     /// test — `ModelContext` does not retain its container, so releasing the store
     /// while the context is still in use causes a crash.
-    private func makeManager() throws -> (manager: SessionManager, store: DiveStore) {
+    private func makeManager(
+        profile: [Double] = [0, 2, 5, 8, 5, 2, 0]
+    ) throws -> (manager: SessionManager, store: DiveStore) {
         let store = try DiveStore(inMemory: true)
         let sensors = SensorManager(
-            provider: MockDepthProvider(interval: 0.01, profile: [0, 2, 5, 8, 5, 2, 0])
+            provider: MockDepthProvider(interval: 0.01, profile: profile)
         )
         // minimumDiveDuration: 0 — the mock burst is well under the default 3 s,
         // so at least one dive gets detected during the 100 ms sleep in persistsSession.
@@ -103,6 +105,36 @@ struct SessionManagerTests {
         defer { _ = store }
         manager.addMarker(kind: .hazard)
         #expect(manager.markers.isEmpty)
+    }
+
+    @Test("currentDiveStart is set while submerged and cleared on stop")
+    func currentDiveStartTracksSubmersion() async throws {
+        // Profile stays below the surface, so the diver is continuously submerged.
+        let (manager, store) = try makeManager(profile: [5, 5, 5])
+        defer { _ = store }
+
+        #expect(manager.currentDiveStart == nil) // idle
+        try await manager.startSession()
+        try await Task.sleep(for: .milliseconds(50))
+
+        #expect(manager.currentDiveStart != nil)
+        #expect((manager.currentDiveElapsed ?? -1) >= 0)
+
+        try manager.stopSession()
+        #expect(manager.currentDiveStart == nil)
+        #expect(manager.currentDiveElapsed == nil)
+    }
+
+    @Test("currentDiveStart stays nil while at the surface")
+    func currentDiveStartNilAtSurface() async throws {
+        let (manager, store) = try makeManager(profile: [0, 0])
+        defer { _ = store }
+
+        try await manager.startSession()
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(manager.currentDiveStart == nil)
+        #expect(manager.currentDiveElapsed == nil)
+        try manager.stopSession()
     }
 
     @Test("live detection updates diveCount and maxDepthMeters before stopSession")
