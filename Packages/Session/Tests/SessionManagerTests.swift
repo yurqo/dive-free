@@ -137,6 +137,64 @@ struct SessionManagerTests {
         try manager.stopSession()
     }
 
+    @Test("surfaceInterval is nil at the surface before any dive")
+    func surfaceIntervalNilBeforeFirstDive() async throws {
+        let (manager, store) = try makeManager(profile: [0, 0])
+        defer { _ = store }
+
+        try await manager.startSession()
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(manager.surfaceInterval == nil)
+        try manager.stopSession()
+    }
+
+    @Test("surfaceInterval is nil while continuously submerged")
+    func surfaceIntervalNilWhileSubmerged() async throws {
+        let (manager, store) = try makeManager(profile: [5, 5, 5])
+        defer { _ = store }
+
+        try await manager.startSession()
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(manager.currentDiveStart != nil)
+        #expect(manager.surfaceInterval == nil)
+        try manager.stopSession()
+    }
+
+    @Test("surfaceInterval starts counting after a dive ends at the surface")
+    func surfaceIntervalStartsAfterDive() async throws {
+        // Dive then surface, looped. Poll until we observe a surface moment that
+        // follows a counted dive (the looping mock alternates submerged/surface).
+        let (manager, store) = try makeManager(profile: [6, 6, 6, 6, 6, 0, 0, 0, 0, 0])
+        defer { _ = store }
+
+        try await manager.startSession()
+        var observed: TimeInterval?
+        for _ in 0..<200 {
+            if manager.diveCount >= 1, let interval = manager.surfaceInterval {
+                observed = interval
+                break
+            }
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        #expect(observed != nil)
+        #expect((observed ?? -1) >= 0)
+        try manager.stopSession()
+    }
+
+    @Test("surfaceInterval and lastSurfacedAt reset on stopSession")
+    func surfaceIntervalResetsOnStop() async throws {
+        let (manager, store) = try makeManager(profile: [6, 6, 6, 6, 6, 0, 0, 0, 0, 0])
+        defer { _ = store }
+
+        try await manager.startSession()
+        for _ in 0..<200 where manager.lastSurfacedAt == nil {
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        try manager.stopSession()
+        #expect(manager.lastSurfacedAt == nil)
+        #expect(manager.surfaceInterval == nil)
+    }
+
     @Test("live detection updates diveCount and maxDepthMeters before stopSession")
     func liveDetectionUpdatesWhileActive() async throws {
         let (manager, store) = try makeManager()

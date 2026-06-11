@@ -54,6 +54,20 @@ public final class SessionManager {
         currentDiveStart.map { Date().timeIntervalSince($0) }
     }
 
+    /// When the diver last returned to the surface after a completed dive. Set
+    /// on the surface-crossing going up and cleared on the next descent (and
+    /// while idle / before the first dive). `nil` whenever there is no surface
+    /// interval to show.
+    public private(set) var lastSurfacedAt: Date?
+
+    /// Seconds spent at the surface since the last dive ended, or `nil` when
+    /// submerged or before the first completed dive. Counts up between dives to
+    /// help the diver pace recovery, and resets when the next descent begins.
+    public var surfaceInterval: TimeInterval? {
+        guard currentDiveStart == nil, let lastSurfacedAt else { return nil }
+        return Date().timeIntervalSince(lastSurfacedAt)
+    }
+
     /// Called on `@MainActor` each time a haptic event fires. Install this from
     /// the app layer (`SessionCoordinator`) to play haptics without importing
     /// WatchKit into a testable package.
@@ -85,6 +99,7 @@ public final class SessionManager {
         markers = []
         maxDepthMeters = 0
         currentDiveStart = nil
+        lastSurfacedAt = nil
         hapticTracker = DiveHapticTracker(
             config: DiveHapticConfig(surfaceThresholdMeters: detector.config.surfaceThresholdMeters)
         )
@@ -102,10 +117,16 @@ public final class SessionManager {
         let depth = sensors.currentDepthMeters
         maxDepthMeters = max(maxDepthMeters, depth)
         // Edge-track the in-progress dive: start the clock on the way down,
-        // clear it on return to the surface.
+        // clear it on return to the surface. The surface interval is the mirror
+        // image — it starts when a counted dive ends and resets on the next
+        // descent.
         if depth > detector.config.surfaceThresholdMeters {
             if currentDiveStart == nil { currentDiveStart = Date() }
+            lastSurfacedAt = nil
         } else {
+            // Surfacing from a dive that actually counted starts the recovery
+            // clock; a brief dip that never qualified leaves it untouched.
+            if currentDiveStart != nil, !dives.isEmpty { lastSurfacedAt = Date() }
             currentDiveStart = nil
         }
         let events = hapticTracker.update(depthMeters: depth)
@@ -131,6 +152,7 @@ public final class SessionManager {
         markers = []
         maxDepthMeters = 0
         currentDiveStart = nil
+        lastSurfacedAt = nil
         return session
     }
 }

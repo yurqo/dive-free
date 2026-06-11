@@ -69,6 +69,10 @@ final class SessionCoordinator {
     /// Elapsed time below the surface threshold, or `nil` at the surface.
     var currentDiveElapsed: TimeInterval? { sessionManager.currentDiveElapsed }
 
+    /// Seconds at the surface since the last dive ended, or `nil` when submerged
+    /// or before the first completed dive. Drives the surface-interval timer.
+    var surfaceInterval: TimeInterval? { sessionManager.surfaceInterval }
+
     /// True while the diver is below the surface threshold. The Action button
     /// drops a marker when submerged and confirms the focused menu item when at
     /// the surface.
