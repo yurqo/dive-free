@@ -78,6 +78,45 @@ struct PersistenceTests {
         #expect(result.markers[0].text == "turtle")
     }
 
+    @Test("importSession stores a new session and is queryable")
+    func importStoresSession() throws {
+        let store = try DiveStore(inMemory: true)
+        let importer = SessionImporter(context: store.container.mainContext)
+
+        let session = DiveSession(startTime: Date(timeIntervalSince1970: 0))
+        let inserted = try importer.importSession(session)
+
+        #expect(inserted)
+        let fetched = try store.container.mainContext.fetch(FetchDescriptor<SessionRecord>())
+        #expect(fetched.count == 1)
+        #expect(fetched.first?.id == session.id)
+    }
+
+    @Test("importSession deduplicates by id across re-deliveries")
+    func importDeduplicates() throws {
+        let store = try DiveStore(inMemory: true)
+        let importer = SessionImporter(context: store.container.mainContext)
+
+        let session = DiveSession(startTime: Date(timeIntervalSince1970: 0))
+        #expect(try importer.importSession(session) == true)
+        #expect(try importer.importSession(session) == false)  // same id again
+
+        let fetched = try store.container.mainContext.fetch(FetchDescriptor<SessionRecord>())
+        #expect(fetched.count == 1)
+    }
+
+    @Test("importSession stores distinct sessions separately")
+    func importStoresDistinct() throws {
+        let store = try DiveStore(inMemory: true)
+        let importer = SessionImporter(context: store.container.mainContext)
+
+        #expect(try importer.importSession(DiveSession(startTime: Date(timeIntervalSince1970: 0))) == true)
+        #expect(try importer.importSession(DiveSession(startTime: Date(timeIntervalSince1970: 100))) == true)
+
+        let fetched = try store.container.mainContext.fetch(FetchDescriptor<SessionRecord>())
+        #expect(fetched.count == 2)
+    }
+
     @Test("cascade-deletes dives and markers when the session is deleted")
     func cascadeDeletesChildren() throws {
         let store = try DiveStore(inMemory: true)
