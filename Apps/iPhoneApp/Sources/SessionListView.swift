@@ -19,13 +19,24 @@ struct SessionListView: View {
                     )
                 } else {
                     List(sessions) { session in
+                        let domain = session.toDomain()
                         NavigationLink(value: session) {
-                            VStack(alignment: .leading) {
-                                Text(session.startTime, style: .date)
-                                    .font(.headline)
-                                Text("\(session.dives.count) dives · max \(String(format: "%.1f", session.toDomain().maxDepthMeters)) m")
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
+                            HStack(spacing: 12) {
+                                VStack(alignment: .leading) {
+                                    Text(session.startTime, style: .date)
+                                        .font(.headline)
+                                    Text("\(domain.diveCount) dives · max \(String(format: "%.1f", domain.maxDepthMeters)) m")
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                }
+                                if let location = domain.location {
+                                    Spacer()
+                                    // Static thumbnail; the full, interactive map is on the detail.
+                                    SessionMapView(location: location, interactive: false)
+                                        .frame(width: 72, height: 54)
+                                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                                        .allowsHitTesting(false)
+                                }
                             }
                         }
                     }
