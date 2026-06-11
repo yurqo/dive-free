@@ -1,18 +1,19 @@
 name: TestFlight
 
 # ─────────────────────────────────────────────────────────────────────────────
-# DISABLED: This workflow is manual-only (workflow_dispatch) until an Apple
-# Developer Program account and App Store Connect API key are configured.
+# Delivers the app to TestFlight on every `v*` tag (and on manual dispatch).
 #
-# To enable automatic delivery on tags, change the trigger to:
-#   on:
-#     push:
-#       tags: ['v*']
+# SAFE BY DEFAULT: the Preflight step fails fast with clear guidance if any
+# required secret is missing, so a tag pushed before the secrets/prerequisites
+# are configured exits early without attempting (or breaking) a real upload.
 #
-# See docs/CI_CD.md for the full prerequisites and setup steps.
+# See docs/CI_CD.md for the prerequisites (Apple Developer Program, bundle ID,
+# App Store Connect app record + API key) and the four repo secrets to add.
 # ─────────────────────────────────────────────────────────────────────────────
 on:
-  workflow_dispatch:
+  workflow_dispatch:        # manual runs (use this to validate before tagging)
+  push:
+    tags: ['v*']            # auto-deliver on version tags like v0.1.0
 
 jobs:
   testflight:
@@ -29,13 +30,13 @@ jobs:
           KEY_ID:    ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
           API_KEY:   ${{ secrets.APP_STORE_CONNECT_API_KEY }}
-          TEAM_ID:   ${{ secrets.APPLE_TEAM_ID }}
+          TEAM_ID:   ${{ secrets.TEAM_ID }}
         run: |
           missing=()
           [[ -z "$KEY_ID"    ]] && missing+=("APP_STORE_CONNECT_KEY_ID")
           [[ -z "$ISSUER_ID" ]] && missing+=("APP_STORE_CONNECT_ISSUER_ID")
           [[ -z "$API_KEY"   ]] && missing+=("APP_STORE_CONNECT_API_KEY")
-          [[ -z "$TEAM_ID"   ]] && missing+=("APPLE_TEAM_ID")
+          [[ -z "$TEAM_ID"   ]] && missing+=("TEAM_ID")
 
           if [[ ${#missing[@]} -gt 0 ]]; then
             echo "❌ The following required secrets are not set:"
@@ -58,55 +59,48 @@ jobs:
         run: tuist generate --no-open
 
       # ── Write the App Store Connect API key to disk ──────────────────────────
-      # TODO(CD): Uncomment and fill in once an App Store Connect app record exists.
-      #
-      # - name: Write App Store Connect API key
-      #   env:
-      #     API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
-      #   run: |
-      #     mkdir -p ~/.appstoreconnect/private_keys
-      #     echo "$API_KEY_BASE64" | base64 --decode \
-      #       > ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8
+      - name: Write App Store Connect API key
+        env:
+          API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+          KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+        run: |
+          mkdir -p ~/.appstoreconnect/private_keys
+          echo "$API_KEY_BASE64" | base64 --decode \
+            > ~/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8
 
       # ── Archive the iPhone app (embeds Watch app) ────────────────────────────
-      # TODO(CD): Uncomment once signing is configured.
-      #
-      # - name: Archive
-      #   run: |
-      #     set -o pipefail
-      #     xcodebuild archive \
-      #       -workspace DiveFree.xcworkspace \
-      #       -scheme DiveFree \
-      #       -destination "generic/platform=iOS" \
-      #       -archivePath DiveFree.xcarchive \
-      #       -allowProvisioningUpdates \
-      #       -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8 \
-      #       -authenticationKeyID ${{ secrets.APP_STORE_CONNECT_KEY_ID }} \
-      #       -authenticationKeyIssuerID ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }} \
-      #       DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}" | xcbeautify
+      - name: Archive
+        run: |
+          set -o pipefail
+          xcodebuild archive \
+            -workspace DiveFree.xcworkspace \
+            -scheme DiveFree \
+            -destination "generic/platform=iOS" \
+            -archivePath DiveFree.xcarchive \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8 \
+            -authenticationKeyID ${{ secrets.APP_STORE_CONNECT_KEY_ID }} \
+            -authenticationKeyIssuerID ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }} \
+            DEVELOPMENT_TEAM="${{ secrets.TEAM_ID }}" | xcbeautify
 
       # ── Export the .ipa ──────────────────────────────────────────────────────
-      # TODO(CD): Create ExportOptions.plist (app-store method) and uncomment.
-      #
-      # - name: Export IPA
-      #   run: |
-      #     set -o pipefail
-      #     xcodebuild -exportArchive \
-      #       -archivePath DiveFree.xcarchive \
-      #       -exportPath DiveFree-export \
-      #       -exportOptionsPlist ExportOptions.plist \
-      #       -allowProvisioningUpdates \
-      #       -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8 \
-      #       -authenticationKeyID ${{ secrets.APP_STORE_CONNECT_KEY_ID }} \
-      #       -authenticationKeyIssuerID ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }} | xcbeautify
+      - name: Export IPA
+        run: |
+          set -o pipefail
+          xcodebuild -exportArchive \
+            -archivePath DiveFree.xcarchive \
+            -exportPath DiveFree-export \
+            -exportOptionsPlist ExportOptions.plist \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8 \
+            -authenticationKeyID ${{ secrets.APP_STORE_CONNECT_KEY_ID }} \
+            -authenticationKeyIssuerID ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }} | xcbeautify
 
       # ── Upload to TestFlight ─────────────────────────────────────────────────
-      # TODO(CD): Uncomment once export step is working.
-      #
-      # - name: Upload to TestFlight
-      #   run: |
-      #     xcrun altool --upload-app \
-      #       --type ios \
-      #       --file "DiveFree-export/DiveFree.ipa" \
-      #       --apiKey ${{ secrets.APP_STORE_CONNECT_KEY_ID }} \
-      #       --apiIssuer ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      - name: Upload to TestFlight
+        run: |
+          xcrun altool --upload-app \
+            --type ios \
+            --file "DiveFree-export/DiveFree.ipa" \
+            --apiKey ${{ secrets.APP_STORE_CONNECT_KEY_ID }} \
+            --apiIssuer ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- App Store / TestFlight distribution. -->
+  <key>method</key>
+  <string>app-store</string>
+  <!-- Upload dSYMs so crashes are symbolicated in App Store Connect. -->
+  <key>uploadSymbols</key>
+  <true/>
+  <key>uploadBitcode</key>
+  <false/>
+  <!-- The signing team is resolved from the App Store Connect API key plus
+       -allowProvisioningUpdates; the archive is already signed with the
+       TEAM_ID secret (DEVELOPMENT_TEAM), so no teamID is hardcoded here. -->
+  <key>signingStyle</key>
+  <string>automatic</string>
+</dict>
+</plist>
