@@ -11,6 +11,11 @@ public final class SensorManager {
     public private(set) var samples: [DepthSample] = []
     public private(set) var isRunning = false
 
+    /// Called on `@MainActor` after every ingested sample. Install this from
+    /// `SessionManager` to drive live dive detection without tight coupling.
+    @ObservationIgnored
+    public var onSamplesChanged: (@MainActor () -> Void)?
+
     private let provider: DepthProvider
     private var streamTask: Task<Void, Never>?
 
@@ -36,10 +41,12 @@ public final class SensorManager {
         streamTask = nil
         provider.stop()
         isRunning = false
+        onSamplesChanged = nil
     }
 
     private func ingest(_ sample: DepthSample) {
         samples.append(sample)
         currentDepthMeters = sample.depthMeters
+        onSamplesChanged?()
     }
 }

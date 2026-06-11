@@ -12,7 +12,7 @@ public struct DiveDetectionConfig: Sendable, Equatable {
     public init(
         surfaceThresholdMeters: Double = 1.0,
         minimumDiveDepthMeters: Double = 1.5,
-        minimumDiveDuration: TimeInterval = 3
+        minimumDiveDuration: TimeInterval = 5
     ) {
         self.surfaceThresholdMeters = surfaceThresholdMeters
         self.minimumDiveDepthMeters = minimumDiveDepthMeters

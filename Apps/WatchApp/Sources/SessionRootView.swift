@@ -34,6 +34,10 @@ struct SessionRootView: View {
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
                 }
+                Text("\(session.diveCount) dives · \(String(format: "%.1f", session.maxDepthMeters)) m max")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
                 Button("End Session", role: .destructive) {
                     Task { await session.stop() }
                 }

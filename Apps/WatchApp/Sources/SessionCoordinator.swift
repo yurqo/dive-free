@@ -24,6 +24,12 @@ final class SessionCoordinator {
     // Exposed so `SessionRootView` can bind to elapsed time.
     var elapsedTime: TimeInterval { sessionManager.elapsedTime }
 
+    /// Number of finalized dives detected so far in the current session.
+    var diveCount: Int { sessionManager.diveCount }
+
+    /// Running maximum depth (m) observed in the current session.
+    var maxDepthMeters: Double { sessionManager.maxDepthMeters }
+
     private let sessionManager: SessionManager
     let workout = WorkoutController()
     private let sync = SyncManager()
