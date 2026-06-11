@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/check-pr-ci.sh",
+            "statusMessage": "Checking CI status..."
+          }
+        ]
+      }
+    ]
+  }
+}
