@@ -2,7 +2,7 @@ import ProjectDescription
 
 // MARK: - Constants
 
-let bundlePrefix = "net.perekupko.divefree"
+let bundlePrefix = "org.yurko.divefree"
 let iOSVersion = "18.0"
 let watchVersion = "11.0"
 
@@ -51,6 +51,7 @@ let watchApp = Target.target(
     bundleId: "\(bundlePrefix).watchkitapp",
     deploymentTargets: .watchOS(watchVersion),
     infoPlist: .extendingDefault(with: [
+        "CFBundleDisplayName": "Dive Free",
         "WKApplication": true,
         "WKCompanionAppBundleIdentifier": "\(bundlePrefix)",
         "NSMotionUsageDescription": "Used to measure depth and movement while diving.",
@@ -79,13 +80,33 @@ let iphoneApp = Target.target(
     bundleId: "\(bundlePrefix)",
     deploymentTargets: .iOS(iOSVersion),
     infoPlist: .extendingDefault(with: [
+        "CFBundleDisplayName": "Dive Free",
         "UILaunchScreen": [:],
+        "LSApplicationCategoryType": "public.app-category.travel",
+        "UISupportedInterfaceOrientations": ["UIInterfaceOrientationPortrait"],
+        "UISupportedInterfaceOrientations~ipad": [
+            "UIInterfaceOrientationPortrait",
+            "UIInterfaceOrientationPortraitUpsideDown",
+            "UIInterfaceOrientationLandscapeLeft",
+            "UIInterfaceOrientationLandscapeRight",
+        ],
         "NSHealthShareUsageDescription": "Used to read your dive workouts.",
         "NSHealthUpdateUsageDescription": "Used to store your dive sessions.",
-        "NSLocationWhenInUseUsageDescription": "Used to show where your dives happen on the map.",
+        "NSLocationWhenInUseUsageDescription": "Used to record the location of your dive spots.",
+        "NSPhotoLibraryUsageDescription": "Used to attach photos to your dive spots, including shots imported from underwater cameras.",
+        "NSPhotoLibraryAddUsageDescription": "Used to save dive spot photos to your library.",
+        "NSCameraUsageDescription": "Used to take photos at your dive spots.",
+        "LSApplicationQueriesSchemes": ["strava"],
+        "CFBundleURLTypes": [
+            [
+                "CFBundleURLName": "org.yurko.divefree.strava-callback",
+                "CFBundleURLSchemes": ["divefree"],
+            ]
+        ],
     ]),
     sources: ["Apps/iPhoneApp/Sources/**"],
     resources: ["Apps/iPhoneApp/Resources/**"],
+    entitlements: .file(path: "Apps/iPhoneApp/DiveFree.entitlements"),
     dependencies: [
         .target(name: "Domain"),
         .target(name: "Persistence"),
