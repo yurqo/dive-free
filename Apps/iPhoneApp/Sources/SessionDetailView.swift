@@ -68,9 +68,13 @@ struct SessionDetailView: View {
                 Label("Exported to Strava", systemImage: "checkmark.circle.fill")
                     .foregroundStyle(.green)
             } else {
+                let isFailed = { if case .failed = exportStatus { return true } else { return false } }()
                 Button(action: { Task { await export(domain) } }) {
                     HStack {
-                        Label("Export to Strava", systemImage: "square.and.arrow.up")
+                        Label(
+                            isFailed ? "Retry Export" : "Export to Strava",
+                            systemImage: isFailed ? "arrow.clockwise" : "square.and.arrow.up"
+                        )
                         if exportStatus == .uploading {
                             Spacer()
                             ProgressView()
@@ -106,4 +110,38 @@ struct SessionDetailView: View {
             exportStatus = .failed("Export failed. Please try again.")
         }
     }
+}
+
+private struct SessionDetailPreview: View {
+    // SessionDetailView reads the record directly (no @Query), so no container needed.
+    private let record: SessionRecord = {
+        let t0 = Date()
+        let sample = DiveSession(
+            startTime: t0,
+            endTime: t0.addingTimeInterval(1_200),
+            dives: [
+                Dive(
+                    startTime: t0.addingTimeInterval(30),
+                    endTime: t0.addingTimeInterval(90),
+                    maxDepthMeters: 14.2,
+                    samples: (0...12).map { i in
+                        DepthSample(timestamp: t0.addingTimeInterval(30 + Double(i) * 5), depthMeters: Double(i) * 1.2)
+                    }
+                )
+            ],
+            location: GeoPoint(latitude: 20.5, longitude: -87.0)
+        )
+        return SessionRecord(from: sample)
+    }()
+
+    var body: some View {
+        NavigationStack {
+            SessionDetailView(session: record)
+        }
+        .environment(StravaAuthManager(store: InMemoryTokenStore(), webAuth: ASWebAuthenticationProvider()))
+    }
+}
+
+#Preview {
+    SessionDetailPreview()
 }

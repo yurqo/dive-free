@@ -60,3 +60,10 @@ struct SettingsView: View {
         }
     }
 }
+
+#Preview {
+    NavigationStack {
+        SettingsView()
+    }
+    .environment(StravaAuthManager(store: InMemoryTokenStore(), webAuth: ASWebAuthenticationProvider()))
+}

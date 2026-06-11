@@ -25,10 +25,16 @@ struct SessionRootView: View {
                     .foregroundStyle(.teal)
                 Text("Freedive")
                     .font(.headline)
-                Button("Start Session") {
+                Button(session.startError == nil ? "Start Session" : "Try Again") {
                     Task { await session.start() }
                 }
                 .buttonStyle(.borderedProminent)
+                if let startError = session.startError {
+                    Text(startError)
+                        .font(.caption2)
+                        .foregroundStyle(.orange)
+                        .multilineTextAlignment(.center)
+                }
 
             case .active:
                 stats
