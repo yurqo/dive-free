@@ -39,8 +39,16 @@ final class SessionCoordinator {
 
         var title: String {
             switch self {
-            case .mark(let kind): kind.rawValue.capitalized
+            case .mark(let kind): kind.label
             case .end: "End Session"
+            }
+        }
+
+        /// Emoji for marker actions; `nil` for End (which uses `systemImage`).
+        var emoji: String? {
+            switch self {
+            case .mark(let kind): kind.emoji
+            case .end: nil
             }
         }
 

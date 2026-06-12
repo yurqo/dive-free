@@ -39,6 +39,24 @@ struct DomainEdgeCaseTests {
         #expect(session.totalDuration == 120)
     }
 
+    @Test("event kinds expose emoji + label and no longer include a generic custom")
+    func eventKindMetadata() {
+        #expect(EventKind.allCases.count == 4)
+        #expect(EventKind(rawValue: "custom") == nil)
+        #expect(EventKind.wildlife.emoji == "🐠")
+        #expect(EventKind.hazard.emoji == "⚠️")
+        #expect(EventKind.note.label == "Note")
+        #expect(EventKind.photo.label == "Photo")
+    }
+
+    @Test("decoding an unknown/legacy kind falls back to note")
+    func decodesUnknownKindAsNote() throws {
+        let legacy = try JSONDecoder().decode(EventKind.self, from: Data("\"custom\"".utf8))
+        #expect(legacy == .note)
+        let wildlife = try JSONDecoder().decode(EventKind.self, from: Data("\"wildlife\"".utf8))
+        #expect(wildlife == .wildlife)  // known values still decode normally
+    }
+
     @Test("an empty session has zero depth, no dives, and no markers")
     func emptySession() {
         let session = DiveSession(startTime: t0)

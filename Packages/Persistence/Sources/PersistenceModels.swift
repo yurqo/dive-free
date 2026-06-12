@@ -104,7 +104,8 @@ public extension MarkerRecord {
         EventMarker(
             id: id,
             timestamp: timestamp,
-            kind: EventKind(rawValue: kind) ?? .custom,
+            // Unknown/legacy kinds (e.g. the old "custom") fall back to .note.
+            kind: EventKind(rawValue: kind) ?? .note,
             text: text
         )
     }
