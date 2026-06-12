@@ -30,7 +30,12 @@ struct SessionDetailView: View {
             }
 
             Section("Location") {
-                if let location = domain.location {
+                if !domain.track.isEmpty {
+                    // Full surface path + dive points + markers when we recorded a track.
+                    SessionTrackMapView(session: domain)
+                        .frame(height: 260)
+                        .listRowInsets(EdgeInsets())
+                } else if let location = domain.location {
                     SessionMapView(location: location)
                         .frame(height: 220)
                         .listRowInsets(EdgeInsets())

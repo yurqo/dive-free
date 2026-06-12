@@ -177,6 +177,21 @@ public struct Dive: Sendable, Equatable, Codable, Identifiable {
     }
 }
 
+/// A timestamped surface GPS fix. A session's `track` is the ordered series of
+/// these, captured while the diver is at the surface (GPS doesn't work
+/// underwater), forming the surface path drawn on the map.
+public struct TrackPoint: Sendable, Equatable, Codable, Identifiable {
+    public var id: UUID
+    public var timestamp: Date
+    public var location: GeoPoint
+
+    public init(id: UUID = UUID(), timestamp: Date, location: GeoPoint) {
+        self.id = id
+        self.timestamp = timestamp
+        self.location = location
+    }
+}
+
 /// A complete in-water session containing one or more dives.
 public struct DiveSession: Sendable, Equatable, Codable, Identifiable {
     public var id: UUID
@@ -185,9 +200,31 @@ public struct DiveSession: Sendable, Equatable, Codable, Identifiable {
     public var dives: [Dive]
     public var markers: [EventMarker]
     public var location: GeoPoint?
+    /// Ordered surface GPS fixes captured during the session (the surface path).
+    public var track: [TrackPoint]
 
     public var maxDepthMeters: Double { dives.map(\.maxDepthMeters).max() ?? 0 }
     public var diveCount: Int { dives.count }
+
+    /// Linearly-interpolated surface position at the given instant, clamped to
+    /// the track's endpoints. `nil` only when there is no track at all. Used to
+    /// place dive events and surface markers along the path by timestamp.
+    public func surfaceLocation(at time: Date) -> GeoPoint? {
+        let ordered = track.sorted { $0.timestamp < $1.timestamp }
+        guard let first = ordered.first, let last = ordered.last else { return nil }
+        if time <= first.timestamp { return first.location }
+        if time >= last.timestamp { return last.location }
+        for (a, b) in zip(ordered, ordered.dropFirst()) where time >= a.timestamp && time <= b.timestamp {
+            let span = b.timestamp.timeIntervalSince(a.timestamp)
+            guard span > 0 else { return a.location }
+            let f = time.timeIntervalSince(a.timestamp) / span
+            return GeoPoint(
+                latitude: a.location.latitude + (b.location.latitude - a.location.latitude) * f,
+                longitude: a.location.longitude + (b.location.longitude - a.location.longitude) * f
+            )
+        }
+        return last.location
+    }
 
     /// Total wall-clock duration of the session, or 0 while still in progress.
     public var totalDuration: TimeInterval {
@@ -212,13 +249,33 @@ public struct DiveSession: Sendable, Equatable, Codable, Identifiable {
         markers.reduce(into: [:]) { counts, marker in counts[marker.kind, default: 0] += 1 }
     }
 
+    /// Geographic position to draw an event marker at: along the surface path for
+    /// surface markers, or along the straight submersion→surfacing segment of the
+    /// dive that contains it for underwater markers. `nil` when there is no track.
+    public func markerLocation(_ marker: EventMarker) -> GeoPoint? {
+        if let dive = dives.first(where: { marker.timestamp >= $0.startTime && marker.timestamp <= $0.endTime }),
+           let submersion = surfaceLocation(at: dive.startTime),
+           let surfacing = surfaceLocation(at: dive.endTime) {
+            let span = dive.endTime.timeIntervalSince(dive.startTime)
+            let fraction = span > 0
+                ? max(0, min(1, marker.timestamp.timeIntervalSince(dive.startTime) / span))
+                : 0
+            return GeoPoint(
+                latitude: submersion.latitude + (surfacing.latitude - submersion.latitude) * fraction,
+                longitude: submersion.longitude + (surfacing.longitude - submersion.longitude) * fraction
+            )
+        }
+        return surfaceLocation(at: marker.timestamp)
+    }
+
     public init(
         id: UUID = UUID(),
         startTime: Date,
         endTime: Date? = nil,
         dives: [Dive] = [],
         markers: [EventMarker] = [],
-        location: GeoPoint? = nil
+        location: GeoPoint? = nil,
+        track: [TrackPoint] = []
     ) {
         self.id = id
         self.startTime = startTime
@@ -226,5 +283,23 @@ public struct DiveSession: Sendable, Equatable, Codable, Identifiable {
         self.dives = dives
         self.markers = markers
         self.location = location
+        self.track = track
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, startTime, endTime, dives, markers, location, track
+    }
+
+    /// Decoded leniently so payloads from an older app version (which had no
+    /// `track`) still decode — `track` simply defaults to empty.
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        startTime = try c.decode(Date.self, forKey: .startTime)
+        endTime = try c.decodeIfPresent(Date.self, forKey: .endTime)
+        dives = try c.decode([Dive].self, forKey: .dives)
+        markers = try c.decode([EventMarker].self, forKey: .markers)
+        location = try c.decodeIfPresent(GeoPoint.self, forKey: .location)
+        track = try c.decodeIfPresent([TrackPoint].self, forKey: .track) ?? []
     }
 }

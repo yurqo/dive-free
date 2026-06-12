@@ -86,9 +86,13 @@ public final class SessionManager {
     private var hapticTracker: DiveHapticTracker
 
     private let location: LocationProviding
-    /// Surface GPS fix captured for the current session, if any.
+    /// Surface GPS fix captured for the current session, if any (the first fix).
     private var capturedLocation: GeoPoint?
+    /// Ordered surface fixes captured during the session — the surface path.
+    private var track: [TrackPoint] = []
     private var locationTask: Task<Void, Never>?
+    /// Minimum spacing between recorded track points, to bound the track size.
+    private static let minTrackInterval: TimeInterval = 2
 
     public init(
         sensors: SensorManager = SensorManager(),
@@ -114,20 +118,34 @@ public final class SessionManager {
         currentDiveStart = nil
         lastSurfacedAt = nil
         capturedLocation = nil
+        track = []
         hapticTracker = DiveHapticTracker(
             config: DiveHapticConfig(surfaceThresholdMeters: detector.config.surfaceThresholdMeters)
         )
-        // Grab a surface GPS fix in the background — don't block the session
-        // start on it (and it just stays nil if denied/unavailable).
+        // Stream surface GPS fixes in the background to build the track — don't
+        // block the session start on it (it just stays empty if denied/
+        // unavailable). The first fix also tags the session location.
         locationTask = Task { [weak self] in
-            guard let provider = self?.location else { return }
-            let point = await provider.currentLocation()
-            self?.capturedLocation = point
+            guard let stream = self?.location.locationUpdates() else { return }
+            for await point in stream {
+                if Task.isCancelled { break }
+                self?.appendTrackPoint(point)
+            }
         }
         sensors.onSamplesChanged = { [weak self] in self?.refreshDetection() }
         try await sensors.start()
         startTime = Date()
         isActive = true
+    }
+
+    /// Records a surface GPS fix into the track, throttled to one per
+    /// `minTrackInterval` to bound the array, and tags the session location with
+    /// the first fix.
+    private func appendTrackPoint(_ point: GeoPoint) {
+        let now = Date()
+        if let last = track.last, now.timeIntervalSince(last.timestamp) < Self.minTrackInterval { return }
+        track.append(TrackPoint(timestamp: now, location: point))
+        if capturedLocation == nil { capturedLocation = point }
     }
 
     /// Re-runs dive detection over all accumulated samples, updates the
@@ -170,7 +188,8 @@ public final class SessionManager {
             endTime: Date(),
             dives: finalDives,
             markers: markers,
-            location: capturedLocation
+            location: capturedLocation,
+            track: track
         )
         let record = SessionRecord(from: session)
         modelContext.insert(record)
@@ -182,6 +201,7 @@ public final class SessionManager {
         maxDepthMeters = 0
         currentDiveStart = nil
         lastSurfacedAt = nil
+        track = []
         return session
     }
 }
