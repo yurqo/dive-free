@@ -10,6 +10,9 @@ public final class SessionRecord {
     public var endTime: Date?
     public var latitude: Double?
     public var longitude: Double?
+    // Surface track stored as an inline Codable blob. Defaulted for lightweight
+    // migration of rows created before tracks existed.
+    public var track: [TrackPoint] = []
 
     @Relationship(deleteRule: .cascade, inverse: \DiveRecord.session)
     public var dives: [DiveRecord]
@@ -23,6 +26,7 @@ public final class SessionRecord {
         endTime: Date? = nil,
         latitude: Double? = nil,
         longitude: Double? = nil,
+        track: [TrackPoint] = [],
         dives: [DiveRecord] = [],
         markers: [MarkerRecord] = []
     ) {
@@ -31,6 +35,7 @@ public final class SessionRecord {
         self.endTime = endTime
         self.latitude = latitude
         self.longitude = longitude
+        self.track = track
         self.dives = dives
         self.markers = markers
     }
@@ -156,7 +161,8 @@ public extension SessionRecord {
             endTime: endTime,
             dives: dives.map { $0.toDomain() },
             markers: markers.map { $0.toDomain() },
-            location: location
+            location: location,
+            track: track
         )
     }
 }
@@ -199,6 +205,7 @@ public extension SessionRecord {
             endTime: session.endTime,
             latitude: session.location?.latitude,
             longitude: session.location?.longitude,
+            track: session.track,
             dives: session.dives.map { DiveRecord(from: $0) },
             markers: session.markers.map { MarkerRecord(from: $0) }
         )
