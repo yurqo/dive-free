@@ -7,9 +7,33 @@ import Domain
 /// callout with the exact depth and clock time at that moment.
 struct DepthChartView: View {
     let dive: Dive
+    /// Markers placed during this dive, overlaid on the profile at the depth the
+    /// diver was at when each landed.
+    var markers: [EventMarker] = []
 
     /// X value (seconds from dive start) the user is scrubbing, if any.
     @State private var selectedSecond: TimeInterval?
+
+    /// Markers that fall within this dive's window, positioned on the profile.
+    private struct PlacedMarker: Identifiable {
+        let id: UUID
+        let emoji: String
+        let secondsFromStart: TimeInterval
+        let depthMeters: Double
+    }
+
+    private var placedMarkers: [PlacedMarker] {
+        markers.compactMap { marker in
+            guard marker.timestamp >= dive.startTime, marker.timestamp <= dive.endTime,
+                  let depth = dive.interpolatedDepth(at: marker.timestamp) else { return nil }
+            return PlacedMarker(
+                id: marker.id,
+                emoji: marker.kind.emoji,
+                secondsFromStart: marker.timestamp.timeIntervalSince(dive.startTime),
+                depthMeters: depth
+            )
+        }
+    }
 
     /// Sample nearest the scrubbed X position, for the callout.
     private func nearestPoint(in points: [DepthProfilePoint]) -> DepthProfilePoint? {
@@ -32,6 +56,18 @@ struct DepthChartView: View {
                 )
                 .interpolationMethod(.monotone)
                 .foregroundStyle(.teal)
+            }
+
+            ForEach(placedMarkers) { marker in
+                PointMark(
+                    x: .value("Elapsed", marker.secondsFromStart),
+                    y: .value("Depth", marker.depthMeters)
+                )
+                .symbolSize(0)
+                .annotation(position: .overlay, spacing: 0) {
+                    Text(marker.emoji)
+                        .font(.caption)
+                }
             }
 
             if let selectedPoint {
