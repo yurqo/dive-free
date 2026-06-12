@@ -39,6 +39,8 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     private var pending: [String: Data] = [:]
     /// Immediate re-send attempts per payload, to bound retry storms.
     private var attempts: [String: Int] = [:]
+    /// Last custom-marker context we tried to send, re-applied on activation.
+    private var outgoingContext: [String: Any]?
     /// After this many back-to-back failures a payload stops auto-retrying and
     /// waits for the next reachability-driven `retryPending`, rather than looping.
     private static let maxImmediateRetries = 5
@@ -78,9 +80,13 @@ public final class SyncManager: NSObject, @unchecked Sendable {
 
     /// Pushes the current custom-marker definitions to the counterpart device.
     /// Uses the application context (latest-wins), delivered in the background.
+    /// The context is also retained and re-applied once the session activates,
+    /// since a call made before activation (e.g. right at launch) is dropped.
     public func sendCustomMarkers(_ kinds: [MarkerKind]) {
         guard let data = try? encoder.encode(kinds) else { return }
-        applyContext([Self.markersKey: data])
+        let context = [Self.markersKey: data]
+        lock.lock(); outgoingContext = context; lock.unlock()
+        applyContext(context)
     }
 
     /// Decodes custom-marker definitions from an application context and forwards
@@ -159,6 +165,9 @@ extension SyncManager: WCSessionDelegate {
             retryPending()
             // Pick up the latest custom markers that arrived while we were off.
             handleApplicationContext(session.receivedApplicationContext)
+            // Re-apply any context we tried to send before activation completed.
+            lock.lock(); let outgoing = outgoingContext; lock.unlock()
+            if let outgoing { applyContext(outgoing) }
         }
     }
 
