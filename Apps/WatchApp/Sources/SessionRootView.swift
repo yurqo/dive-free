@@ -20,20 +20,25 @@ struct SessionRootView: View {
         VStack(spacing: 10) {
             switch session.state {
             case .idle:
-                Image(systemName: "water.waves")
-                    .font(.largeTitle)
-                    .foregroundStyle(.teal)
-                Text("Freedive")
-                    .font(.headline)
-                Button(session.startError == nil ? "Start Session" : "Try Again") {
-                    Task { await session.start() }
-                }
-                .buttonStyle(.borderedProminent)
-                if let startError = session.startError {
-                    Text(startError)
-                        .font(.caption2)
-                        .foregroundStyle(.orange)
-                        .multilineTextAlignment(.center)
+                ScrollView {
+                    VStack(spacing: 10) {
+                        Image(systemName: "water.waves")
+                            .font(.largeTitle)
+                            .foregroundStyle(.teal)
+                        Text("Freedive")
+                            .font(.headline)
+                        Button(session.startError == nil ? "Start Session" : "Try Again") {
+                            Task { await session.start() }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        if let startError = session.startError {
+                            Text(startError)
+                                .font(.caption2)
+                                .foregroundStyle(.orange)
+                                .multilineTextAlignment(.center)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
                 }
 
             case .active:

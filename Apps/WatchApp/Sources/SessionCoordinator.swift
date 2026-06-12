@@ -178,9 +178,10 @@ final class SessionCoordinator {
             state = .active(start: sessionManager.startTime ?? Date())
         } catch {
             // HealthKit unavailable (e.g. simulator), sensor unavailable, or
-            // permission denied. Surface it so the diver can fix permissions and
-            // retry, rather than tapping Start to no effect.
-            startError = "Couldn't start the session. Check that Motion and Health access are allowed for Dive Free in Settings, then try again."
+            // permission denied. Surface the underlying reason so the diver (and
+            // we) can tell a permission denial from an entitlement/setup issue,
+            // then retry.
+            startError = "Couldn't start: \(error.localizedDescription)\n\nCheck Motion & Health access for Dive Free in Settings."
             state = .idle
         }
     }
