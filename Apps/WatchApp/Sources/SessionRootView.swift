@@ -173,8 +173,13 @@ struct SessionRootView: View {
             Circle()
                 .stroke(tint.opacity(0.6), lineWidth: 3)
             VStack(spacing: 2) {
-                Image(systemName: item.systemImage)
-                    .font(.title3)
+                if let emoji = item.emoji {
+                    Text(emoji)
+                        .font(.title3)
+                } else {
+                    Image(systemName: item.systemImage)
+                        .font(.title3)
+                }
                 Text(item.title)
                     .font(.caption2)
                     .multilineTextAlignment(.center)
@@ -273,8 +278,8 @@ struct SessionRootView: View {
                 Text(
                     counts
                         .sorted { $0.key.rawValue < $1.key.rawValue }
-                        .map { "\($0.value) \($0.key.rawValue)" }
-                        .joined(separator: " · ")
+                        .map { "\($0.key.emoji) \($0.value)" }
+                        .joined(separator: "  ")
                 )
                 .font(.caption2)
                 .multilineTextAlignment(.center)

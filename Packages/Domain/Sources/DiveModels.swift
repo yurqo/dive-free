@@ -22,13 +22,33 @@ public struct GeoPoint: Sendable, Equatable, Codable {
     }
 }
 
-/// Kinds of events a diver can mark during a session.
+/// Kinds of events a diver can mark during a session. Built-in kinds only;
+/// user-defined custom markers are tracked separately (see roadmap).
 public enum EventKind: String, Sendable, Codable, CaseIterable {
     case note
     case wildlife
     case hazard
     case photo
-    case custom
+
+    /// Emoji shown in the marker carousel and summaries.
+    public var emoji: String {
+        switch self {
+        case .note: "🗒️"
+        case .wildlife: "🐠"
+        case .hazard: "⚠️"
+        case .photo: "📸"
+        }
+    }
+
+    /// Human-readable label.
+    public var label: String {
+        switch self {
+        case .note: "Note"
+        case .wildlife: "Wildlife"
+        case .hazard: "Hazard"
+        case .photo: "Photo"
+        }
+    }
 }
 
 /// A user-placed marker at a point in time during the session.
