@@ -14,7 +14,8 @@ struct SessionManagerTests {
     /// test — `ModelContext` does not retain its container, so releasing the store
     /// while the context is still in use causes a crash.
     private func makeManager(
-        profile: [Double] = [0, 2, 5, 8, 5, 2, 0]
+        profile: [Double] = [0, 2, 5, 8, 5, 2, 0],
+        location: GeoPoint? = nil
     ) throws -> (manager: SessionManager, store: DiveStore) {
         let store = try DiveStore(inMemory: true)
         let sensors = SensorManager(
@@ -26,6 +27,7 @@ struct SessionManagerTests {
         let manager = SessionManager(
             sensors: sensors,
             detector: detector,
+            location: StubLocationProvider(point: location),
             modelContext: store.container.mainContext
         )
         return (manager, store)
@@ -213,4 +215,36 @@ struct SessionManagerTests {
         #expect(manager.diveCount == 0)
         #expect(manager.maxDepthMeters == 0)
     }
+
+    @Test("captured surface location is attached to the stopped session")
+    func capturesLocation() async throws {
+        let spot = GeoPoint(latitude: 20.5, longitude: -87.0)
+        let (manager, store) = try makeManager(location: spot)
+        defer { _ = store }
+
+        try await manager.startSession()
+        // Let the background location task resolve the stubbed fix.
+        try await Task.sleep(for: .milliseconds(50))
+        let session = try manager.stopSession()
+
+        #expect(session?.location == spot)
+    }
+
+    @Test("session location is nil when no fix is available")
+    func noLocationWhenUnavailable() async throws {
+        let (manager, store) = try makeManager(location: nil)
+        defer { _ = store }
+
+        try await manager.startSession()
+        try await Task.sleep(for: .milliseconds(50))
+        let session = try manager.stopSession()
+
+        #expect(session?.location == nil)
+    }
+}
+
+/// Returns a fixed location (or nil) without touching CoreLocation.
+private struct StubLocationProvider: LocationProviding {
+    let point: GeoPoint?
+    func currentLocation() async -> GeoPoint? { point }
 }
