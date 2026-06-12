@@ -63,7 +63,7 @@ jobs:
         id: version
         run: |
           set -euo pipefail
-          latest=$(git tag -l 'v*' | sort -V | tail -n1)
+          latest=$(git tag --sort=-v:refname -l 'v*' | head -n1)
           if [[ -z "$latest" ]]; then
             # No tags yet: ship the version currently in Project.swift as-is.
             version=$(grep -m1 -oE '"MARKETING_VERSION": "[0-9]+\.[0-9]+\.[0-9]+"' Project.swift \
