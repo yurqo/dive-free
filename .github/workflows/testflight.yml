@@ -119,7 +119,8 @@ jobs:
             -authenticationKeyIssuerID ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }} \
             DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}" \
             MARKETING_VERSION="${{ steps.version.outputs.version }}" \
-            CURRENT_PROJECT_VERSION="${{ steps.version.outputs.build }}" | xcbeautify
+            CURRENT_PROJECT_VERSION="${{ steps.version.outputs.build }}" \
+            STRAVA_CLIENT_SECRET="${{ secrets.STRAVA_CLIENT_SECRET }}" | xcbeautify
 
       - name: Export IPA
         run: |
