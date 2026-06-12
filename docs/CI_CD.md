@@ -57,16 +57,15 @@ via the `APPLE_TEAM_ID` secret, so it doesn't need this.)
 
 ## Enabling TestFlight delivery (CD)
 
-The **TestFlight** workflow (`.github/workflows/testflight.yml`) is **wired up**:
-it runs on every `v*` tag (and on manual `workflow_dispatch`), archives, exports,
-and uploads to TestFlight. It is **safe by default** — a Preflight step exits
-early with clear guidance if any required secret is missing, so a tag pushed
-before the steps below are complete won't attempt (or break) a real upload.
+The **Deliver to TestFlight** workflow (`.github/workflows/testflight.yml`) is
+**wired up**: it's manually triggered (`workflow_dispatch`) with a **version
+bump** input, then archives, exports, and uploads to App Store Connect. It is
+**safe by default** — a Preflight step exits early with clear guidance if any
+required secret is missing.
 
 To go live you only need to complete the **prerequisites** and add the
 **secrets** below; the workflow code and `ExportOptions.plist` are already in the
-repo. Do at least one **manual dispatch** to confirm signing before relying on
-tag-triggered delivery.
+repo.
 
 ### Prerequisites
 
@@ -90,25 +89,35 @@ Go to **GitHub → Settings → Secrets and variables → Actions** and add:
 | `APP_STORE_CONNECT_API_KEY` | The `.p8` file contents, **base64-encoded**: `base64 -i AuthKey_XXX.p8 | pbcopy` |
 | `APPLE_TEAM_ID` | Your Apple Team ID (10-char string shown in developer.apple.com under Membership) |
 
+### Versioning model
+
+Versions are driven by **git tags** (`vX.Y.Z`), not committed to `Project.swift`:
+
+- The workflow reads the latest `v*` tag, applies the chosen bump, builds, and
+  **pushes the new tag on success** (which seeds the next bump). With no tags yet,
+  the first build ships the `MARKETING_VERSION` currently in `Project.swift`.
+- **`patch`** → a TestFlight beta (`0.1.0 → 0.1.1`). **`minor`** → an App Store
+  release (`0.1.x → 0.2.0`).
+- The **build number** (`CFBundleVersion`) is the workflow run number, so every
+  upload is unique and increasing regardless of the marketing version.
+
+`ExportOptions.plist` deliberately omits `teamID`: the signing team is resolved
+from the App Store Connect API key (`-allowProvisioningUpdates`), and the archive
+is signed with the `APPLE_TEAM_ID` secret via `DEVELOPMENT_TEAM`.
+
 ### Triggering delivery
 
-The workflow trigger, the archive/export/upload steps, and the repo-root
-`ExportOptions.plist` are **already committed** — there's nothing left to
-uncomment. `ExportOptions.plist` deliberately omits `teamID`: the signing team is
-resolved from the App Store Connect API key (`-allowProvisioningUpdates`), and the
-archive is signed with the `APPLE_TEAM_ID` secret via `DEVELOPMENT_TEAM`.
+Once the prerequisites and secrets above are in place, run it manually — from the
+CLI or the Actions UI:
 
-Once the prerequisites and secrets above are in place:
+```sh
+make testflight   # patch bump → beta (or: gh workflow run testflight.yml -f bump=patch)
+make release      # minor bump → release build (gh workflow run testflight.yml -f bump=minor)
+```
 
-1. **Validate manually first.** GitHub → Actions → **TestFlight** → *Run
-   workflow*. Confirm the archive, export, and upload steps succeed and a build
-   shows up in App Store Connect → TestFlight.
-2. **Then tag a release:**
-   ```sh
-   git tag v0.1.0 && git push --tags
-   ```
-   The `push: tags: ['v*']` trigger runs the same job automatically; a build
-   should appear in TestFlight within ~30 minutes.
+The build appears in App Store Connect → **TestFlight** within ~30 minutes
+("Processing" first). For an App Store **release**, the `minor` build uploads the
+same way — then press **Submit for Review** in App Store Connect when ready.
 
-Until the secrets exist, both paths stop at the Preflight step with a clear
+Until the secrets exist, every run stops at the Preflight step with a clear
 message — nothing deploys by accident.

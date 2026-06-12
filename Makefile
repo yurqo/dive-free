@@ -3,10 +3,10 @@ WORKSPACE := DiveFree.xcworkspace
 SIM_IOS := platform=iOS Simulator,name=iPhone 17
 XCFLAGS := CODE_SIGNING_ALLOWED=NO EXCLUDED_ARCHS=x86_64
 
-.PHONY: generate build test clean
+.PHONY: generate build test clean testflight release
 
 generate:
-	DEVELOPMENT_TEAM=$(TEAM_ID) tuist generate --no-open
+	TUIST_DEVELOPMENT_TEAM=$(TEAM_ID) tuist generate --no-open
 
 build:
 	set -o pipefail && xcodebuild build \
@@ -20,3 +20,11 @@ test:
 
 clean:
 	rm -rf DiveFree.xcodeproj DiveFree.xcworkspace Derived
+
+# Trigger a signed delivery via GitHub Actions (auto version bump + build number).
+# testflight = patch bump (beta); release = minor bump (you submit for review by hand).
+testflight:
+	gh workflow run testflight.yml -f bump=patch
+
+release:
+	gh workflow run testflight.yml -f bump=minor
