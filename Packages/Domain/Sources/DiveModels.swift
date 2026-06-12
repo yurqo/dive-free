@@ -49,6 +49,13 @@ public enum EventKind: String, Sendable, Codable, CaseIterable {
         case .photo: "Photo"
         }
     }
+
+    /// Decode leniently: unknown or legacy raw values (e.g. the old "custom")
+    /// map to `.note` rather than failing the whole payload's decode.
+    public init(from decoder: any Decoder) throws {
+        let raw = try decoder.singleValueContainer().decode(String.self)
+        self = EventKind(rawValue: raw) ?? .note
+    }
 }
 
 /// A user-placed marker at a point in time during the session.
