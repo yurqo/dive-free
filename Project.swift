@@ -65,11 +65,12 @@ let watchApp = Target.target(
         "NSHealthShareUsageDescription": "Used to read workout and health data for your dive sessions.",
         "NSHealthUpdateUsageDescription": "Used to save your dive sessions as workouts.",
         "NSLocationWhenInUseUsageDescription": "Used to record where your dives happen.",
-        // Keeps the app alive in the background for the duration of the HKWorkoutSession.
-        "WKBackgroundModes": ["workout-processing"],
-        // Registers the app as a dive app so it can be picked under
-        // Settings → Auto-Launch on Apple Watch Ultra and launch on submersion.
-        "WKSupportsAutoLaunchDiveApp": true,
+        // Keep the app alive in the background for the HKWorkoutSession, and
+        // receive water-submersion depth (the latter also registers the app
+        // under Settings → General → Auto-Launch → When Submerged so it can
+        // launch automatically on a dive). Depth itself requires the
+        // submerged-shallow-depth-and-pressure entitlement (see entitlements).
+        "WKBackgroundModes": ["workout-processing", "underwater-depth"],
     ]),
     sources: ["Apps/WatchApp/Sources/**"],
     resources: ["Apps/WatchApp/Resources/**"],
