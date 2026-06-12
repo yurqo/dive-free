@@ -6,5 +6,11 @@
     <true/>
     <key>com.apple.developer.healthkit.access</key>
     <array/>
+    <!-- Shallow Depth and Pressure (publicly available, max ~6 m). Enables
+         CMWaterSubmersionManager depth measurements. Swap for
+         com.apple.developer.submerged-depth-and-pressure (max ~40 m) once the
+         full entitlement is granted by Apple. -->
+    <key>com.apple.developer.submerged-shallow-depth-and-pressure</key>
+    <true/>
 </dict>
 </plist>
