@@ -1,28 +1,39 @@
-name: TestFlight
+name: Deliver to TestFlight
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Delivers the app to TestFlight on every `v*` tag (and on manual dispatch).
+# Manually triggered delivery. Pick the version bump:
+#   • patch  → a TestFlight beta   (0.1.0 → 0.1.1)
+#   • minor  → an App Store release (0.1.x → 0.2.0; submit for review by hand)
 #
-# SAFE BY DEFAULT: the Preflight step fails fast with clear guidance if any
-# required secret is missing, so a tag pushed before the secrets/prerequisites
-# are configured exits early without attempting (or breaking) a real upload.
+# Versioning is driven by git tags (vX.Y.Z): the workflow reads the latest tag,
+# bumps it, builds, uploads, and pushes the new tag on success. The build number
+# is the workflow run number, so every upload is unique and increasing.
 #
-# See docs/CI_CD.md for the prerequisites (Apple Developer Program, bundle ID,
-# App Store Connect app record + API key) and the four repo secrets to add.
+# SAFE BY DEFAULT: the Preflight step fails fast if any required secret is
+# missing. See docs/CI_CD.md.
 # ─────────────────────────────────────────────────────────────────────────────
 on:
-  workflow_dispatch:        # manual runs (use this to validate before tagging)
-  push:
-    tags: ['v*']            # auto-deliver on version tags like v0.1.0
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Version bump"
+        type: choice
+        default: patch
+        options: [patch, minor]
+
+permissions:
+  contents: write          # push the version tag after a successful upload
 
 jobs:
-  testflight:
-    name: Archive & Upload to TestFlight
+  deliver:
+    name: Archive & Upload
     runs-on: macos-26
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0       # need full tag history to compute the next version
 
       # ── Preflight: fail fast with clear guidance if secrets are missing ──────
       - name: Preflight — verify required secrets
@@ -47,6 +58,32 @@ jobs:
           fi
           echo "✅ All required secrets present."
 
+      # ── Compute the next marketing version (from tags) and build number ──────
+      - name: Compute version & build number
+        id: version
+        run: |
+          set -euo pipefail
+          latest=$(git tag --sort=-v:refname -l 'v*' | head -n1)
+          if [[ -z "$latest" ]]; then
+            # No tags yet: ship the version currently in Project.swift as-is.
+            version=$(grep -m1 -oE '"MARKETING_VERSION": "[0-9]+\.[0-9]+\.[0-9]+"' Project.swift \
+              | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+            version=${version:-0.1.0}
+            echo "No existing tag — first build uses Project.swift version $version."
+          else
+            v=${latest#v}
+            IFS=. read -r major minor patch <<<"$v"
+            if [[ "${{ inputs.bump }}" == "minor" ]]; then
+              minor=$((minor + 1)); patch=0
+            else
+              patch=$((patch + 1))
+            fi
+            version="$major.$minor.$patch"
+            echo "Bumping $latest → $version (${{ inputs.bump }})."
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "build=${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+
       - name: Select Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
@@ -58,7 +95,6 @@ jobs:
       - name: Generate Xcode workspace
         run: tuist generate --no-open
 
-      # ── Write the App Store Connect API key to disk ──────────────────────────
       - name: Write App Store Connect API key
         env:
           API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
@@ -68,7 +104,7 @@ jobs:
           echo "$API_KEY_BASE64" | base64 --decode \
             > ~/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8
 
-      # ── Archive the iPhone app (embeds Watch app) ────────────────────────────
+      # ── Archive (embeds the Watch app) with the computed version/build ───────
       - name: Archive
         run: |
           set -o pipefail
@@ -81,9 +117,10 @@ jobs:
             -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8 \
             -authenticationKeyID ${{ secrets.APP_STORE_CONNECT_KEY_ID }} \
             -authenticationKeyIssuerID ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }} \
-            DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}" | xcbeautify
+            DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}" \
+            MARKETING_VERSION="${{ steps.version.outputs.version }}" \
+            CURRENT_PROJECT_VERSION="${{ steps.version.outputs.build }}" | xcbeautify
 
-      # ── Export the .ipa ──────────────────────────────────────────────────────
       - name: Export IPA
         run: |
           set -o pipefail
@@ -96,7 +133,6 @@ jobs:
             -authenticationKeyID ${{ secrets.APP_STORE_CONNECT_KEY_ID }} \
             -authenticationKeyIssuerID ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }} | xcbeautify
 
-      # ── Upload to TestFlight ─────────────────────────────────────────────────
       - name: Upload to TestFlight
         run: |
           xcrun altool --upload-app \
@@ -104,3 +140,15 @@ jobs:
             --file "DiveFree-export/DiveFree.ipa" \
             --apiKey ${{ secrets.APP_STORE_CONNECT_KEY_ID }} \
             --apiIssuer ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+
+      # ── Record the delivered version as a tag (drives the next bump) ─────────
+      - name: Tag delivered version
+        if: success()
+        run: |
+          set -euo pipefail
+          tag="v${{ steps.version.outputs.version }}"
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "$tag"
+          git push origin "$tag"
+          echo "Tagged $tag (build ${{ steps.version.outputs.build }})."
