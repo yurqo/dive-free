@@ -12,6 +12,43 @@ struct SessionTrackMapView: View {
     /// Current visible latitude span, driving how aggressively points cluster.
     @State private var latitudeSpan: Double = 0.02
 
+    // Session-derived geometry, computed once (it doesn't depend on zoom) so the
+    // continuous camera-change handler doesn't rebuild/re-sort it every frame.
+    private let surfacePath: [CLLocationCoordinate2D]
+    private let diveSegments: [DiveSegment]
+    private let points: [Point]
+
+    init(session: DiveSession) {
+        self.session = session
+        self.surfacePath = session.track
+            .sorted { $0.timestamp < $1.timestamp }
+            .map { $0.location.coordinate }
+
+        let orderedDives = session.dives.sorted { $0.startTime < $1.startTime }
+        self.diveSegments = orderedDives.enumerated().compactMap { index, dive in
+            guard let s = session.surfaceLocation(at: dive.startTime),
+                  let e = session.surfaceLocation(at: dive.endTime) else { return nil }
+            return DiveSegment(id: index, submersion: s.coordinate, surfacing: e.coordinate)
+        }
+
+        var points: [Point] = []
+        for (index, dive) in orderedDives.enumerated() {
+            let number = index + 1
+            if let s = session.surfaceLocation(at: dive.startTime) {
+                points.append(Point(id: "down-\(dive.id)", geo: s, glyph: .submersion(number)))
+            }
+            if let e = session.surfaceLocation(at: dive.endTime) {
+                points.append(Point(id: "up-\(dive.id)", geo: e, glyph: .surfacing(number)))
+            }
+        }
+        for marker in session.markers {
+            if let geo = session.markerLocation(marker) {
+                points.append(Point(id: "marker-\(marker.id)", geo: geo, glyph: .marker(marker.kind.emoji)))
+            }
+        }
+        self.points = points
+    }
+
     var body: some View {
         Map(initialPosition: .automatic) {
             // Surface path.
@@ -39,30 +76,12 @@ struct SessionTrackMapView: View {
         }
     }
 
-    // MARK: - Geometry
-
-    private var orderedDives: [Dive] {
-        session.dives.sorted { $0.startTime < $1.startTime }
-    }
-
-    private var surfacePath: [CLLocationCoordinate2D] {
-        session.track
-            .sorted { $0.timestamp < $1.timestamp }
-            .map { $0.location.coordinate }
-    }
+    // MARK: - Geometry types
 
     private struct DiveSegment: Identifiable {
         let id: Int
         let submersion: CLLocationCoordinate2D
         let surfacing: CLLocationCoordinate2D
-    }
-
-    private var diveSegments: [DiveSegment] {
-        orderedDives.enumerated().compactMap { index, dive in
-            guard let s = session.surfaceLocation(at: dive.startTime),
-                  let e = session.surfaceLocation(at: dive.endTime) else { return nil }
-            return DiveSegment(id: index, submersion: s.coordinate, surfacing: e.coordinate)
-        }
     }
 
     /// A single placeable point before clustering.
@@ -75,25 +94,6 @@ struct SessionTrackMapView: View {
         let id: String
         let geo: GeoPoint
         let glyph: Glyph
-    }
-
-    private var points: [Point] {
-        var result: [Point] = []
-        for (index, dive) in orderedDives.enumerated() {
-            let number = index + 1
-            if let s = session.surfaceLocation(at: dive.startTime) {
-                result.append(Point(id: "down-\(dive.id)", geo: s, glyph: .submersion(number)))
-            }
-            if let e = session.surfaceLocation(at: dive.endTime) {
-                result.append(Point(id: "up-\(dive.id)", geo: e, glyph: .surfacing(number)))
-            }
-        }
-        for marker in session.markers {
-            if let geo = session.markerLocation(marker) {
-                result.append(Point(id: "marker-\(marker.id)", geo: geo, glyph: .marker(marker.kind.emoji)))
-            }
-        }
-        return result
     }
 
     // MARK: - Clustering
