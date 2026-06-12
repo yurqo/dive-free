@@ -58,13 +58,19 @@ struct SessionRootView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
 
             case .active:
-                stats
-                // Crown navigation is inert in Always On Display, so hide the
-                // carousel to cut burn-in (mirrors the old inline controls).
-                if !isLuminanceReduced {
-                    actionCarousel
-                    hint
+                // Fill the screen from the top so the live stats don't float
+                // mid-screen with black bands above and below.
+                VStack(spacing: 10) {
+                    stats
+                    // Crown navigation is inert in Always On Display, so hide the
+                    // carousel to cut burn-in (mirrors the old inline controls).
+                    if !isLuminanceReduced {
+                        Spacer(minLength: 8)
+                        actionCarousel
+                        hint
+                    }
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
 
             case .summary(let completed):
                 summaryView(completed)
@@ -228,6 +234,7 @@ struct SessionRootView: View {
                     .foregroundStyle(.teal)
                 Text("Session Complete")
                     .font(.headline)
+                    .multilineTextAlignment(.center)
 
                 VStack(spacing: 4) {
                     summaryRow("Total", Duration.seconds(completed.totalDuration).formatted(.time(pattern: .hourMinuteSecond)))
@@ -251,6 +258,7 @@ struct SessionRootView: View {
                     .buttonStyle(.borderedProminent)
                     .tint(.teal)
             }
+            .frame(maxWidth: .infinity)
         }
     }
 
