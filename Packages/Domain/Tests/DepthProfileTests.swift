@@ -38,4 +38,24 @@ struct DepthProfileTests {
     func emptyProfile() {
         #expect(dive([]).depthProfile.isEmpty)
     }
+
+    @Test("interpolates depth linearly between bracketing samples")
+    func interpolatesDepth() {
+        let d = dive([(0, 0), (10, 8), (20, 4)])
+        #expect(d.interpolatedDepth(at: start.addingTimeInterval(5)) == 4)   // halfway 0→8
+        #expect(d.interpolatedDepth(at: start.addingTimeInterval(15)) == 6)  // halfway 8→4
+        #expect(d.interpolatedDepth(at: start.addingTimeInterval(10)) == 8)  // exact sample
+    }
+
+    @Test("interpolatedDepth returns nil outside the sample range")
+    func interpolatesOutOfRange() {
+        let d = dive([(0, 0), (10, 8)])
+        #expect(d.interpolatedDepth(at: start.addingTimeInterval(-1)) == nil)
+        #expect(d.interpolatedDepth(at: start.addingTimeInterval(11)) == nil)
+    }
+
+    @Test("interpolatedDepth on an empty dive is nil")
+    func interpolatesEmpty() {
+        #expect(dive([]).interpolatedDepth(at: start) == nil)
+    }
 }

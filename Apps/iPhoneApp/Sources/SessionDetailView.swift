@@ -41,6 +41,8 @@ struct SessionDetailView: View {
                 }
             }
 
+            markersSection(domain)
+
             stravaSection(domain)
 
             if domain.dives.isEmpty {
@@ -52,13 +54,40 @@ struct SessionDetailView: View {
             } else {
                 ForEach(Array(domain.dives.enumerated()), id: \.element.id) { index, dive in
                     Section("Dive \(index + 1) · \(String(format: "%.1f m", dive.maxDepthMeters)) max") {
-                        DepthChartView(dive: dive)
+                        DepthChartView(dive: dive, markers: domain.markers)
                     }
                 }
             }
         }
         .navigationTitle(domain.startTime.formatted(date: .abbreviated, time: .omitted))
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    @ViewBuilder
+    private func markersSection(_ domain: DiveSession) -> some View {
+        if !domain.markers.isEmpty {
+            Section("Markers") {
+                ForEach(domain.markers.sorted { $0.timestamp < $1.timestamp }) { marker in
+                    HStack(spacing: 12) {
+                        Text(marker.kind.emoji)
+                            .font(.title3)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(marker.kind.label)
+                            if let text = marker.text, !text.isEmpty {
+                                Text(text)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        Spacer()
+                        Text(marker.timestamp, format: .dateTime.hour().minute())
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                    }
+                }
+            }
+        }
     }
 
     @ViewBuilder

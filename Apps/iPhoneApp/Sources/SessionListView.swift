@@ -11,17 +11,16 @@ struct SessionListView: View {
     @Environment(\.modelContext) private var modelContext
 
     var body: some View {
-        NavigationStack {
-            Group {
-                if sessions.isEmpty {
-                    ContentUnavailableView(
-                        "No Sessions Yet",
-                        systemImage: "water.waves",
-                        description: Text("Start a session on your Apple Watch to see it here.")
-                    )
-                } else {
-                    List {
-                        ForEach(sessions) { session in
+        Group {
+            if sessions.isEmpty {
+                ContentUnavailableView(
+                    "No Sessions Yet",
+                    systemImage: "water.waves",
+                    description: Text("Start a session on your Apple Watch to see it here.")
+                )
+            } else {
+                List {
+                    ForEach(sessions) { session in
                         let domain = session.toDomain()
                         NavigationLink(value: session) {
                             HStack(spacing: 12) {
@@ -48,26 +47,15 @@ struct SessionListView: View {
                                 }
                             }
                         }
-                        }
-                        .onDelete(perform: deleteSessions)
                     }
-                    .navigationDestination(for: SessionRecord.self) { session in
-                        SessionDetailView(session: session)
-                    }
+                    .onDelete(perform: deleteSessions)
                 }
-            }
-            .navigationTitle("Dives")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink {
-                        SettingsView()
-                    } label: {
-                        Image(systemName: "gearshape")
-                    }
-                    .accessibilityLabel("Settings")
+                .navigationDestination(for: SessionRecord.self) { session in
+                    SessionDetailView(session: session)
                 }
             }
         }
+        .navigationTitle("Dives")
     }
 
     private func deleteSessions(at offsets: IndexSet) {
@@ -79,7 +67,9 @@ struct SessionListView: View {
 }
 
 #Preview {
-    SessionListView()
-        .environment(StravaAuthManager(store: InMemoryTokenStore(), webAuth: ASWebAuthenticationProvider()))
-        .modelContainer(for: SessionRecord.self, inMemory: true)
+    NavigationStack {
+        SessionListView()
+    }
+    .environment(StravaAuthManager(store: InMemoryTokenStore(), webAuth: ASWebAuthenticationProvider()))
+    .modelContainer(for: SessionRecord.self, inMemory: true)
 }

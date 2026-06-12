@@ -145,6 +145,23 @@ public struct Dive: Sendable, Equatable, Codable, Identifiable {
             }
     }
 
+    /// Linearly-interpolated depth at the given instant, or `nil` if the time
+    /// falls outside the dive's sample range. Used to place event markers on the
+    /// depth profile at the depth the diver was actually at when the marker
+    /// landed.
+    public func interpolatedDepth(at time: Date) -> Double? {
+        let ordered = samples.sorted { $0.timestamp < $1.timestamp }
+        guard let first = ordered.first, let last = ordered.last,
+              time >= first.timestamp, time <= last.timestamp else { return nil }
+        for (a, b) in zip(ordered, ordered.dropFirst()) where time >= a.timestamp && time <= b.timestamp {
+            let span = b.timestamp.timeIntervalSince(a.timestamp)
+            guard span > 0 else { return a.depthMeters }
+            let fraction = time.timeIntervalSince(a.timestamp) / span
+            return a.depthMeters + (b.depthMeters - a.depthMeters) * fraction
+        }
+        return last.depthMeters
+    }
+
     public init(
         id: UUID = UUID(),
         startTime: Date,
