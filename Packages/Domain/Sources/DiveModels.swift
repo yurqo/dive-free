@@ -249,6 +249,25 @@ public struct DiveSession: Sendable, Equatable, Codable, Identifiable {
         markers.reduce(into: [:]) { counts, marker in counts[marker.kind, default: 0] += 1 }
     }
 
+    /// Geographic position to draw an event marker at: along the surface path for
+    /// surface markers, or along the straight submersion→surfacing segment of the
+    /// dive that contains it for underwater markers. `nil` when there is no track.
+    public func markerLocation(_ marker: EventMarker) -> GeoPoint? {
+        if let dive = dives.first(where: { marker.timestamp >= $0.startTime && marker.timestamp <= $0.endTime }),
+           let submersion = surfaceLocation(at: dive.startTime),
+           let surfacing = surfaceLocation(at: dive.endTime) {
+            let span = dive.endTime.timeIntervalSince(dive.startTime)
+            let fraction = span > 0
+                ? max(0, min(1, marker.timestamp.timeIntervalSince(dive.startTime) / span))
+                : 0
+            return GeoPoint(
+                latitude: submersion.latitude + (surfacing.latitude - submersion.latitude) * fraction,
+                longitude: submersion.longitude + (surfacing.longitude - submersion.longitude) * fraction
+            )
+        }
+        return surfaceLocation(at: marker.timestamp)
+    }
+
     public init(
         id: UUID = UUID(),
         startTime: Date,
