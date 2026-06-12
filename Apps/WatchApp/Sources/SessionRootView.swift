@@ -1,4 +1,5 @@
 import SwiftUI
+import WatchKit
 import Domain
 import Persistence
 import Session
@@ -15,6 +16,9 @@ struct SessionRootView: View {
     @State private var crownPosition: Double = 0
     @FocusState private var menuFocused: Bool
     @State private var showingSettings = false
+    /// Last item the Crown landed on, so we buzz once per item change rather
+    /// than once per detent (there are several detents per item).
+    @State private var lastFocusedIndex = 0
     /// Digital Crown detents required to move one carousel item. Higher = slower,
     /// finer scrolling. Tunable in Settings; defaults slow since one-detent-per-
     /// item felt far too fast.
@@ -89,10 +93,16 @@ struct SessionRootView: View {
             by: 1,
             sensitivity: .low,
             isContinuous: false,
-            isHapticFeedbackEnabled: true
+            // Per-detent haptic off; we buzz once per item change below instead.
+            isHapticFeedbackEnabled: false
         )
         .onChange(of: crownPosition) { _, newValue in
-            session.focus(Int((newValue / Double(crownStepsPerItem)).rounded()))
+            let index = Int((newValue / Double(crownStepsPerItem)).rounded())
+            if index != lastFocusedIndex {
+                lastFocusedIndex = index
+                WKInterfaceDevice.current().play(.click)
+            }
+            session.focus(index)
         }
         // On the surface the touchscreen works, so a tap is an equivalent
         // confirm to the Action button — and the only fallback when no Action
@@ -105,6 +115,7 @@ struct SessionRootView: View {
                 // Re-sync the Crown's value with the coordinator's reset focus
                 // so the first nudge of a new session doesn't jump.
                 crownPosition = Double(session.focusedIndex * crownStepsPerItem)
+                lastFocusedIndex = session.focusedIndex
                 menuFocused = true
             }
         }
@@ -224,6 +235,11 @@ struct SessionRootView: View {
                     summaryRow("Max depth", String(format: "%.1f m", completed.maxDepthMeters))
                     if let average = completed.averageSurfaceInterval {
                         summaryRow("Avg surface", Duration.seconds(average).formatted(.time(pattern: .minuteSecond)))
+                    }
+                    if let location = completed.location {
+                        summaryRow("Location", String(format: "%.4f, %.4f", location.latitude, location.longitude))
+                    } else {
+                        summaryRow("Location", "No GPS fix")
                     }
                 }
 
