@@ -8,6 +8,7 @@ import Strava
 struct SessionListView: View {
     @Query(sort: \SessionRecord.startTime, order: .reverse)
     private var sessions: [SessionRecord]
+    @Environment(\.modelContext) private var modelContext
 
     var body: some View {
         NavigationStack {
@@ -19,7 +20,8 @@ struct SessionListView: View {
                         description: Text("Start a session on your Apple Watch to see it here.")
                     )
                 } else {
-                    List(sessions) { session in
+                    List {
+                        ForEach(sessions) { session in
                         let domain = session.toDomain()
                         NavigationLink(value: session) {
                             HStack(spacing: 12) {
@@ -46,6 +48,8 @@ struct SessionListView: View {
                                 }
                             }
                         }
+                        }
+                        .onDelete(perform: deleteSessions)
                     }
                     .navigationDestination(for: SessionRecord.self) { session in
                         SessionDetailView(session: session)
@@ -64,6 +68,13 @@ struct SessionListView: View {
                 }
             }
         }
+    }
+
+    private func deleteSessions(at offsets: IndexSet) {
+        for index in offsets {
+            modelContext.delete(sessions[index])
+        }
+        try? modelContext.save()
     }
 }
 
