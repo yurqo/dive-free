@@ -8,6 +8,7 @@ public enum DiveSchema {
         SessionRecord.self,
         DiveRecord.self,
         MarkerRecord.self,
+        CustomMarkerRecord.self,
     ]
 }
 
@@ -18,7 +19,7 @@ public struct DiveStore {
     public init(inMemory: Bool = false) throws {
         let configuration = ModelConfiguration(isStoredInMemoryOnly: inMemory)
         container = try ModelContainer(
-            for: SessionRecord.self, DiveRecord.self, MarkerRecord.self,
+            for: Schema(DiveSchema.models),
             configurations: configuration
         )
     }

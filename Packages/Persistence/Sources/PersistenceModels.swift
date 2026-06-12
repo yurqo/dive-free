@@ -70,7 +70,12 @@ public final class DiveRecord {
 public final class MarkerRecord {
     public var id: UUID
     public var timestamp: Date
-    public var kind: String       // raw value of `EventKind`
+    public var kind: String       // `MarkerKind.id` (built-in EventKind raw value, or custom UUID)
+    // Snapshot of the kind's emoji/label so a marker renders even if a custom
+    // definition is later edited/deleted. Defaulted for lightweight migration of
+    // pre-existing rows (built-ins are re-resolved from `EventKind` in toDomain).
+    public var emoji: String = ""
+    public var label: String = ""
     public var text: String?
     public var session: SessionRecord?
 
@@ -78,14 +83,38 @@ public final class MarkerRecord {
         id: UUID = UUID(),
         timestamp: Date,
         kind: String,
+        emoji: String = "",
+        label: String = "",
         text: String? = nil,
         session: SessionRecord? = nil
     ) {
         self.id = id
         self.timestamp = timestamp
         self.kind = kind
+        self.emoji = emoji
+        self.label = label
         self.text = text
         self.session = session
+    }
+}
+
+/// A user-defined custom marker definition (managed on iPhone, synced to Watch).
+@Model
+public final class CustomMarkerRecord {
+    public var id: UUID
+    public var emoji: String
+    public var label: String
+    public var createdAt: Date
+
+    public init(id: UUID = UUID(), emoji: String, label: String, createdAt: Date = Date()) {
+        self.id = id
+        self.emoji = emoji
+        self.label = label
+        self.createdAt = createdAt
+    }
+
+    public func toMarkerKind() -> MarkerKind {
+        MarkerKind(id: id.uuidString, emoji: emoji, label: label)
     }
 }
 
@@ -101,13 +130,16 @@ public extension DiveRecord {
 public extension MarkerRecord {
     /// Maps this persistence record into the dependency-free domain `EventMarker`.
     func toDomain() -> EventMarker {
-        EventMarker(
-            id: id,
-            timestamp: timestamp,
-            // Unknown/legacy kinds (e.g. the old "custom") fall back to .note.
-            kind: EventKind(rawValue: kind) ?? .note,
-            text: text
-        )
+        // Built-in kinds re-resolve their canonical emoji/label from EventKind
+        // (also fixes legacy rows stored before the snapshot fields existed);
+        // custom kinds use the stored snapshot.
+        let resolved: MarkerKind
+        if let builtIn = EventKind(rawValue: kind) {
+            resolved = MarkerKind(builtIn)
+        } else {
+            resolved = MarkerKind(id: kind, emoji: emoji, label: label)
+        }
+        return EventMarker(id: id, timestamp: timestamp, kind: resolved, text: text)
     }
 }
 
@@ -150,7 +182,9 @@ public extension MarkerRecord {
         self.init(
             id: marker.id,
             timestamp: marker.timestamp,
-            kind: marker.kind.rawValue,
+            kind: marker.kind.id,
+            emoji: marker.kind.emoji,
+            label: marker.kind.label,
             text: marker.text
         )
     }

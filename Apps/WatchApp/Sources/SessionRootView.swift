@@ -293,7 +293,7 @@ struct SessionRootView: View {
                     .foregroundStyle(.secondary)
                 Text(
                     counts
-                        .sorted { $0.key.rawValue < $1.key.rawValue }
+                        .sorted { $0.key.id < $1.key.id }
                         .map { "\($0.key.emoji) \($0.value)" }
                         .joined(separator: "  ")
                 )
