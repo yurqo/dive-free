@@ -21,6 +21,9 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     /// Called on the phone when a session arrives from the watch.
     public var onReceiveSession: (@Sendable (DiveSession) -> Void)?
 
+    /// Called on the watch when the iPhone's custom-marker definitions change.
+    public var onReceiveCustomMarkers: (@Sendable ([MarkerKind]) -> Void)?
+
     /// Notified with the new pending count whenever transfer status changes.
     /// Fires on an arbitrary thread; hop to the main actor before touching UI.
     public var onPendingCountChange: (@Sendable (Int) -> Void)?
@@ -29,12 +32,15 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     private let decoder = JSONDecoder()
     static let payloadKey = "session"
     static let idKey = "id"
+    static let markersKey = "customMarkers"
 
     private let lock = NSLock()
     /// Payloads sent but not yet confirmed delivered, keyed by transfer id.
     private var pending: [String: Data] = [:]
     /// Immediate re-send attempts per payload, to bound retry storms.
     private var attempts: [String: Int] = [:]
+    /// Last custom-marker context we tried to send, re-applied on activation.
+    private var outgoingContext: [String: Any]?
     /// After this many back-to-back failures a payload stops auto-retrying and
     /// waits for the next reachability-driven `retryPending`, rather than looping.
     private static let maxImmediateRetries = 5
@@ -43,19 +49,52 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     /// tests inject a stub.
     private let performTransfer: (_ id: String, _ data: Data) -> Void
 
+    /// Replaces the shared application context (latest-wins). Defaults to
+    /// `WCSession.updateApplicationContext`; tests inject a stub.
+    private let applyContext: (_ context: [String: Any]) -> Void
+
     /// Sessions queued but not yet confirmed delivered.
     public var pendingCount: Int {
         lock.lock(); defer { lock.unlock() }
         return pending.count
     }
 
-    public init(performTransfer: ((_ id: String, _ data: Data) -> Void)? = nil) {
+    public init(
+        performTransfer: ((_ id: String, _ data: Data) -> Void)? = nil,
+        applyContext: ((_ context: [String: Any]) -> Void)? = nil
+    ) {
         self.performTransfer = performTransfer ?? { id, data in
             #if canImport(WatchConnectivity)
             WCSession.default.transferUserInfo([Self.payloadKey: data, Self.idKey: id])
             #endif
         }
+        self.applyContext = applyContext ?? { context in
+            #if canImport(WatchConnectivity)
+            try? WCSession.default.updateApplicationContext(context)
+            #endif
+        }
         super.init()
+    }
+
+    // MARK: - Custom marker definitions (phone → watch)
+
+    /// Pushes the current custom-marker definitions to the counterpart device.
+    /// Uses the application context (latest-wins), delivered in the background.
+    /// The context is also retained and re-applied once the session activates,
+    /// since a call made before activation (e.g. right at launch) is dropped.
+    public func sendCustomMarkers(_ kinds: [MarkerKind]) {
+        guard let data = try? encoder.encode(kinds) else { return }
+        let context = [Self.markersKey: data]
+        lock.lock(); outgoingContext = context; lock.unlock()
+        applyContext(context)
+    }
+
+    /// Decodes custom-marker definitions from an application context and forwards
+    /// them to `onReceiveCustomMarkers`.
+    func handleApplicationContext(_ context: [String: Any]) {
+        guard let data = context[Self.markersKey] as? Data,
+              let kinds = try? decoder.decode([MarkerKind].self, from: data) else { return }
+        onReceiveCustomMarkers?(kinds)
     }
 
     /// Activates the underlying session if WatchConnectivity is supported.
@@ -122,11 +161,22 @@ extension SyncManager: WCSessionDelegate {
         activationDidCompleteWith activationState: WCSessionActivationState,
         error: Error?
     ) {
-        if activationState == .activated { retryPending() }
+        if activationState == .activated {
+            retryPending()
+            // Pick up the latest custom markers that arrived while we were off.
+            handleApplicationContext(session.receivedApplicationContext)
+            // Re-apply any context we tried to send before activation completed.
+            lock.lock(); let outgoing = outgoingContext; lock.unlock()
+            if let outgoing { applyContext(outgoing) }
+        }
     }
 
     public func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any]) {
         handleReceived(userInfo)
+    }
+
+    public func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
+        handleApplicationContext(applicationContext)
     }
 
     public func session(

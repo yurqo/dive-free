@@ -163,6 +163,22 @@ struct SyncManagerTests {
         manager.handleReceived([SyncManager.payloadKey: Data([0x00, 0x01])])
         #expect(received.withLock { $0 } == nil)
     }
+
+    @Test("custom markers round-trip through the application context")
+    func customMarkersSync() {
+        let captured = Mutex<[String: Any]?>(nil)
+        let manager = SyncManager(applyContext: { ctx in captured.withLock { $0 = ctx } })
+        let kinds = [MarkerKind(.wildlife), MarkerKind(id: "abc-123", emoji: "🦈", label: "Shark")]
+
+        manager.sendCustomMarkers(kinds)
+        let context = captured.withLock { $0 }
+        #expect(context?[SyncManager.markersKey] != nil)
+
+        let received = Mutex<[MarkerKind]>([])
+        manager.onReceiveCustomMarkers = { kinds in received.withLock { $0 = kinds } }
+        manager.handleApplicationContext(context ?? [:])
+        #expect(received.withLock { $0 } == kinds)
+    }
 }
 
 /// Minimal lock-guarded box so test observers can capture values from the

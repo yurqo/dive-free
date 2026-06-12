@@ -41,6 +41,12 @@ public final class SessionManager {
         markers.append(EventMarker(timestamp: Date(), kind: kind, text: text))
     }
 
+    /// Appends a marker of any kind (built-in or custom). No-op when idle.
+    public func addMarker(kind: MarkerKind, text: String? = nil) {
+        guard isActive else { return }
+        markers.append(EventMarker(timestamp: Date(), kind: kind, text: text))
+    }
+
     /// Running maximum depth observed during the current session (0 when idle).
     public private(set) var maxDepthMeters: Double = 0
 

@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import Domain
 import Persistence
 import Sync
 import Strava
@@ -27,6 +28,7 @@ struct DiveFreeApp: App {
         WindowGroup {
             SessionListView()
                 .environment(strava)
+                .environment(\.syncManager, sync)
                 .onAppear {
                     let container = container
                     // Persist sessions arriving from the watch into the shared
@@ -38,6 +40,10 @@ struct DiveFreeApp: App {
                         }
                     }
                     sync.activate()
+                    // Push current custom markers so the Watch carousel has them.
+                    let descriptor = FetchDescriptor<CustomMarkerRecord>(sortBy: [SortDescriptor(\.createdAt)])
+                    let markers = (try? container.mainContext.fetch(descriptor)) ?? []
+                    sync.sendCustomMarkers(markers.map { $0.toMarkerKind() })
                 }
         }
         .modelContainer(container)

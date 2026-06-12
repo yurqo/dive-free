@@ -74,7 +74,7 @@ struct PersistenceTests {
         #expect(result.dives[0].samples[1].depthMeters == 8.3)
 
         #expect(result.markers.count == 1)
-        #expect(result.markers[0].kind == .wildlife)
+        #expect(result.markers[0].kind == MarkerKind(.wildlife))
         #expect(result.markers[0].text == "turtle")
     }
 

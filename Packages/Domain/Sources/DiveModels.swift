@@ -56,20 +56,51 @@ public enum EventKind: String, Sendable, Codable, CaseIterable {
         let raw = try decoder.singleValueContainer().decode(String.self)
         self = EventKind(rawValue: raw) ?? .note
     }
+
+    /// This built-in kind as a `MarkerKind` snapshot.
+    public var markerKind: MarkerKind { MarkerKind(self) }
+
+    /// All built-in kinds as `MarkerKind`s, for the marker menu.
+    public static var builtInMarkerKinds: [MarkerKind] { allCases.map(MarkerKind.init) }
+}
+
+/// A marker kind as id + emoji + label. Covers both built-in `EventKind`s and
+/// user-defined custom markers. Markers store this as a **snapshot** so they
+/// still render even if a custom definition is later edited or deleted.
+public struct MarkerKind: Sendable, Equatable, Hashable, Codable, Identifiable {
+    /// Built-in kinds use the `EventKind` raw value; custom kinds use a UUID string.
+    public var id: String
+    public var emoji: String
+    public var label: String
+
+    public init(id: String, emoji: String, label: String) {
+        self.id = id
+        self.emoji = emoji
+        self.label = label
+    }
+
+    public init(_ builtIn: EventKind) {
+        self.init(id: builtIn.rawValue, emoji: builtIn.emoji, label: builtIn.label)
+    }
 }
 
 /// A user-placed marker at a point in time during the session.
 public struct EventMarker: Sendable, Equatable, Codable, Identifiable {
     public var id: UUID
     public var timestamp: Date
-    public var kind: EventKind
+    public var kind: MarkerKind
     public var text: String?
 
-    public init(id: UUID = UUID(), timestamp: Date, kind: EventKind, text: String? = nil) {
+    public init(id: UUID = UUID(), timestamp: Date, kind: MarkerKind, text: String? = nil) {
         self.id = id
         self.timestamp = timestamp
         self.kind = kind
         self.text = text
+    }
+
+    /// Convenience for built-in kinds.
+    public init(id: UUID = UUID(), timestamp: Date, kind: EventKind, text: String? = nil) {
+        self.init(id: id, timestamp: timestamp, kind: MarkerKind(kind), text: text)
     }
 }
 
@@ -160,7 +191,7 @@ public struct DiveSession: Sendable, Equatable, Codable, Identifiable {
     }
 
     /// Count of placed markers grouped by kind.
-    public var markerCountsByKind: [EventKind: Int] {
+    public var markerCountsByKind: [MarkerKind: Int] {
         markers.reduce(into: [:]) { counts, marker in counts[marker.kind, default: 0] += 1 }
     }
 

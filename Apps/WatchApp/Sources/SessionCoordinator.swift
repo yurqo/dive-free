@@ -27,12 +27,12 @@ final class SessionCoordinator {
     /// these and confirms it (Action button, or a tap); underwater the Action
     /// button drops a `.note` directly and the menu can't be confirmed.
     enum SessionAction: Equatable, Identifiable {
-        case mark(EventKind)
+        case mark(MarkerKind)
         case end
 
         var id: String {
             switch self {
-            case .mark(let kind): "mark.\(kind.rawValue)"
+            case .mark(let kind): "mark.\(kind.id)"
             case .end: "end"
             }
         }
@@ -90,8 +90,14 @@ final class SessionCoordinator {
 
     // MARK: - Crown action menu
 
-    /// Menu the Crown scrolls through: one entry per marker kind, then End.
-    let menuItems: [SessionAction] = EventKind.allCases.map(SessionAction.mark) + [.end]
+    /// User-defined custom marker kinds, synced from the iPhone.
+    private(set) var customKinds: [MarkerKind] = []
+
+    /// Menu the Crown scrolls through: built-in kinds, then any custom kinds,
+    /// then End.
+    var menuItems: [SessionAction] {
+        (EventKind.builtInMarkerKinds + customKinds).map(SessionAction.mark) + [.end]
+    }
 
     /// Index of the currently highlighted menu item (Crown-driven).
     private(set) var focusedIndex: Int = 0
@@ -110,7 +116,7 @@ final class SessionCoordinator {
     /// doing nothing. Cleared on the next start attempt.
     private(set) var startError: String?
 
-    func addMarker(kind: EventKind) {
+    func addMarker(kind: MarkerKind) {
         sessionManager.addMarker(kind: kind)
     }
 
@@ -152,7 +158,7 @@ final class SessionCoordinator {
     func handleActionButton() {
         guard case .active = state else { return }
         if isSubmerged {
-            addMarker(kind: .note)
+            addMarker(kind: MarkerKind(.note))
             DiveHapticPlayer.play(.markerPlaced)
         } else {
             confirmFocused()
@@ -168,6 +174,9 @@ final class SessionCoordinator {
         sessionManager.onHapticEvent = { DiveHapticPlayer.play($0) }
         sync.onPendingCountChange = { [weak self] count in
             Task { @MainActor in self?.pendingSyncCount = count }
+        }
+        sync.onReceiveCustomMarkers = { [weak self] kinds in
+            Task { @MainActor in self?.customKinds = kinds }
         }
         sync.activate()
         // Let the Action-button intent route into this live coordinator.

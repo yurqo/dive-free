@@ -40,6 +40,14 @@ struct SettingsView: View {
                         .foregroundStyle(.red)
                 }
             }
+
+            Section {
+                NavigationLink {
+                    CustomMarkersView()
+                } label: {
+                    Label("Custom Markers", systemImage: "mappin.and.ellipse")
+                }
+            }
         }
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.inline)

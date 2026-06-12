@@ -69,7 +69,7 @@ struct DiveSessionSummaryTests {
                 EventMarker(timestamp: epoch, kind: .note),
             ]
         )
-        #expect(session.markerCountsByKind == [.wildlife: 2, .note: 1])
+        #expect(session.markerCountsByKind == [MarkerKind(.wildlife): 2, MarkerKind(.note): 1])
     }
 
     @Test("markerCountsByKind is empty when no markers were placed")
