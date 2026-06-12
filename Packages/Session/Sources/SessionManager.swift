@@ -79,13 +79,20 @@ public final class SessionManager {
     private let modelContext: ModelContext
     private var hapticTracker: DiveHapticTracker
 
+    private let location: LocationProviding
+    /// Surface GPS fix captured for the current session, if any.
+    private var capturedLocation: GeoPoint?
+    private var locationTask: Task<Void, Never>?
+
     public init(
         sensors: SensorManager = SensorManager(),
         detector: DiveDetector = DiveDetector(),
+        location: LocationProviding = CoreLocationProvider(),
         modelContext: ModelContext
     ) {
         self.sensors = sensors
         self.detector = detector
+        self.location = location
         self.modelContext = modelContext
         self.hapticTracker = DiveHapticTracker(
             config: DiveHapticConfig(surfaceThresholdMeters: detector.config.surfaceThresholdMeters)
@@ -100,9 +107,17 @@ public final class SessionManager {
         maxDepthMeters = 0
         currentDiveStart = nil
         lastSurfacedAt = nil
+        capturedLocation = nil
         hapticTracker = DiveHapticTracker(
             config: DiveHapticConfig(surfaceThresholdMeters: detector.config.surfaceThresholdMeters)
         )
+        // Grab a surface GPS fix in the background — don't block the session
+        // start on it (and it just stays nil if denied/unavailable).
+        locationTask = Task { [weak self] in
+            guard let provider = self?.location else { return }
+            let point = await provider.currentLocation()
+            self?.capturedLocation = point
+        }
         sensors.onSamplesChanged = { [weak self] in self?.refreshDetection() }
         try await sensors.start()
         startTime = Date()
@@ -141,8 +156,16 @@ public final class SessionManager {
         guard isActive, let start = startTime else { return nil }
         sensors.onSamplesChanged = nil
         sensors.stop()
+        locationTask?.cancel()
+        locationTask = nil
         let finalDives = detector.detectDives(from: sensors.samples)
-        let session = DiveSession(startTime: start, endTime: Date(), dives: finalDives, markers: markers)
+        let session = DiveSession(
+            startTime: start,
+            endTime: Date(),
+            dives: finalDives,
+            markers: markers,
+            location: capturedLocation
+        )
         let record = SessionRecord(from: session)
         modelContext.insert(record)
         try modelContext.save()
