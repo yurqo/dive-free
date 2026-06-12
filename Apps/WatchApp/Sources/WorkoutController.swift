@@ -55,13 +55,22 @@ final class WorkoutController: NSObject {
         )
         newSession.delegate = self
         newBuilder.delegate = self
+        // Track the session *before* starting it, so a failure below can tear it
+        // down. Otherwise a started-but-untracked session leaks and HealthKit
+        // rejects the next start with "another workout session already started".
+        session = newSession
+        builder = newBuilder
 
         let start = Date()
         newSession.startActivity(with: start)
-        try await newBuilder.beginCollection(at: start)
-
-        session = newSession
-        builder = newBuilder
+        do {
+            try await newBuilder.beginCollection(at: start)
+        } catch {
+            newSession.end()
+            session = nil
+            builder = nil
+            throw error
+        }
     }
 
     func end() async {

@@ -181,7 +181,8 @@ final class SessionCoordinator {
             // permission denied. Surface the underlying reason so the diver (and
             // we) can tell a permission denial from an entitlement/setup issue,
             // then retry.
-            startError = "Couldn't start: \(error.localizedDescription)\n\nCheck Motion & Health access for Dive Free in Settings."
+            let nsError = error as NSError
+            startError = "Couldn't start: \(error.localizedDescription) [\(nsError.domain) \(nsError.code)]\n\nCheck Motion & Health access for Dive Free in Settings."
             state = .idle
         }
     }
