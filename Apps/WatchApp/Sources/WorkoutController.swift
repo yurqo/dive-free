@@ -44,7 +44,13 @@ final class WorkoutController: NSObject {
 
     func start() async throws {
         let configuration = HKWorkoutConfiguration()
-        configuration.activityType = .underwaterDiving
+        // .underwaterDiving is reserved for Apple's dive apps — HKWorkoutSession
+        // rejects it for third parties (HKError 12, "does not support this
+        // activity type"). Open-water swimming is the supported water type and
+        // auto-engages Water Lock, which the underwater Crown/Action-button UX
+        // depends on.
+        configuration.activityType = .swimming
+        configuration.swimmingLocationType = .openWater
         configuration.locationType = .outdoor
 
         let newSession = try HKWorkoutSession(healthStore: healthStore, configuration: configuration)
