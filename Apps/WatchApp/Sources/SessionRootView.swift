@@ -14,6 +14,11 @@ struct SessionRootView: View {
     @Environment(\.isLuminanceReduced) private var isLuminanceReduced
     @State private var crownPosition: Double = 0
     @FocusState private var menuFocused: Bool
+    @State private var showingSettings = false
+    /// Digital Crown detents required to move one carousel item. Higher = slower,
+    /// finer scrolling. Tunable in Settings; defaults slow since one-detent-per-
+    /// item felt far too fast.
+    @AppStorage("crownStepsPerItem") private var crownStepsPerItem = 3
 
     var body: some View {
         @Bindable var session = session
@@ -38,6 +43,13 @@ struct SessionRootView: View {
                                 .multilineTextAlignment(.center)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
+                        Button {
+                            showingSettings = true
+                        } label: {
+                            Label("Settings", systemImage: "gearshape")
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
                     }
                 }
 
@@ -63,19 +75,24 @@ struct SessionRootView: View {
             Button("End Session", role: .destructive) { session.confirmEnd() }
             Button("Cancel", role: .cancel) {}
         }
+        .sheet(isPresented: $showingSettings) {
+            WatchSettingsView()
+        }
         .focusable(isActive)
         .focused($menuFocused)
         .digitalCrownRotation(
             $crownPosition,
             from: 0,
-            through: Double(max(session.menuItems.count - 1, 0)),
+            // Span `crownStepsPerItem` detents per item so each item takes more
+            // rotation — the bigger the multiplier, the finer/slower the scroll.
+            through: Double(max(session.menuItems.count - 1, 0) * crownStepsPerItem),
             by: 1,
             sensitivity: .low,
             isContinuous: false,
             isHapticFeedbackEnabled: true
         )
         .onChange(of: crownPosition) { _, newValue in
-            session.focus(Int(newValue.rounded()))
+            session.focus(Int((newValue / Double(crownStepsPerItem)).rounded()))
         }
         // On the surface the touchscreen works, so a tap is an equivalent
         // confirm to the Action button — and the only fallback when no Action
@@ -87,7 +104,7 @@ struct SessionRootView: View {
             if active {
                 // Re-sync the Crown's value with the coordinator's reset focus
                 // so the first nudge of a new session doesn't jump.
-                crownPosition = Double(session.focusedIndex)
+                crownPosition = Double(session.focusedIndex * crownStepsPerItem)
                 menuFocused = true
             }
         }
