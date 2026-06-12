@@ -67,6 +67,9 @@ let watchApp = Target.target(
         "NSLocationWhenInUseUsageDescription": "Used to record where your dives happen.",
         // Keeps the app alive in the background for the duration of the HKWorkoutSession.
         "WKBackgroundModes": ["workout-processing"],
+        // Registers the app as a dive app so it can be picked under
+        // Settings → Auto-Launch on Apple Watch Ultra and launch on submersion.
+        "WKSupportsAutoLaunchDiveApp": true,
     ]),
     sources: ["Apps/WatchApp/Sources/**"],
     resources: ["Apps/WatchApp/Resources/**"],
