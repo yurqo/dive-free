@@ -13,66 +13,28 @@ import Session
 struct SessionRootView: View {
     @Environment(SessionCoordinator.self) private var session
     @Environment(\.isLuminanceReduced) private var isLuminanceReduced
-    @Environment(\.scenePhase) private var scenePhase
     @State private var crownPosition: Double = 0
     @FocusState private var menuFocused: Bool
-    @State private var showingSettings = false
     /// Last item the Crown landed on, so we buzz once per item change rather
     /// than once per detent (there are several detents per item).
     @State private var lastFocusedIndex = 0
     /// Digital Crown detents required to move one carousel item. Higher = slower,
     /// finer scrolling. Tunable in Settings; defaults slow since one-detent-per-
     /// item felt far too fast.
-    @AppStorage("crownStepsPerItem") private var crownStepsPerItem = 3
+    @AppStorage("crownStepsPerItem") private var crownStepsPerItem = 6
 
     var body: some View {
         @Bindable var session = session
         VStack(spacing: 10) {
             switch session.state {
             case .idle:
-                VStack(spacing: 10) {
-                    Image(systemName: "water.waves")
-                        .font(.largeTitle)
-                        .foregroundStyle(.teal)
-                    Text("Freedive")
-                        .font(.headline)
-                    Button(session.startError == nil ? "Start Session" : "Try Again") {
-                        Task { await session.start() }
-                    }
-                    .buttonStyle(.borderedProminent)
-                    if let startError = session.startError {
-                        Text(startError)
-                            .font(.caption2)
-                            .foregroundStyle(.orange)
-                            .multilineTextAlignment(.center)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    Spacer(minLength: 8)
-                    Button {
-                        showingSettings = true
-                    } label: {
-                        Label("Settings", systemImage: "gearshape")
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                // The idle "Start" screen lives in StartView (a page of
+                // WatchRootView's pager); this view only renders an active
+                // session and its summary.
+                EmptyView()
 
             case .active:
-                // Fill the screen from the top so the live stats don't float
-                // mid-screen with black bands above and below.
-                VStack(spacing: 10) {
-                    stats
-                    // Crown navigation is inert in Always On Display, so hide the
-                    // carousel to cut burn-in (mirrors the old inline controls).
-                    if !isLuminanceReduced {
-                        gpsStatus
-                        Spacer(minLength: 8)
-                        actionCarousel
-                        hint
-                    }
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                activeView
 
             case .summary(let completed):
                 summaryView(completed)
@@ -90,9 +52,6 @@ struct SessionRootView: View {
             // Underwater the screen is water-locked, so the buttons can't be
             // tapped — on Ultra, press Action + side together again to confirm.
             Text("On Ultra, press the Action + side button together again to end.")
-        }
-        .sheet(isPresented: $showingSettings) {
-            WatchSettingsView()
         }
         .focusable(isActive)
         .focused($menuFocused)
@@ -112,7 +71,8 @@ struct SessionRootView: View {
             let index = Int((newValue / Double(crownStepsPerItem)).rounded())
             if index != lastFocusedIndex {
                 lastFocusedIndex = index
-                WKInterfaceDevice.current().play(.click)
+                // Stronger than .click so item changes are felt underwater.
+                WKInterfaceDevice.current().play(.notification)
             }
             session.focus(index)
         }
@@ -123,28 +83,22 @@ struct SessionRootView: View {
             if isActive, !session.isSubmerged { session.confirmFocused() }
         }
         .onChange(of: isActive) { _, active in
-            if active {
-                // Re-sync the Crown's value with the coordinator's reset focus
-                // so the first nudge of a new session doesn't jump.
-                crownPosition = Double(session.focusedIndex * crownStepsPerItem)
-                lastFocusedIndex = session.focusedIndex
-                menuFocused = true
-            }
+            if active { focusCrown() }
         }
-        // Cold-launch handoff: if the Action button (Workout) launched the app,
-        // start the session now that the scene is up and the coordinator exists.
-        .task { await startIfPending() }
-        .onChange(of: scenePhase) { _, phase in
-            if phase == .active { Task { await startIfPending() } }
+        // WatchRootView mounts this view already-active, so onChange doesn't fire
+        // on first appearance — focus the Crown here too, or it won't drive the
+        // carousel at the start of a session.
+        .onAppear {
+            if isActive { focusCrown() }
         }
     }
 
-    /// Starts the session if the Action button requested it before the app was
-    /// ready (see `BeginDiveWorkoutIntent`). No-op otherwise.
-    private func startIfPending() async {
-        guard LiveSessionRegistry.shared.pendingStart else { return }
-        LiveSessionRegistry.shared.pendingStart = false
-        await session.start()
+    /// Re-sync the Crown's value with the coordinator's reset focus (so the first
+    /// nudge doesn't jump) and focus it so rotation drives the carousel.
+    private func focusCrown() {
+        crownPosition = Double(session.focusedIndex * crownStepsPerItem)
+        lastFocusedIndex = session.focusedIndex
+        menuFocused = true
     }
 
     private var isActive: Bool {
@@ -154,84 +108,136 @@ struct SessionRootView: View {
 
     // MARK: - Active session pieces
 
-    private var stats: some View {
-        VStack(spacing: 2) {
-            // Depth is the headline only on watches with the sensor; without it
-            // (Series 9 / SE) the elapsed timer below is the primary readout.
-            if session.hasDepthSensor {
-                Text(DepthFormat.string(session.currentDepthMeters))
-                    .font(.system(size: 34, weight: .bold, design: .rounded))
-                    .monospacedDigit()
+    private var activeView: some View {
+        VStack(spacing: 3) {
+            topBar
+            Spacer(minLength: 2)
+            centerpiece
+            secondaryStats
+            // Carousel + hint are a surface, non-AOD affordance (underwater the
+            // screen is water-locked and the Action button drops a note).
+            if !isLuminanceReduced && !session.isSubmerged {
+                actionCarousel
+                hint
             }
-            // Refresh once per second for the timer; while submerged show the
-            // active-dive duration (highlighted), otherwise the session elapsed
-            // time. TimelineView keeps redrawing in Always On Display at a
-            // reduced cadence.
+            Spacer(minLength: 2)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// Session elapsed time, top-left. The OS clock sits top-right, so we leave
+    /// that corner clear and treat it as the "current time".
+    private var topBar: some View {
+        HStack {
             TimelineView(.periodic(from: .now, by: 1)) { _ in
-                if let diveElapsed = session.currentDiveElapsed {
+                Label(
+                    Duration.seconds(session.elapsedTime).formatted(.time(pattern: .minuteSecond)),
+                    systemImage: "stopwatch"
+                )
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
+            }
+            Spacer()
+        }
+    }
+
+    /// The focal readout: depth + dive time while submerged, the surface-recovery
+    /// timer between dives, else current depth (or session time with no sensor).
+    private var centerpiece: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { _ in
+            if session.hasDepthSensor, let diveElapsed = session.currentDiveElapsed {
+                VStack(spacing: 0) {
+                    depthHeadline
                     Text(Duration.seconds(diveElapsed).formatted(.time(pattern: .minuteSecond)))
-                        .font(.title3.weight(.semibold))
+                        .font(.title2.weight(.semibold))
                         .foregroundStyle(isLuminanceReduced ? AnyShapeStyle(.primary) : AnyShapeStyle(.teal))
                         .monospacedDigit()
-                    // Measures time below the surface threshold, which begins
-                    // before a descent qualifies as a counted dive — hence
-                    // "Submerged" rather than "Dive Time".
-                    Text("Submerged")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                } else if let surfaceInterval = session.surfaceInterval {
-                    // Recovery timer between dives: counts up from the moment the
-                    // diver surfaces and resets on the next descent.
+                }
+            } else if let surfaceInterval = session.surfaceInterval {
+                VStack(spacing: 0) {
                     Text(Duration.seconds(surfaceInterval).formatted(.time(pattern: .minuteSecond)))
-                        .font(.title3.weight(.semibold))
-                        .foregroundStyle(
-                            isLuminanceReduced
-                                ? AnyShapeStyle(.primary)
-                                : AnyShapeStyle(surfaceReadinessColor(surfaceInterval))
-                        )
+                        .font(.system(size: 46, weight: .bold, design: .rounded))
+                        .foregroundStyle(isLuminanceReduced ? AnyShapeStyle(.primary) : AnyShapeStyle(surfaceReadinessColor(surfaceInterval)))
                         .monospacedDigit()
                     Text("Surface")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
-                } else {
-                    Text(Duration.seconds(session.elapsedTime).formatted(.time(pattern: .minuteSecond)))
+                }
+            } else if session.hasDepthSensor {
+                depthHeadline
+            } else {
+                Text(Duration.seconds(session.elapsedTime).formatted(.time(pattern: .minuteSecond)))
+                    .font(.system(size: 42, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+            }
+        }
+    }
+
+    private var depthHeadline: some View {
+        Text(DepthFormat.string(session.currentDepthMeters))
+            .font(.system(size: 46, weight: .bold, design: .rounded))
+            .monospacedDigit()
+    }
+
+    /// Metrics around the focal readout: this-dive figures while submerged, the
+    /// full set (with GPS + surface distance) at the surface.
+    @ViewBuilder
+    private var secondaryStats: some View {
+        if session.isSubmerged {
+            Text(submergedStatsText)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
+        } else {
+            VStack(spacing: 1) {
+                Text(surfaceStatsText)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+                HStack(spacing: 6) {
+                    gpsIcon
+                    Text(distanceText(session.surfaceDistanceMeters))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
                 }
             }
-            Text(
-                session.hasDepthSensor
-                    ? "\(session.diveCount) dives · \(DepthFormat.value(session.maxDepthMeters)) m max · \(session.markerCount) markers"
-                    : "\(session.markerCount) markers"
-            )
-            .font(.caption2)
-            .foregroundStyle(.secondary)
-            .monospacedDigit()
         }
     }
 
+    private var submergedStatsText: String {
+        session.hasDepthSensor
+            ? "max \(DepthFormat.value(session.currentDiveMaxDepth)) m · 📍\(session.currentDiveMarkerCount)"
+            : "📍\(session.currentDiveMarkerCount)"
+    }
+
+    private var surfaceStatsText: String {
+        session.hasDepthSensor
+            ? "\(session.diveCount) dives · \(DepthFormat.value(session.maxDepthMeters)) m · 📍\(session.markerCount)"
+            : "📍\(session.markerCount)"
+    }
+
+    private func distanceText(_ meters: Double) -> String {
+        meters < 1000 ? "\(Int(meters)) m" : String(format: "%.1f km", meters / 1000)
+    }
+
+    /// Pill-shaped Crown action selector (marker kinds, then End).
     private var actionCarousel: some View {
         let item = session.menuItems[min(session.focusedIndex, max(session.menuItems.count - 1, 0))]
         let tint: Color = item == .end ? .red : .teal
-        return ZStack {
-            Circle()
-                .stroke(tint.opacity(0.6), lineWidth: 3)
-            VStack(spacing: 2) {
-                if let emoji = item.emoji {
-                    Text(emoji)
-                        .font(.title3)
-                } else {
-                    Image(systemName: item.systemImage)
-                        .font(.title3)
-                }
-                Text(item.title)
-                    .font(.caption2)
-                    .multilineTextAlignment(.center)
+        return HStack(spacing: 6) {
+            if let emoji = item.emoji {
+                Text(emoji).font(.title3)
+            } else {
+                Image(systemName: item.systemImage).font(.title3)
             }
-            .foregroundStyle(tint)
+            Text(item.title).font(.caption).fontWeight(.medium)
         }
-        .frame(width: 84, height: 84)
+        .foregroundStyle(tint)
+        .padding(.vertical, 8)
+        .padding(.horizontal, 18)
+        .background(Capsule().stroke(tint.opacity(0.7), lineWidth: 3))
     }
 
     /// Coarse pacing cue for the surface-interval timer: warm while recovery is
@@ -246,38 +252,33 @@ struct SessionRootView: View {
     }
 
     private var hint: some View {
-        Text(session.isSubmerged ? "Action button → marker" : "Crown to choose · tap or button to confirm")
+        Text("Crown to choose · tap or button to confirm")
             .font(.caption2)
             .foregroundStyle(.secondary)
             .multilineTextAlignment(.center)
     }
 
-    /// Live GPS-capture indicator. Location is a core feature, so make it obvious
-    /// when the watch isn't getting fixes (e.g. wrist underwater mid-stroke):
-    /// teal when a fix is recent, orange when it's gone stale, grey while still
-    /// acquiring the first one. Re-evaluated every second so a lost signal shows
-    /// even though no new value arrives.
-    private var gpsStatus: some View {
+    /// Icon-only GPS status (location is core, so make signal loss obvious at a
+    /// glance): teal when a fix is recent, yellow while acquiring the first one,
+    /// red crossed-out when it's gone stale (e.g. wrist underwater). Re-evaluated
+    /// each second so a lost signal shows even without a new value.
+    private var gpsIcon: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
-            let (label, symbol, color) = gpsState(now: context.date)
-            Label(label, systemImage: symbol)
+            let (symbol, color) = gpsIconState(now: context.date)
+            Image(systemName: symbol)
                 .font(.caption2)
                 .foregroundStyle(color)
         }
     }
 
-    /// Seconds without a fix before the indicator flips from "have GPS" to
-    /// "lost it" — generous enough to tolerate brief stroke-by-stroke gaps.
+    /// Seconds without a fix before GPS reads "lost" — generous enough to
+    /// tolerate brief stroke-by-stroke gaps.
     private static let gpsStaleAfter: TimeInterval = 12
 
-    private func gpsState(now: Date) -> (label: String, symbol: String, color: Color) {
-        guard let lastFix = session.lastLocationFixAt else {
-            return ("Acquiring GPS…", "location", .gray)
-        }
-        if now.timeIntervalSince(lastFix) <= Self.gpsStaleAfter {
-            return ("GPS", "location.fill", .teal)
-        }
-        return ("No GPS signal", "location.slash.fill", .orange)
+    private func gpsIconState(now: Date) -> (symbol: String, color: Color) {
+        guard let lastFix = session.lastLocationFixAt else { return ("location", .yellow) }
+        if now.timeIntervalSince(lastFix) <= Self.gpsStaleAfter { return ("location.fill", .teal) }
+        return ("location.slash.fill", .red)
     }
 
     // MARK: - Post-session summary

@@ -76,8 +76,17 @@ final class SessionCoordinator {
     /// Running maximum depth (m) observed in the current session.
     var maxDepthMeters: Double { sessionManager.maxDepthMeters }
 
+    /// Maximum depth (m) reached during the dive currently in progress.
+    var currentDiveMaxDepth: Double { sessionManager.currentDiveMaxDepth }
+
+    /// Total surface distance traveled this session (meters).
+    var surfaceDistanceMeters: Double { sessionManager.surfaceDistanceMeters }
+
     /// Number of markers placed in the current session.
     var markerCount: Int { sessionManager.markers.count }
+
+    /// Markers placed during the dive currently in progress.
+    var currentDiveMarkerCount: Int { sessionManager.currentDiveMarkerCount }
 
     /// Elapsed time below the surface threshold, or `nil` at the surface.
     var currentDiveElapsed: TimeInterval? { sessionManager.currentDiveElapsed }
