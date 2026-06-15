@@ -9,6 +9,10 @@ import Foundation
 final class LiveSessionRegistry {
     static let shared = LiveSessionRegistry()
     weak var coordinator: SessionCoordinator?
+    /// Set by `BeginDiveWorkoutIntent` when the Action button fires before the
+    /// coordinator exists (cold launch). `SessionRootView` consumes it once the
+    /// scene is active and starts the session.
+    var pendingStart = false
     private init() {}
 }
 

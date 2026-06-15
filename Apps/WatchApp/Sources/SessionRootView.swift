@@ -13,6 +13,7 @@ import Session
 struct SessionRootView: View {
     @Environment(SessionCoordinator.self) private var session
     @Environment(\.isLuminanceReduced) private var isLuminanceReduced
+    @Environment(\.scenePhase) private var scenePhase
     @State private var crownPosition: Double = 0
     @FocusState private var menuFocused: Bool
     @State private var showingSettings = false
@@ -126,6 +127,20 @@ struct SessionRootView: View {
                 menuFocused = true
             }
         }
+        // Cold-launch handoff: if the Action button (Workout) launched the app,
+        // start the session now that the scene is up and the coordinator exists.
+        .task { await startIfPending() }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { Task { await startIfPending() } }
+        }
+    }
+
+    /// Starts the session if the Action button requested it before the app was
+    /// ready (see `BeginDiveWorkoutIntent`). No-op otherwise.
+    private func startIfPending() async {
+        guard LiveSessionRegistry.shared.pendingStart else { return }
+        LiveSessionRegistry.shared.pendingStart = false
+        await session.start()
     }
 
     private var isActive: Bool {
