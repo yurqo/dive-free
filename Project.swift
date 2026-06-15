@@ -160,7 +160,7 @@ let project = Project(
         // patch to ship a new release. Both targets bind their Info.plist to
         // these (below) so the values actually reach the bundle (a literal
         // Info.plist default would silently win and pin the version at "1.0").
-        "MARKETING_VERSION": "1.0.11",
+        "MARKETING_VERSION": "1.0.12",
         "CURRENT_PROJECT_VERSION": "1",
         "DEVELOPMENT_TEAM": SettingValue(stringLiteral: developmentTeam),
         "CODE_SIGN_STYLE": "Automatic",

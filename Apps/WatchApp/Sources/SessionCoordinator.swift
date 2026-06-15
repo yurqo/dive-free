@@ -154,6 +154,22 @@ final class SessionCoordinator {
         Task { await stop() }
     }
 
+    /// Invoked by the Apple Watch Ultra Action + side button dual-click (routed
+    /// through the Pause/Resume workout intents). We don't pause; instead this is
+    /// a touch-free way to end while water-locked: the first dual-click arms the
+    /// end confirmation, a second confirms and ends. Haptics stand in for the
+    /// dialog the diver may not be able to see underwater.
+    func handleEndGesture() {
+        guard case .active = state else { return }
+        if pendingEndConfirmation {
+            DiveHapticPlayer.play(.surface)
+            confirmEnd()
+        } else {
+            pendingEndConfirmation = true
+            DiveHapticPlayer.play(.markerPlaced)
+        }
+    }
+
     /// Dismisses the post-session summary and returns to the start screen.
     func dismissSummary() {
         guard case .summary = state else { return }

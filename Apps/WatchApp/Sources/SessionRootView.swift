@@ -86,6 +86,10 @@ struct SessionRootView: View {
         ) {
             Button("End Session", role: .destructive) { session.confirmEnd() }
             Button("Cancel", role: .cancel) {}
+        } message: {
+            // Underwater the screen is water-locked, so the buttons can't be
+            // tapped — on Ultra, press Action + side together again to confirm.
+            Text("On Ultra, press the Action + side button together again to end.")
         }
         .sheet(isPresented: $showingSettings) {
             WatchSettingsView()
