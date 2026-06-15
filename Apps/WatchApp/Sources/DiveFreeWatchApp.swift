@@ -18,7 +18,7 @@ struct DiveFreeWatchApp: App {
 
     var body: some Scene {
         WindowGroup {
-            SessionRootView()
+            WatchRootView()
                 .environment(session)
         }
         .modelContainer(store.container)

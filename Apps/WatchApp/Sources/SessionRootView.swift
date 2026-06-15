@@ -13,10 +13,8 @@ import Session
 struct SessionRootView: View {
     @Environment(SessionCoordinator.self) private var session
     @Environment(\.isLuminanceReduced) private var isLuminanceReduced
-    @Environment(\.scenePhase) private var scenePhase
     @State private var crownPosition: Double = 0
     @FocusState private var menuFocused: Bool
-    @State private var showingSettings = false
     /// Last item the Crown landed on, so we buzz once per item change rather
     /// than once per detent (there are several detents per item).
     @State private var lastFocusedIndex = 0
@@ -30,33 +28,10 @@ struct SessionRootView: View {
         VStack(spacing: 10) {
             switch session.state {
             case .idle:
-                VStack(spacing: 10) {
-                    Image(systemName: "water.waves")
-                        .font(.largeTitle)
-                        .foregroundStyle(.teal)
-                    Text("Freedive")
-                        .font(.headline)
-                    Button(session.startError == nil ? "Start Session" : "Try Again") {
-                        Task { await session.start() }
-                    }
-                    .buttonStyle(.borderedProminent)
-                    if let startError = session.startError {
-                        Text(startError)
-                            .font(.caption2)
-                            .foregroundStyle(.orange)
-                            .multilineTextAlignment(.center)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    Spacer(minLength: 8)
-                    Button {
-                        showingSettings = true
-                    } label: {
-                        Label("Settings", systemImage: "gearshape")
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                // The idle "Start" screen lives in StartView (a page of
+                // WatchRootView's pager); this view only renders an active
+                // session and its summary.
+                EmptyView()
 
             case .active:
                 // Fill the screen from the top so the live stats don't float
@@ -90,9 +65,6 @@ struct SessionRootView: View {
             // Underwater the screen is water-locked, so the buttons can't be
             // tapped — on Ultra, press Action + side together again to confirm.
             Text("On Ultra, press the Action + side button together again to end.")
-        }
-        .sheet(isPresented: $showingSettings) {
-            WatchSettingsView()
         }
         .focusable(isActive)
         .focused($menuFocused)
@@ -131,20 +103,6 @@ struct SessionRootView: View {
                 menuFocused = true
             }
         }
-        // Cold-launch handoff: if the Action button (Workout) launched the app,
-        // start the session now that the scene is up and the coordinator exists.
-        .task { await startIfPending() }
-        .onChange(of: scenePhase) { _, phase in
-            if phase == .active { Task { await startIfPending() } }
-        }
-    }
-
-    /// Starts the session if the Action button requested it before the app was
-    /// ready (see `BeginDiveWorkoutIntent`). No-op otherwise.
-    private func startIfPending() async {
-        guard LiveSessionRegistry.shared.pendingStart else { return }
-        LiveSessionRegistry.shared.pendingStart = false
-        await session.start()
     }
 
     private var isActive: Bool {
