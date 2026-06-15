@@ -18,11 +18,19 @@ struct WaterSubmersionDepthProviderTests {
         #expect(abs(sample.depthMeters - 3.048) < 0.0001)
     }
 
-    @Test("makeDepthProvider returns MockDepthProvider when sensor is unavailable")
+    @Test("makeDepthProvider returns MockDepthProvider on non-watchOS (tests/simulator)")
     func fallbackProvider() {
-        // Test target runs on iOS — no water-submersion sensor — so the mock
-        // path is exercised here.
+        // Test target runs on iOS — the mock path is exercised here.
         let provider = makeDepthProvider()
         #expect(provider is MockDepthProvider)
+    }
+
+    @Test("UnavailableDepthProvider yields no samples")
+    func unavailableProviderIsEmpty() async throws {
+        let provider = UnavailableDepthProvider()
+        try await provider.start()
+        var count = 0
+        for await _ in provider.depthStream() { count += 1 }
+        #expect(count == 0)
     }
 }

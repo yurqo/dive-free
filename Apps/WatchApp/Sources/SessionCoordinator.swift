@@ -92,6 +92,10 @@ final class SessionCoordinator {
     /// Drives the live GPS-status indicator on the active screen.
     var lastLocationFixAt: Date? { sessionManager.lastLocationFixAt }
 
+    /// Whether this watch can measure depth (Ultra / Series 10+). When false
+    /// (Series 9 and earlier, SE) the UI hides depth and runs GPS + markers only.
+    var hasDepthSensor: Bool { DepthSensor.isAvailable }
+
     // MARK: - Crown action menu
 
     /// User-defined custom marker kinds, synced from the iPhone.

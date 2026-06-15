@@ -72,13 +72,30 @@ public final class WaterSubmersionDepthProvider: NSObject, DepthProvider, CMWate
 }
 #endif
 
-/// Returns the best available depth provider for the current platform.
-/// Falls back to the mock on platforms/simulators without the sensor.
-public func makeDepthProvider() -> DepthProvider {
-    #if os(watchOS)
-    if CMWaterSubmersionManager.waterSubmersionAvailable {
-        return WaterSubmersionDepthProvider()
+/// Whether this device can measure water depth. `true` on a real Apple Watch
+/// Ultra (40 m) or Series 10/11 (6 m), and on the simulator (so previews show
+/// mock depth). `false` on a real watch without the sensor (Series 9 and
+/// earlier, SE) — the UI hides depth there.
+public enum DepthSensor {
+    public static var isAvailable: Bool {
+        #if os(watchOS) && !targetEnvironment(simulator)
+        return CMWaterSubmersionManager.waterSubmersionAvailable
+        #else
+        return true
+        #endif
     }
-    #endif
+}
+
+/// Returns the best depth provider for this device:
+/// - real watch with the sensor → `WaterSubmersionDepthProvider` (live depth);
+/// - real watch without it → `UnavailableDepthProvider` (no depth, no fake dives);
+/// - simulator / other platforms → `MockDepthProvider` (synthetic profile for dev).
+public func makeDepthProvider() -> DepthProvider {
+    #if os(watchOS) && !targetEnvironment(simulator)
+    return CMWaterSubmersionManager.waterSubmersionAvailable
+        ? WaterSubmersionDepthProvider()
+        : UnavailableDepthProvider()
+    #else
     return MockDepthProvider()
+    #endif
 }
