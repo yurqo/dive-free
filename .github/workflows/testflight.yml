@@ -1,25 +1,19 @@
 name: Deliver to TestFlight
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Manually triggered delivery. Pick the version bump:
-#   • patch  → a TestFlight beta   (0.1.0 → 0.1.1)
-#   • minor  → an App Store release (0.1.x → 0.2.0; submit for review by hand)
+# Manually triggered delivery to TestFlight.
 #
-# Versioning is driven by git tags (vX.Y.Z): the workflow reads the latest tag,
-# bumps it, builds, uploads, and pushes the new tag on success. The build number
-# is the workflow run number, so every upload is unique and increasing.
+# The marketing version is the single source of truth in Project.swift
+# (MARKETING_VERSION) — this workflow reads it, so what's in the repo is exactly
+# what TestFlight shows. To ship a new version, bump MARKETING_VERSION in
+# Project.swift. The build number is the workflow run number, so every upload is
+# unique and increasing; the delivered "version (build)" is recorded as a tag.
 #
 # SAFE BY DEFAULT: the Preflight step fails fast if any required secret is
 # missing. See docs/CI_CD.md.
 # ─────────────────────────────────────────────────────────────────────────────
 on:
   workflow_dispatch:
-    inputs:
-      bump:
-        description: "Version bump"
-        type: choice
-        default: patch
-        options: [patch, minor]
 
 permissions:
   contents: write          # push the version tag after a successful upload
@@ -58,29 +52,18 @@ jobs:
           fi
           echo "✅ All required secrets present."
 
-      # ── Compute the next marketing version (from tags) and build number ──────
+      # ── Read the marketing version from Project.swift; build = run number ────
       - name: Compute version & build number
         id: version
         run: |
           set -euo pipefail
-          latest=$(git tag --sort=-v:refname -l 'v*' | head -n1)
-          if [[ -z "$latest" ]]; then
-            # No tags yet: ship the version currently in Project.swift as-is.
-            version=$(grep -m1 -oE '"MARKETING_VERSION": "[0-9]+\.[0-9]+\.[0-9]+"' Project.swift \
-              | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
-            version=${version:-0.1.0}
-            echo "No existing tag — first build uses Project.swift version $version."
-          else
-            v=${latest#v}
-            IFS=. read -r major minor patch <<<"$v"
-            if [[ "${{ inputs.bump }}" == "minor" ]]; then
-              minor=$((minor + 1)); patch=0
-            else
-              patch=$((patch + 1))
-            fi
-            version="$major.$minor.$patch"
-            echo "Bumping $latest → $version (${{ inputs.bump }})."
+          version=$(grep -m1 -oE '"MARKETING_VERSION": "[0-9]+\.[0-9]+\.[0-9]+"' Project.swift \
+            | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+          if [[ -z "$version" ]]; then
+            echo "❌ Could not read MARKETING_VERSION from Project.swift." >&2
+            exit 1
           fi
+          echo "Shipping version $version (build ${{ github.run_number }}) from Project.swift."
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "build=${{ github.run_number }}" >> "$GITHUB_OUTPUT"
 
@@ -142,14 +125,14 @@ jobs:
             --apiKey ${{ secrets.APP_STORE_CONNECT_KEY_ID }} \
             --apiIssuer ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
 
-      # ── Record the delivered version as a tag (drives the next bump) ─────────
+      # ── Record the delivered version+build as a tag (unique per upload) ──────
       - name: Tag delivered version
         if: success()
         run: |
           set -euo pipefail
-          tag="v${{ steps.version.outputs.version }}"
+          tag="v${{ steps.version.outputs.version }}-build.${{ steps.version.outputs.build }}"
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag "$tag"
           git push origin "$tag"
-          echo "Tagged $tag (build ${{ steps.version.outputs.build }})."
+          echo "Tagged $tag."
