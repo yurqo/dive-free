@@ -3,12 +3,12 @@ name: Deliver to TestFlight
 # ─────────────────────────────────────────────────────────────────────────────
 # Manually triggered delivery to TestFlight.
 #
-# The marketing version is the single source of truth in Project.swift
-# (MARKETING_VERSION) — this workflow reads it, so what's in the repo is exactly
-# what TestFlight shows. To ship a new release, bump the patch of
-# MARKETING_VERSION in Project.swift. The build number is set to that patch
-# component, so version and build stay aligned (1.0.11 → build 11); the
-# delivered version is recorded as a git tag.
+# Versioning is automatic: each dispatch ships the next patch, computed from the
+# latest vX.Y.Z release tag (1.0.12 → 1.0.13). The build number tracks the patch,
+# so version and build stay aligned (1.0.13 → build 13), and the delivered
+# version is recorded as a git tag. To jump versions (e.g. a new minor), set
+# MARKETING_VERSION in Project.swift higher than the latest tag — CI uses it for
+# that one release, then resumes auto-incrementing from there.
 #
 # SAFE BY DEFAULT: the Preflight step fails fast if any required secret is
 # missing. See docs/CI_CD.md.
@@ -53,21 +53,36 @@ jobs:
           fi
           echo "✅ All required secrets present."
 
-      # ── Read the marketing version from Project.swift; build = patch ─────────
+      # ── Auto-increment the patch from the latest release tag ─────────────────
       - name: Compute version & build number
         id: version
         run: |
           set -euo pipefail
-          version=$(grep -m1 -oE '"MARKETING_VERSION": "[0-9]+\.[0-9]+\.[0-9]+"' Project.swift \
+          # The patch auto-increments from the latest vX.Y.Z release tag, so a
+          # plain dispatch ships the next patch with no manual edit. To jump
+          # versions (e.g. a new minor), set MARKETING_VERSION in Project.swift
+          # higher than the latest tag and CI uses it verbatim that one release.
+          # (BSD sort on macOS has no -V, so sort numerically by field.)
+          proj=$(grep -m1 -oE '"MARKETING_VERSION": "[0-9]+\.[0-9]+\.[0-9]+"' Project.swift \
             | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
-          if [[ -z "$version" ]]; then
-            echo "❌ Could not read MARKETING_VERSION from Project.swift." >&2
-            exit 1
+          proj=${proj:-1.0.0}
+          # `|| true` so no matching tags (first release) doesn't trip set -e.
+          tag=$(git tag -l 'v*' | { grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' || true; } | sed 's/^v//' \
+            | sort -t. -k1,1n -k2,2n -k3,3n | tail -n1)
+          if [[ -z "$tag" ]]; then
+            version="$proj"                              # first release, no tags yet
+          else
+            highest=$(printf '%s\n%s\n' "$tag" "$proj" | sort -t. -k1,1n -k2,2n -k3,3n | tail -n1)
+            if [[ "$proj" != "$tag" && "$highest" == "$proj" ]]; then
+              version="$proj"                            # manual override in Project.swift
+            else
+              IFS=. read -r major minor patch <<<"$tag"
+              version="$major.$minor.$((patch + 1))"     # auto patch bump
+            fi
           fi
-          # Build number = the version's patch component, so version and build
-          # stay aligned (1.0.11 → build 11). Bump the patch for each release.
+          # Build number = patch, so version and build stay aligned (1.0.13 → 13).
           build="${version##*.}"
-          echo "Shipping version $version (build $build) from Project.swift."
+          echo "Shipping version $version (build $build)."
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "build=$build" >> "$GITHUB_OUTPUT"
 
