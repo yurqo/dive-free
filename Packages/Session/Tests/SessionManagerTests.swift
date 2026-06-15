@@ -241,6 +241,30 @@ struct SessionManagerTests {
 
         #expect(session?.location == nil)
     }
+
+    @Test("lastLocationFixAt is set after a fix and cleared on stop")
+    func tracksLastLocationFix() async throws {
+        let (manager, store) = try makeManager(location: GeoPoint(latitude: 1, longitude: 2))
+        defer { _ = store }
+
+        #expect(manager.lastLocationFixAt == nil)
+        try await manager.startSession()
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(manager.lastLocationFixAt != nil)
+
+        try manager.stopSession()
+        #expect(manager.lastLocationFixAt == nil)
+    }
+
+    @Test("lastLocationFixAt stays nil when no fix is available")
+    func noFixLeavesTimestampNil() async throws {
+        let (manager, store) = try makeManager(location: nil)
+        defer { _ = store }
+
+        try await manager.startSession()
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(manager.lastLocationFixAt == nil)
+    }
 }
 
 /// Returns a fixed location (or nil) without touching CoreLocation.

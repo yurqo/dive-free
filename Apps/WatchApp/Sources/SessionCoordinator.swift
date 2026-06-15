@@ -88,6 +88,10 @@ final class SessionCoordinator {
     /// the surface.
     var isSubmerged: Bool { sessionManager.currentDiveStart != nil }
 
+    /// When the most recent GPS fix arrived this session, or `nil` if none yet.
+    /// Drives the live GPS-status indicator on the active screen.
+    var lastLocationFixAt: Date? { sessionManager.lastLocationFixAt }
+
     // MARK: - Crown action menu
 
     /// User-defined custom marker kinds, synced from the iPhone.

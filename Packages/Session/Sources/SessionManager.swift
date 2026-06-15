@@ -88,6 +88,10 @@ public final class SessionManager {
     private let location: LocationProviding
     /// Surface GPS fix captured for the current session, if any (the first fix).
     private var capturedLocation: GeoPoint?
+    /// When the most recent GPS fix arrived (regardless of track throttling), or
+    /// `nil` if none yet this session. Drives the live "GPS acquired?" indicator —
+    /// a fix going stale means the watch lost signal (e.g. wrist underwater).
+    public private(set) var lastLocationFixAt: Date?
     /// Ordered surface fixes captured during the session — the surface path.
     private var track: [TrackPoint] = []
     private var locationTask: Task<Void, Never>?
@@ -118,6 +122,7 @@ public final class SessionManager {
         currentDiveStart = nil
         lastSurfacedAt = nil
         capturedLocation = nil
+        lastLocationFixAt = nil
         track = []
         hapticTracker = DiveHapticTracker(
             config: DiveHapticConfig(surfaceThresholdMeters: detector.config.surfaceThresholdMeters)
@@ -129,7 +134,7 @@ public final class SessionManager {
             guard let stream = self?.location.locationUpdates() else { return }
             for await point in stream {
                 if Task.isCancelled { break }
-                self?.appendTrackPoint(point)
+                self?.handleLocationFix(point)
             }
         }
         sensors.onSamplesChanged = { [weak self] in self?.refreshDetection() }
@@ -138,14 +143,15 @@ public final class SessionManager {
         isActive = true
     }
 
-    /// Records a surface GPS fix into the track, throttled to one per
-    /// `minTrackInterval` to bound the array, and tags the session location with
-    /// the first fix.
-    private func appendTrackPoint(_ point: GeoPoint) {
+    /// Handles a surface GPS fix: timestamps it for the live indicator, tags the
+    /// session location with the first fix, and appends to the track (throttled
+    /// to one per `minTrackInterval` to bound the array).
+    private func handleLocationFix(_ point: GeoPoint) {
         let now = Date()
+        lastLocationFixAt = now
+        if capturedLocation == nil { capturedLocation = point }
         if let last = track.last, now.timeIntervalSince(last.timestamp) < Self.minTrackInterval { return }
         track.append(TrackPoint(timestamp: now, location: point))
-        if capturedLocation == nil { capturedLocation = point }
     }
 
     /// Re-runs dive detection over all accumulated samples, updates the
@@ -202,6 +208,7 @@ public final class SessionManager {
         currentDiveStart = nil
         lastSurfacedAt = nil
         track = []
+        lastLocationFixAt = nil
         return session
     }
 }

@@ -65,6 +65,7 @@ struct SessionRootView: View {
                     // Crown navigation is inert in Always On Display, so hide the
                     // carousel to cut burn-in (mirrors the old inline controls).
                     if !isLuminanceReduced {
+                        gpsStatus
                         Spacer(minLength: 8)
                         actionCarousel
                         hint
@@ -136,7 +137,7 @@ struct SessionRootView: View {
 
     private var stats: some View {
         VStack(spacing: 2) {
-            Text(String(format: "%.1f m", session.currentDepthMeters))
+            Text(DepthFormat.string(session.currentDepthMeters))
                 .font(.system(size: 34, weight: .bold, design: .rounded))
                 .monospacedDigit()
             // Refresh once per second for the timer; while submerged show the
@@ -176,7 +177,7 @@ struct SessionRootView: View {
                         .monospacedDigit()
                 }
             }
-            Text("\(session.diveCount) dives · \(String(format: "%.1f", session.maxDepthMeters)) m max · \(session.markerCount) markers")
+            Text("\(session.diveCount) dives · \(DepthFormat.value(session.maxDepthMeters)) m max · \(session.markerCount) markers")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
@@ -224,6 +225,34 @@ struct SessionRootView: View {
             .multilineTextAlignment(.center)
     }
 
+    /// Live GPS-capture indicator. Location is a core feature, so make it obvious
+    /// when the watch isn't getting fixes (e.g. wrist underwater mid-stroke):
+    /// teal when a fix is recent, orange when it's gone stale, grey while still
+    /// acquiring the first one. Re-evaluated every second so a lost signal shows
+    /// even though no new value arrives.
+    private var gpsStatus: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            let (label, symbol, color) = gpsState(now: context.date)
+            Label(label, systemImage: symbol)
+                .font(.caption2)
+                .foregroundStyle(color)
+        }
+    }
+
+    /// Seconds without a fix before the indicator flips from "have GPS" to
+    /// "lost it" — generous enough to tolerate brief stroke-by-stroke gaps.
+    private static let gpsStaleAfter: TimeInterval = 12
+
+    private func gpsState(now: Date) -> (label: String, symbol: String, color: Color) {
+        guard let lastFix = session.lastLocationFixAt else {
+            return ("Acquiring GPS…", "location", .gray)
+        }
+        if now.timeIntervalSince(lastFix) <= Self.gpsStaleAfter {
+            return ("GPS", "location.fill", .teal)
+        }
+        return ("No GPS signal", "location.slash.fill", .orange)
+    }
+
     // MARK: - Post-session summary
 
     private func summaryView(_ completed: DiveSession) -> some View {
@@ -239,7 +268,7 @@ struct SessionRootView: View {
                 VStack(spacing: 4) {
                     summaryRow("Total", Duration.seconds(completed.totalDuration).formatted(.time(pattern: .hourMinuteSecond)))
                     summaryRow("Dives", "\(completed.diveCount)")
-                    summaryRow("Max depth", String(format: "%.1f m", completed.maxDepthMeters))
+                    summaryRow("Max depth", DepthFormat.string(completed.maxDepthMeters))
                     if let average = completed.averageSurfaceInterval {
                         summaryRow("Avg surface", Duration.seconds(average).formatted(.time(pattern: .minuteSecond)))
                     }

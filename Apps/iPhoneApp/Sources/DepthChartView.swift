@@ -98,7 +98,7 @@ struct DepthChartView: View {
     private func callout(for point: DepthProfilePoint) -> some View {
         let clockTime = dive.startTime.addingTimeInterval(point.secondsFromStart)
         return VStack(alignment: .leading, spacing: 2) {
-            Text(String(format: "%.1f m", point.depthMeters))
+            Text(DepthFormat.string(point.depthMeters))
                 .font(.caption).bold()
                 .monospacedDigit()
             Text(clockTime, format: .dateTime.hour().minute().second())

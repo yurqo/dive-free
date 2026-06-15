@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import Domain
 import Persistence
 
 /// All-time totals across every stored session: the at-a-glance overview page.
@@ -40,7 +41,7 @@ struct StatsView: View {
                     Section("All-Time") {
                         statRow("Sessions", "\(totals.sessions)", systemImage: "water.waves")
                         statRow("Dives", "\(totals.dives)", systemImage: "figure.open.water.swim")
-                        statRow("Deepest", String(format: "%.1f m", totals.maxDepth), systemImage: "arrow.down.to.line")
+                        statRow("Deepest", DepthFormat.string(totals.maxDepth), systemImage: "arrow.down.to.line")
                         statRow(
                             "Total time",
                             Duration.seconds(totals.duration).formatted(.time(pattern: .hourMinuteSecond)),
