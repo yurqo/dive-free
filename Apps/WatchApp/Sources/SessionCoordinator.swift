@@ -62,6 +62,9 @@ final class SessionCoordinator {
 
     private(set) var state: State = .idle
 
+    /// Guards `start()` against re-entry during its async setup (see `start()`).
+    @ObservationIgnored private var isStarting = false
+
     var currentDepthMeters: Double { sessionManager.currentDepthMeters }
 
     // Exposed so `SessionRootView` can bind to elapsed time.
@@ -208,7 +211,16 @@ final class SessionCoordinator {
     }
 
     func start() async {
-        guard state == .idle else { return }
+        // Allow starting from idle OR straight from the post-session summary, so
+        // the diver can begin a new session right after ending one (e.g. via the
+        // Action button) without first tapping Done. Only block a double-start.
+        if case .active = state { return }
+        // Re-entrancy guard: start() awaits (HealthKit auth/start) before state
+        // flips to .active, so two triggers (Dive Again + Action button) could
+        // otherwise both pass the check and start two workouts.
+        guard !isStarting else { return }
+        isStarting = true
+        defer { isStarting = false }
         startError = nil
         do {
             try await workout.requestAuthorization()

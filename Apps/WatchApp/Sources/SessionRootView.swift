@@ -313,9 +313,16 @@ struct SessionRootView: View {
 
                 syncStatus
 
+                Button {
+                    Task { await session.start() }
+                } label: {
+                    Label("Dive Again", systemImage: "arrow.clockwise")
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.teal)
+
                 Button("Done") { session.dismissSummary() }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.teal)
+                    .buttonStyle(.bordered)
             }
             .frame(maxWidth: .infinity)
         }
