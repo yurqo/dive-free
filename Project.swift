@@ -59,6 +59,11 @@ let watchApp = Target.target(
     deploymentTargets: .watchOS(watchVersion),
     infoPlist: .extendingDefault(with: [
         "CFBundleDisplayName": "Dive Free",
+        // Bind the bundle version to the build settings so MARKETING_VERSION /
+        // CURRENT_PROJECT_VERSION actually take effect (the extendingDefault
+        // template otherwise pins CFBundleShortVersionString to a literal "1.0").
+        "CFBundleShortVersionString": "$(MARKETING_VERSION)",
+        "CFBundleVersion": "$(CURRENT_PROJECT_VERSION)",
         "WKApplication": true,
         "WKCompanionAppBundleIdentifier": "\(bundlePrefix)",
         "NSMotionUsageDescription": "Used to measure depth and movement while diving.",
@@ -92,6 +97,9 @@ let iphoneApp = Target.target(
     deploymentTargets: .iOS(iOSVersion),
     infoPlist: .extendingDefault(with: [
         "CFBundleDisplayName": "Dive Free",
+        // Bind the bundle version to the build settings (see the watch target).
+        "CFBundleShortVersionString": "$(MARKETING_VERSION)",
+        "CFBundleVersion": "$(CURRENT_PROJECT_VERSION)",
         "UILaunchScreen": [:],
         "LSApplicationCategoryType": "public.app-category.travel",
         // App uses only standard (exempt) HTTPS encryption — auto-clears the
@@ -142,7 +150,13 @@ let project = Project(
     settings: .settings(base: [
         "SWIFT_VERSION": "6.0",
         "SWIFT_STRICT_CONCURRENCY": "complete",
-        "MARKETING_VERSION": "0.1.0",
+        // Marketing version is the single source of truth for the app version —
+        // the TestFlight workflow reads it from here. Bump it to ship a new
+        // version. The build number is overridden per-build with the CI run
+        // number. Both targets bind their Info.plist to these (below), so the
+        // values actually reach the bundle (a literal Info.plist default would
+        // silently win and pin the version at "1.0").
+        "MARKETING_VERSION": "1.0.9",
         "CURRENT_PROJECT_VERSION": "1",
         "DEVELOPMENT_TEAM": SettingValue(stringLiteral: developmentTeam),
         "CODE_SIGN_STYLE": "Automatic",
