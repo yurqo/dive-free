@@ -26,7 +26,7 @@ struct DiveFreeApp: App {
 
     var body: some Scene {
         WindowGroup {
-            MainTabView()
+            SessionListView()
                 .environment(strava)
                 .environment(\.syncManager, sync)
                 .onAppear {

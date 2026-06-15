@@ -1,6 +1,5 @@
 import SwiftUI
 import SwiftData
-import Domain
 import Persistence
 import Strava
 
@@ -12,23 +11,24 @@ struct SessionListView: View {
     @Environment(\.modelContext) private var modelContext
 
     var body: some View {
-        Group {
-            if sessions.isEmpty {
-                ContentUnavailableView(
-                    "No Sessions Yet",
-                    systemImage: "water.waves",
-                    description: Text("Start a session on your Apple Watch to see it here.")
-                )
-            } else {
-                List {
-                    ForEach(sessions) { session in
+        NavigationStack {
+            Group {
+                if sessions.isEmpty {
+                    ContentUnavailableView(
+                        "No Sessions Yet",
+                        systemImage: "water.waves",
+                        description: Text("Start a session on your Apple Watch to see it here.")
+                    )
+                } else {
+                    List {
+                        ForEach(sessions) { session in
                         let domain = session.toDomain()
                         NavigationLink(value: session) {
                             HStack(spacing: 12) {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(session.startTime, style: .date)
                                         .font(.headline)
-                                    Text("\(domain.diveCount) dives · max \(DepthFormat.value(domain.maxDepthMeters)) m")
+                                    Text("\(domain.diveCount) dives · max \(String(format: "%.1f", domain.maxDepthMeters)) m")
                                         .font(.subheadline)
                                         .foregroundStyle(.secondary)
                                     // Every session on the phone arrived from the
@@ -48,15 +48,26 @@ struct SessionListView: View {
                                 }
                             }
                         }
+                        }
+                        .onDelete(perform: deleteSessions)
                     }
-                    .onDelete(perform: deleteSessions)
+                    .navigationDestination(for: SessionRecord.self) { session in
+                        SessionDetailView(session: session)
+                    }
                 }
-                .navigationDestination(for: SessionRecord.self) { session in
-                    SessionDetailView(session: session)
+            }
+            .navigationTitle("Dives")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink {
+                        SettingsView()
+                    } label: {
+                        Image(systemName: "gearshape")
+                    }
+                    .accessibilityLabel("Settings")
                 }
             }
         }
-        .navigationTitle("Dives")
     }
 
     private func deleteSessions(at offsets: IndexSet) {
@@ -68,9 +79,7 @@ struct SessionListView: View {
 }
 
 #Preview {
-    NavigationStack {
-        SessionListView()
-    }
-    .environment(StravaAuthManager(store: InMemoryTokenStore(), webAuth: ASWebAuthenticationProvider()))
-    .modelContainer(for: SessionRecord.self, inMemory: true)
+    SessionListView()
+        .environment(StravaAuthManager(store: InMemoryTokenStore(), webAuth: ASWebAuthenticationProvider()))
+        .modelContainer(for: SessionRecord.self, inMemory: true)
 }
