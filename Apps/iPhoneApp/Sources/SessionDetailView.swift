@@ -20,7 +20,7 @@ struct SessionDetailView: View {
             Section {
                 LabeledContent("Date", value: domain.startTime.formatted(date: .abbreviated, time: .shortened))
                 LabeledContent("Dives", value: "\(domain.diveCount)")
-                LabeledContent("Max depth", value: String(format: "%.1f m", domain.maxDepthMeters))
+                LabeledContent("Max depth", value: DepthFormat.string(domain.maxDepthMeters))
                 if let average = domain.averageSurfaceInterval {
                     LabeledContent(
                         "Avg surface",
@@ -58,7 +58,7 @@ struct SessionDetailView: View {
                 )
             } else {
                 ForEach(Array(domain.dives.enumerated()), id: \.element.id) { index, dive in
-                    Section("Dive \(index + 1) · \(String(format: "%.1f m", dive.maxDepthMeters)) max") {
+                    Section("Dive \(index + 1) · \(DepthFormat.string(dive.maxDepthMeters)) max") {
                         DepthChartView(dive: dive, markers: domain.markers)
                     }
                 }

@@ -50,8 +50,13 @@ public final class WaterSubmersionDepthProvider: NSObject, DepthProvider, CMWate
     // MARK: - CMWaterSubmersionManagerDelegate
 
     public func manager(_ manager: CMWaterSubmersionManager, didUpdate measurement: CMWaterSubmersionMeasurement) {
-        guard let depth = measurement.depth else { return }
-        continuation?.yield(makeDepthSample(depth: depth, date: measurement.date))
+        if let depth = measurement.depth {
+            continuation?.yield(makeDepthSample(depth: depth, date: measurement.date))
+        } else if measurement.submersionState == .pastMaxDepth {
+            // Deeper than the entitlement can measure: no depth value is provided,
+            // so clamp to the ceiling. The UI renders this as "6+".
+            continuation?.yield(DepthSample(timestamp: measurement.date, depthMeters: DepthFormat.maxMeasurableMeters))
+        }
     }
 
     // Required by the protocol; not used for depth tracking.

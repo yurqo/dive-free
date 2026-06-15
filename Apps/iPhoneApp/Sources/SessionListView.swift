@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import Domain
 import Persistence
 import Strava
 
@@ -27,7 +28,7 @@ struct SessionListView: View {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(session.startTime, style: .date)
                                         .font(.headline)
-                                    Text("\(domain.diveCount) dives · max \(String(format: "%.1f", domain.maxDepthMeters)) m")
+                                    Text("\(domain.diveCount) dives · max \(DepthFormat.value(domain.maxDepthMeters)) m")
                                         .font(.subheadline)
                                         .foregroundStyle(.secondary)
                                     // Every session on the phone arrived from the
