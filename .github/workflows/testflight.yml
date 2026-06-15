@@ -5,9 +5,10 @@ name: Deliver to TestFlight
 #
 # The marketing version is the single source of truth in Project.swift
 # (MARKETING_VERSION) — this workflow reads it, so what's in the repo is exactly
-# what TestFlight shows. To ship a new version, bump MARKETING_VERSION in
-# Project.swift. The build number is the workflow run number, so every upload is
-# unique and increasing; the delivered "version (build)" is recorded as a tag.
+# what TestFlight shows. To ship a new release, bump the patch of
+# MARKETING_VERSION in Project.swift. The build number is set to that patch
+# component, so version and build stay aligned (1.0.11 → build 11); the
+# delivered version is recorded as a git tag.
 #
 # SAFE BY DEFAULT: the Preflight step fails fast if any required secret is
 # missing. See docs/CI_CD.md.
@@ -52,7 +53,7 @@ jobs:
           fi
           echo "✅ All required secrets present."
 
-      # ── Read the marketing version from Project.swift; build = run number ────
+      # ── Read the marketing version from Project.swift; build = patch ─────────
       - name: Compute version & build number
         id: version
         run: |
@@ -63,9 +64,12 @@ jobs:
             echo "❌ Could not read MARKETING_VERSION from Project.swift." >&2
             exit 1
           fi
-          echo "Shipping version $version (build ${{ github.run_number }}) from Project.swift."
+          # Build number = the version's patch component, so version and build
+          # stay aligned (1.0.11 → build 11). Bump the patch for each release.
+          build="${version##*.}"
+          echo "Shipping version $version (build $build) from Project.swift."
           echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "build=${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+          echo "build=$build" >> "$GITHUB_OUTPUT"
 
       - name: Select Xcode
         uses: maxim-lobanov/setup-xcode@v1
@@ -125,14 +129,18 @@ jobs:
             --apiKey ${{ secrets.APP_STORE_CONNECT_KEY_ID }} \
             --apiIssuer ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
 
-      # ── Record the delivered version+build as a tag (unique per upload) ──────
+      # ── Record the delivered version as a tag (build == patch, so unique) ────
       - name: Tag delivered version
         if: success()
         run: |
           set -euo pipefail
-          tag="v${{ steps.version.outputs.version }}-build.${{ steps.version.outputs.build }}"
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag "$tag"
-          git push origin "$tag"
-          echo "Tagged $tag."
+          tag="v${{ steps.version.outputs.version }}"
+          if git rev-parse "$tag" >/dev/null 2>&1; then
+            echo "Tag $tag already exists; skipping (bump the patch for a new release)."
+          else
+            git config user.name  "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git tag "$tag"
+            git push origin "$tag"
+            echo "Tagged $tag (build ${{ steps.version.outputs.build }})."
+          fi

@@ -155,12 +155,12 @@ let project = Project(
         "SWIFT_VERSION": "6.0",
         "SWIFT_STRICT_CONCURRENCY": "complete",
         // Marketing version is the single source of truth for the app version —
-        // the TestFlight workflow reads it from here. Bump it to ship a new
-        // version. The build number is overridden per-build with the CI run
-        // number. Both targets bind their Info.plist to these (below), so the
-        // values actually reach the bundle (a literal Info.plist default would
-        // silently win and pin the version at "1.0").
-        "MARKETING_VERSION": "1.0.9",
+        // the TestFlight workflow reads it from here and sets the build number to
+        // the patch component, so TestFlight shows e.g. 1.0.11 (11). Bump the
+        // patch to ship a new release. Both targets bind their Info.plist to
+        // these (below) so the values actually reach the bundle (a literal
+        // Info.plist default would silently win and pin the version at "1.0").
+        "MARKETING_VERSION": "1.0.11",
         "CURRENT_PROJECT_VERSION": "1",
         "DEVELOPMENT_TEAM": SettingValue(stringLiteral: developmentTeam),
         "CODE_SIGN_STYLE": "Automatic",
