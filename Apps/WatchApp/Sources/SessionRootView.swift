@@ -152,9 +152,13 @@ struct SessionRootView: View {
 
     private var stats: some View {
         VStack(spacing: 2) {
-            Text(DepthFormat.string(session.currentDepthMeters))
-                .font(.system(size: 34, weight: .bold, design: .rounded))
-                .monospacedDigit()
+            // Depth is the headline only on watches with the sensor; without it
+            // (Series 9 / SE) the elapsed timer below is the primary readout.
+            if session.hasDepthSensor {
+                Text(DepthFormat.string(session.currentDepthMeters))
+                    .font(.system(size: 34, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+            }
             // Refresh once per second for the timer; while submerged show the
             // active-dive duration (highlighted), otherwise the session elapsed
             // time. TimelineView keeps redrawing in Always On Display at a
@@ -192,10 +196,14 @@ struct SessionRootView: View {
                         .monospacedDigit()
                 }
             }
-            Text("\(session.diveCount) dives · \(DepthFormat.value(session.maxDepthMeters)) m max · \(session.markerCount) markers")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-                .monospacedDigit()
+            Text(
+                session.hasDepthSensor
+                    ? "\(session.diveCount) dives · \(DepthFormat.value(session.maxDepthMeters)) m max · \(session.markerCount) markers"
+                    : "\(session.markerCount) markers"
+            )
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+            .monospacedDigit()
         }
     }
 
@@ -282,8 +290,11 @@ struct SessionRootView: View {
 
                 VStack(spacing: 4) {
                     summaryRow("Total", Duration.seconds(completed.totalDuration).formatted(.time(pattern: .hourMinuteSecond)))
-                    summaryRow("Dives", "\(completed.diveCount)")
-                    summaryRow("Max depth", DepthFormat.string(completed.maxDepthMeters))
+                    // Depth-derived rows only make sense on a watch with the sensor.
+                    if session.hasDepthSensor {
+                        summaryRow("Dives", "\(completed.diveCount)")
+                        summaryRow("Max depth", DepthFormat.string(completed.maxDepthMeters))
+                    }
                     if let average = completed.averageSurfaceInterval {
                         summaryRow("Avg surface", Duration.seconds(average).formatted(.time(pattern: .minuteSecond)))
                     }

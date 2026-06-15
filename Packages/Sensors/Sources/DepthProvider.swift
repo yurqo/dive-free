@@ -12,6 +12,19 @@ public protocol DepthProvider: Sendable {
     func depthStream() -> AsyncStream<DepthSample>
 }
 
+/// Produces no depth at all — for a real watch without the water-submersion
+/// sensor (Apple Watch Series 9 and earlier, SE). The session still runs for
+/// GPS + markers; it just records no depth or dives. Distinct from
+/// `MockDepthProvider`, which fabricates a dive profile for previews/simulator.
+public struct UnavailableDepthProvider: DepthProvider {
+    public init() {}
+    public func start() async throws {}
+    public func stop() {}
+    public func depthStream() -> AsyncStream<DepthSample> {
+        AsyncStream { $0.finish() }
+    }
+}
+
 /// Emits a deterministic synthetic dive profile. Used in SwiftUI previews and unit tests,
 /// and on the iOS simulator where the water-submersion sensor is not available.
 public struct MockDepthProvider: DepthProvider {
