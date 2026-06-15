@@ -34,6 +34,19 @@ struct TrackTests {
         #expect(session([]).surfaceLocation(at: start) == nil)
     }
 
+    @Test("surfaceDistance sums hops between track points")
+    func surfaceDistance() {
+        // ~111.2 m per 0.001° latitude; two 0.001° hops ≈ 222 m.
+        let s = session([(0, 0, 0), (2, 0.001, 0), (4, 0.002, 0)])
+        #expect(abs(s.surfaceDistanceMeters - 222.4) < 2.0)
+    }
+
+    @Test("surfaceDistance is zero with fewer than two points")
+    func surfaceDistanceShort() {
+        #expect(session([]).surfaceDistanceMeters == 0)
+        #expect(session([(0, 1, 1)]).surfaceDistanceMeters == 0)
+    }
+
     @Test("decodes a payload that predates the track field (defaults to empty)")
     func lenientDecode() throws {
         // A JSON object with no "track" key, like an older app version produced.

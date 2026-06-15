@@ -20,6 +20,28 @@ public struct GeoPoint: Sendable, Equatable, Codable {
         self.latitude = latitude
         self.longitude = longitude
     }
+
+    /// Great-circle distance to another point, in meters (haversine).
+    public func distance(to other: GeoPoint) -> Double {
+        let earthRadius = 6_371_000.0
+        let dLat = (other.latitude - latitude) * .pi / 180
+        let dLon = (other.longitude - longitude) * .pi / 180
+        let lat1 = latitude * .pi / 180
+        let lat2 = other.latitude * .pi / 180
+        let a = sin(dLat / 2) * sin(dLat / 2)
+            + cos(lat1) * cos(lat2) * sin(dLon / 2) * sin(dLon / 2)
+        return earthRadius * 2 * atan2(sqrt(a), sqrt(1 - a))
+    }
+}
+
+public extension Array where Element == TrackPoint {
+    /// Total surface distance along the track, summing great-circle hops between
+    /// consecutive time-ordered points (meters).
+    var surfaceDistanceMeters: Double {
+        let ordered = sorted { $0.timestamp < $1.timestamp }
+        return zip(ordered, ordered.dropFirst())
+            .reduce(0.0) { $0 + $1.0.location.distance(to: $1.1.location) }
+    }
 }
 
 /// Kinds of events a diver can mark during a session. Built-in kinds only;
@@ -205,6 +227,9 @@ public struct DiveSession: Sendable, Equatable, Codable, Identifiable {
 
     public var maxDepthMeters: Double { dives.map(\.maxDepthMeters).max() ?? 0 }
     public var diveCount: Int { dives.count }
+
+    /// Total surface distance traveled during the session (meters), from the track.
+    public var surfaceDistanceMeters: Double { track.surfaceDistanceMeters }
 
     /// Linearly-interpolated surface position at the given instant, clamped to
     /// the track's endpoints. `nil` only when there is no track at all. Used to

@@ -50,6 +50,13 @@ public final class SessionManager {
     /// Running maximum depth observed during the current session (0 when idle).
     public private(set) var maxDepthMeters: Double = 0
 
+    /// Maximum depth reached during the dive currently in progress (0 when at the
+    /// surface/idle). Reset each time a new descent begins.
+    public private(set) var currentDiveMaxDepth: Double = 0
+
+    /// Total surface distance traveled so far this session (meters), from the track.
+    public var surfaceDistanceMeters: Double { track.surfaceDistanceMeters }
+
     /// Start of the dive currently in progress, set on the surface-crossing
     /// going down and cleared on return to the surface. `nil` when at the
     /// surface or idle.
@@ -58,6 +65,12 @@ public final class SessionManager {
     /// Elapsed time of the dive in progress, or `nil` when at the surface/idle.
     public var currentDiveElapsed: TimeInterval? {
         currentDiveStart.map { Date().timeIntervalSince($0) }
+    }
+
+    /// Markers placed during the dive currently in progress (0 when surfaced/idle).
+    public var currentDiveMarkerCount: Int {
+        guard let start = currentDiveStart else { return 0 }
+        return markers.filter { $0.timestamp >= start }.count
     }
 
     /// When the diver last returned to the surface after a completed dive. Set
@@ -119,6 +132,7 @@ public final class SessionManager {
         dives = []
         markers = []
         maxDepthMeters = 0
+        currentDiveMaxDepth = 0
         currentDiveStart = nil
         lastSurfacedAt = nil
         capturedLocation = nil
@@ -166,13 +180,15 @@ public final class SessionManager {
         // image — it starts when a counted dive ends and resets on the next
         // descent.
         if depth > detector.config.surfaceThresholdMeters {
-            if currentDiveStart == nil { currentDiveStart = Date() }
+            if currentDiveStart == nil { currentDiveStart = Date(); currentDiveMaxDepth = 0 }
+            currentDiveMaxDepth = max(currentDiveMaxDepth, depth)
             lastSurfacedAt = nil
         } else {
             // Surfacing from a dive that actually counted starts the recovery
             // clock; a brief dip that never qualified leaves it untouched.
             if currentDiveStart != nil, !dives.isEmpty { lastSurfacedAt = Date() }
             currentDiveStart = nil
+            currentDiveMaxDepth = 0
         }
         let events = hapticTracker.update(depthMeters: depth)
         for event in events { onHapticEvent?(event) }
@@ -205,6 +221,7 @@ public final class SessionManager {
         dives = []
         markers = []
         maxDepthMeters = 0
+        currentDiveMaxDepth = 0
         currentDiveStart = nil
         lastSurfacedAt = nil
         track = []
