@@ -48,9 +48,15 @@ struct BeginDiveWorkoutIntent: StartWorkoutIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        // The app is foregrounded (openAppWhenRun), so the running coordinator is
-        // registered; start the session (a no-op if one is already active).
-        await LiveSessionRegistry.shared.coordinator?.start()
+        let registry = LiveSessionRegistry.shared
+        if let coordinator = registry.coordinator {
+            // App already running: start now (a no-op if a session is active).
+            await coordinator.start()
+        } else {
+            // Cold launch: the coordinator doesn't exist yet. Flag the start so
+            // SessionRootView begins the session once the scene is active.
+            registry.pendingStart = true
+        }
         // Route the next, in-workout Action-button press to drop a marker.
         return .result(actionButtonIntent: AddMarkerIntent())
     }
