@@ -21,10 +21,9 @@ test:
 clean:
 	rm -rf DiveFree.xcodeproj DiveFree.xcworkspace Derived
 
-# Trigger a signed delivery via GitHub Actions (auto version bump + build number).
-# testflight = patch bump (beta); release = minor bump (you submit for review by hand).
-testflight:
-	gh workflow run testflight.yml -f bump=patch
-
-release:
-	gh workflow run testflight.yml -f bump=minor
+# Trigger a signed TestFlight delivery via GitHub Actions. The patch version and
+# build number auto-increment from the latest release tag — just dispatch. To
+# ship a new minor/major, bump MARKETING_VERSION in Project.swift above the
+# latest tag first (see docs/CI_CD.md).
+testflight release:
+	gh workflow run testflight.yml

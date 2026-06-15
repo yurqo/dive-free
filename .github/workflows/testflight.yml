@@ -37,12 +37,16 @@ jobs:
           ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
           API_KEY:   ${{ secrets.APP_STORE_CONNECT_API_KEY }}
           TEAM_ID:   ${{ secrets.APPLE_TEAM_ID }}
+          CERT:      ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+          CERT_PW:   ${{ secrets.P12_PASSWORD }}
         run: |
           missing=()
           [[ -z "$KEY_ID"    ]] && missing+=("APP_STORE_CONNECT_KEY_ID")
           [[ -z "$ISSUER_ID" ]] && missing+=("APP_STORE_CONNECT_ISSUER_ID")
           [[ -z "$API_KEY"   ]] && missing+=("APP_STORE_CONNECT_API_KEY")
           [[ -z "$TEAM_ID"   ]] && missing+=("APPLE_TEAM_ID")
+          [[ -z "$CERT"      ]] && missing+=("BUILD_CERTIFICATE_BASE64")
+          [[ -z "$CERT_PW"   ]] && missing+=("P12_PASSWORD")
 
           if [[ ${#missing[@]} -gt 0 ]]; then
             echo "❌ The following required secrets are not set:"
@@ -105,6 +109,37 @@ jobs:
           mkdir -p ~/.appstoreconnect/private_keys
           echo "$API_KEY_BASE64" | base64 --decode \
             > ~/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8
+
+      # ── Import the persistent signing certificate into a temp keychain ───────
+      # Reuses one stored cert (the BUILD_CERTIFICATE_BASE64 secret) instead of
+      # letting -allowProvisioningUpdates mint a fresh "Apple Development" cert on
+      # every run, which eventually trips Apple's per-account certificate limit.
+      # Provisioning profiles are still managed automatically via the API key.
+      - name: Import signing certificate
+        env:
+          BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+        run: |
+          set -euo pipefail
+          CERT_PATH="$RUNNER_TEMP/signing_certificate.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/app-signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(uuidgen)"
+
+          echo "$BUILD_CERTIFICATE_BASE64" | base64 --decode > "$CERT_PATH"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          security import "$CERT_PATH" -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH" >/dev/null
+
+          # Make the temp keychain searchable so codesign finds the identity.
+          # (System keychain is always searched, so the WWDR/root chain resolves.)
+          security list-keychains -d user -s "$KEYCHAIN_PATH"
+          rm -f "$CERT_PATH"
+          echo "✅ Imported signing identities:"
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
 
       # ── Archive (embeds the Watch app) with the computed version/build ───────
       - name: Archive

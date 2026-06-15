@@ -88,18 +88,38 @@ Go to **GitHub → Settings → Secrets and variables → Actions** and add:
 | `APP_STORE_CONNECT_ISSUER_ID` | The Issuer ID shown on the same page (UUID format) |
 | `APP_STORE_CONNECT_API_KEY` | The `.p8` file contents, **base64-encoded**: `base64 -i AuthKey_XXX.p8 | pbcopy` |
 | `APPLE_TEAM_ID` | Your Apple Team ID (10-char string shown in developer.apple.com under Membership) |
+| `BUILD_CERTIFICATE_BASE64` | Your signing cert(s) exported as a `.p12`, base64-encoded: `base64 -i Certificates.p12 | pbcopy` |
+| `P12_PASSWORD` | The password you set when exporting the `.p12` |
+
+#### Why a stored certificate
+
+CI imports this one `.p12` into a temporary keychain instead of letting Xcode
+mint a fresh **Apple Development** certificate on every run — which eventually
+trips Apple's per-account certificate limit ("maximum number of certificates").
+Provisioning profiles are still created/managed automatically via the API key
+(profiles aren't capped). To create the `.p12`:
+
+1. In **Xcode → Settings → Accounts → Manage Certificates**, ensure you have an
+   **Apple Distribution** (and **Apple Development**) certificate — the **+** button
+   creates one whose private key lands in your login keychain. Revoke stale
+   CI-generated certs in the developer portal to get back under the limit.
+2. In **Keychain Access**, select those certificate(s) **with their private keys**,
+   right-click → **Export 2 items…** → save as `Certificates.p12` with a password.
+3. `base64 -i Certificates.p12 | pbcopy` → paste into `BUILD_CERTIFICATE_BASE64`;
+   put the password in `P12_PASSWORD`.
 
 ### Versioning model
 
-Versions are driven by **git tags** (`vX.Y.Z`), not committed to `Project.swift`:
+The **patch version auto-increments** — a plain dispatch ships the next patch:
 
-- The workflow reads the latest `v*` tag, applies the chosen bump, builds, and
-  **pushes the new tag on success** (which seeds the next bump). With no tags yet,
-  the first build ships the `MARKETING_VERSION` currently in `Project.swift`.
-- **`patch`** → a TestFlight beta (`0.1.0 → 0.1.1`). **`minor`** → an App Store
-  release (`0.1.x → 0.2.0`).
-- The **build number** (`CFBundleVersion`) is the workflow run number, so every
-  upload is unique and increasing regardless of the marketing version.
+- The workflow reads the latest `vX.Y.Z` release tag, **bumps the patch**, builds,
+  and **pushes the new tag on success**. With no tags yet, it ships the
+  `MARKETING_VERSION` in `Project.swift`.
+- To **jump versions** (e.g. a new minor), set `MARKETING_VERSION` in
+  `Project.swift` *higher* than the latest tag — CI uses it verbatim for that one
+  release, then resumes auto-incrementing from there.
+- The **build number** (`CFBundleVersion`) tracks the patch, so version and build
+  stay aligned (`1.0.13` → build `13`).
 
 `ExportOptions.plist` deliberately omits `teamID`: the signing team is resolved
 from the App Store Connect API key (`-allowProvisioningUpdates`), and the archive
@@ -111,13 +131,12 @@ Once the prerequisites and secrets above are in place, run it manually — from 
 CLI or the Actions UI:
 
 ```sh
-make testflight   # patch bump → beta (or: gh workflow run testflight.yml -f bump=patch)
-make release      # minor bump → release build (gh workflow run testflight.yml -f bump=minor)
+make testflight   # or: gh workflow run testflight.yml
 ```
 
 The build appears in App Store Connect → **TestFlight** within ~30 minutes
-("Processing" first). For an App Store **release**, the `minor` build uploads the
-same way — then press **Submit for Review** in App Store Connect when ready.
+("Processing" first). For an App Store **release**, submit the build for review in
+App Store Connect when ready.
 
 Until the secrets exist, every run stops at the Preflight step with a clear
 message — nothing deploys by accident.
