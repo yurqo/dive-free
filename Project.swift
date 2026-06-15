@@ -81,6 +81,10 @@ let watchApp = Target.target(
     resources: ["Apps/WatchApp/Resources/**"],
     entitlements: .file(path: "Apps/WatchApp/DiveFreeWatch.entitlements"),
     dependencies: [
+        // Explicitly link AppIntents so the metadata processor extracts our
+        // App Intents (the Action-button workout + marker intents). Without it
+        // extraction is skipped and the intents never register with the system.
+        .sdk(name: "AppIntents", type: .framework),
         .target(name: "Domain"),
         .target(name: "Persistence"),
         .target(name: "Sensors"),
