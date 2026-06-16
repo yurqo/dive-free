@@ -42,6 +42,13 @@ struct DiveFreeApp: App {
                     // Store voice-note files the watch transfers, keyed by the
                     // name the markers reference, so they're playable from detail.
                     sync.audioDirectory = VoiceNoteStore.directory
+                    // Tell any open detail view a clip landed so its play button
+                    // re-enables (SwiftUI can't observe the filesystem).
+                    sync.onReceiveAudioFile = { _ in
+                        Task { @MainActor in
+                            NotificationCenter.default.post(name: .voiceNoteReceived, object: nil)
+                        }
+                    }
                     sync.activate()
                     // Push current custom markers so the Watch carousel has them.
                     let descriptor = FetchDescriptor<CustomMarkerRecord>(sortBy: [SortDescriptor(\.createdAt)])

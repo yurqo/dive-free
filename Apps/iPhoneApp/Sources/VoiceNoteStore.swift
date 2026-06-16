@@ -16,3 +16,9 @@ enum VoiceNoteStore {
         FileManager.default.fileExists(atPath: url(for: fileName).path)
     }
 }
+
+extension Notification.Name {
+    /// Posted (on the main actor) after a voice-note file is received and stored,
+    /// so an open detail view can re-enable its play button.
+    static let voiceNoteReceived = Notification.Name("DiveFree.voiceNoteReceived")
+}

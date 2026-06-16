@@ -11,13 +11,12 @@ struct DomainEdgeCaseTests {
         #expect(DiveDetector().detectDives(from: []).isEmpty)
     }
 
-    @Test("detector ignores a brief, shallow sample that fails both thresholds")
+    @Test("detector ignores a single momentary sample (zero duration)")
     func singleSample() {
-        let detector = DiveDetector(config: DiveDetectionConfig(minimumDiveDepthMeters: 1.5, minimumDiveDuration: 1))
-        // Above the surface threshold so it opens a candidate, but too shallow
-        // for the depth bar and too brief for the duration bar — neither side of
-        // the OR qualifies, so it's dropped.
-        let dives = detector.detectDives(from: [DepthSample(timestamp: t0, depthMeters: 1.2)])
+        let detector = DiveDetector(config: DiveDetectionConfig(minimumDiveDepthMeters: 0.5, minimumDiveDuration: 1))
+        // A lone deep reading has zero time span; even though it clears the depth
+        // bar, the zero-duration floor rejects it (no phantom dive from noise).
+        let dives = detector.detectDives(from: [DepthSample(timestamp: t0, depthMeters: 9)])
         #expect(dives.isEmpty)
     }
 

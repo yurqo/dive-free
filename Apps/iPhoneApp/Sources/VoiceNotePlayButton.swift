@@ -2,15 +2,16 @@ import SwiftUI
 import AVFoundation
 
 /// Plays a marker's voice note from the phone's `VoiceNoteStore`. Disabled until
-/// the file has arrived from the watch.
+/// the file has arrived from the watch; re-enables itself when a clip lands while
+/// the view is open (it observes `.voiceNoteReceived`).
 struct VoiceNotePlayButton: View {
     let fileName: String
 
     @State private var player: AVAudioPlayer?
     @State private var isPlaying = false
+    @State private var available = false
 
     var body: some View {
-        let available = VoiceNoteStore.exists(fileName)
         Button {
             isPlaying ? stop() : play()
         } label: {
@@ -21,6 +22,10 @@ struct VoiceNotePlayButton: View {
         }
         .disabled(!available)
         .foregroundStyle(available ? .teal : .secondary)
+        .onAppear { available = VoiceNoteStore.exists(fileName) }
+        .onReceive(NotificationCenter.default.publisher(for: .voiceNoteReceived)) { _ in
+            available = VoiceNoteStore.exists(fileName)
+        }
     }
 
     private func play() {
@@ -45,5 +50,7 @@ struct VoiceNotePlayButton: View {
         player?.stop()
         player = nil
         isPlaying = false
+        // Release the session so other apps' audio (e.g. music) can resume.
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 }

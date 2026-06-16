@@ -42,6 +42,10 @@ public struct DiveDetector: Sendable {
             guard let first = current.first, let last = current.last else { return }
             let maxDepth = current.map(\.depthMeters).max() ?? 0
             let duration = last.timestamp.timeIntervalSince(first.timestamp)
+            // Ignore an instantaneous spike (a single sample / zero time span): a
+            // real dive always covers more than one reading, so a lone noisy deep
+            // sample shouldn't register as a zero-duration dive under the OR below.
+            guard duration > 0 else { return }
             // A candidate counts if it's deep enough OR long enough (either
             // qualifies), so a brief deep drop and a shallow lingering dip both
             // register as dives.

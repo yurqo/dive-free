@@ -291,7 +291,15 @@ final class SessionCoordinator {
         } else {
             guard !isSubmerged else { return }
             if await audioRecorder.start() {
-                WKInterfaceDevice.current().play(.start)
+                // The mic-permission prompt can take a while; if the diver
+                // submerged during it, the onSubmerge auto-stop already missed
+                // (isRecording was still false), so stop now instead of recording
+                // underwater with no way to stop until the cap.
+                if isSubmerged {
+                    stopVoiceNote()
+                } else {
+                    WKInterfaceDevice.current().play(.start)
+                }
             }
         }
     }

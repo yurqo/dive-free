@@ -26,16 +26,18 @@ struct WatchSessionMapView: View {
             .map { $0.location.coordinate }
         self.surfacePath = path
 
-        let dives = session.dives.sorted { $0.startTime < $1.startTime }
+        // Dives belong to the full-session map only — a surface-leg map (range set)
+        // shows just that leg's path + markers, not the bracketing dives whose
+        // boundary times coincide with the leg's range endpoints.
+        let dives = range == nil ? session.dives.sorted { $0.startTime < $1.startTime } : []
         self.diveSegments = dives.enumerated().compactMap { index, dive in
-            guard inRange(dive.startTime) || inRange(dive.endTime),
-                  let s = session.surfaceLocation(at: dive.startTime),
+            guard let s = session.surfaceLocation(at: dive.startTime),
                   let e = session.surfaceLocation(at: dive.endTime) else { return nil }
             return Segment(id: index, start: s.coordinate, end: e.coordinate)
         }
 
         var pts: [Point] = []
-        for (index, dive) in dives.enumerated() where inRange(dive.startTime) || inRange(dive.endTime) {
+        for (index, dive) in dives.enumerated() {
             let number = index + 1
             if let s = session.surfaceLocation(at: dive.startTime) {
                 pts.append(Point(id: "down-\(dive.id)", coordinate: s.coordinate, glyph: .submersion(number)))

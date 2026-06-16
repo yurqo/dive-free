@@ -32,16 +32,18 @@ struct SessionTrackMapView: View {
             .filter { inRange($0.timestamp) }
             .map { $0.location.coordinate }
 
-        let orderedDives = session.dives.sorted { $0.startTime < $1.startTime }
+        // Dives belong to the full-session map only — a surface-leg map (range set)
+        // shows just that leg's path + markers, not the bracketing dives whose
+        // boundary times coincide with the leg's range endpoints.
+        let orderedDives = range == nil ? session.dives.sorted { $0.startTime < $1.startTime } : []
         self.diveSegments = orderedDives.enumerated().compactMap { index, dive in
-            guard inRange(dive.startTime) || inRange(dive.endTime),
-                  let s = session.surfaceLocation(at: dive.startTime),
+            guard let s = session.surfaceLocation(at: dive.startTime),
                   let e = session.surfaceLocation(at: dive.endTime) else { return nil }
             return DiveSegment(id: index, submersion: s.coordinate, surfacing: e.coordinate)
         }
 
         var points: [Point] = []
-        for (index, dive) in orderedDives.enumerated() where inRange(dive.startTime) || inRange(dive.endTime) {
+        for (index, dive) in orderedDives.enumerated() {
             let number = index + 1
             if let s = session.surfaceLocation(at: dive.startTime) {
                 points.append(Point(id: "down-\(dive.id)", geo: s, glyph: .submersion(number)))

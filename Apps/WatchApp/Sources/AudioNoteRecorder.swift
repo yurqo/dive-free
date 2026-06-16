@@ -75,7 +75,8 @@ final class AudioNoteRecorder {
         isRecording = false
         capTask?.cancel()
         capTask = nil
-        try? AVAudioSession.sharedInstance().setActive(false)
+        // Release the session so the workout's audio routing can resume.
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         return fileName
     }
 
