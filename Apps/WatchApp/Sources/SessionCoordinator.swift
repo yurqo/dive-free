@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import SwiftData
+import WatchKit
 import Domain
 import Sensors
 import Session
@@ -27,11 +28,13 @@ final class SessionCoordinator {
     /// these and confirms it (Action button, or a tap); underwater the Action
     /// button drops a `.note` directly and the menu can't be confirmed.
     enum SessionAction: Equatable, Identifiable {
+        case voiceNote
         case mark(MarkerKind)
         case end
 
         var id: String {
             switch self {
+            case .voiceNote: "voiceNote"
             case .mark(let kind): "mark.\(kind.id)"
             case .end: "end"
             }
@@ -39,14 +42,16 @@ final class SessionCoordinator {
 
         var title: String {
             switch self {
+            case .voiceNote: "Voice Note"
             case .mark(let kind): kind.label
             case .end: "End Session"
             }
         }
 
-        /// Emoji for marker actions; `nil` for End (which uses `systemImage`).
+        /// Emoji for marker actions; `nil` for Voice Note / End (which use `systemImage`).
         var emoji: String? {
             switch self {
+            case .voiceNote: nil
             case .mark(let kind): kind.emoji
             case .end: nil
             }
@@ -54,6 +59,7 @@ final class SessionCoordinator {
 
         var systemImage: String {
             switch self {
+            case .voiceNote: "mic.fill"
             case .mark: "mappin"
             case .end: "stop.fill"
             }
@@ -104,6 +110,10 @@ final class SessionCoordinator {
     /// Drives the live GPS-status indicator on the active screen.
     var lastLocationFixAt: Date? { sessionManager.lastLocationFixAt }
 
+    /// Horizontal accuracy (meters) of the most recent GPS fix, or `nil` if
+    /// unknown. Drives the "±N m" accuracy readout next to the GPS icon.
+    var lastLocationAccuracy: Double? { sessionManager.lastLocationAccuracy }
+
     /// Whether this watch can measure depth (Ultra / Series 10+). When false
     /// (Series 9 and earlier, SE) the UI hides depth and runs GPS + markers only.
     var hasDepthSensor: Bool { DepthSensor.isAvailable }
@@ -113,14 +123,40 @@ final class SessionCoordinator {
     /// User-defined custom marker kinds, synced from the iPhone.
     private(set) var customKinds: [MarkerKind] = []
 
-    /// Menu the Crown scrolls through: built-in kinds, then any custom kinds,
-    /// then End.
+    /// Menu the Crown scrolls through, top → bottom: Voice Note, the diver's
+    /// default marker, the remaining kinds (built-in + custom), then End.
     var menuItems: [SessionAction] {
-        (EventKind.builtInMarkerKinds + customKinds).map(SessionAction.mark) + [.end]
+        let kinds = EventKind.builtInMarkerKinds + customKinds
+        let defaultID = defaultMarkerKindID
+        let ordered = (kinds.first { $0.id == defaultID }.map { [$0] } ?? [])
+            + kinds.filter { $0.id != defaultID }
+        return [.voiceNote] + ordered.map(SessionAction.mark) + [.end]
     }
 
     /// Index of the currently highlighted menu item (Crown-driven).
     private(set) var focusedIndex: Int = 0
+
+    /// Id of the diver's preferred default marker (Settings → Default marker).
+    /// Pre-selected in the carousel and dropped by the Action button underwater.
+    private var defaultMarkerKindID: String {
+        UserDefaults.standard.string(forKey: "defaultMarkerKindID") ?? EventKind.note.rawValue
+    }
+
+    /// The default marker kind resolved against the built-in + custom kinds,
+    /// falling back to `.note` if the stored id no longer exists.
+    var defaultMarkerKind: MarkerKind {
+        (EventKind.builtInMarkerKinds + customKinds).first { $0.id == defaultMarkerKindID }
+            ?? MarkerKind(.note)
+    }
+
+    /// Carousel index of the default marker, so a fresh session starts focused on
+    /// it (falls back to the first item).
+    private var defaultFocusIndex: Int {
+        menuItems.firstIndex {
+            if case .mark(let kind) = $0 { return kind.id == defaultMarkerKindID }
+            return false
+        } ?? 0
+    }
 
     /// True while the end-session confirmation dialog should be shown. Confirming
     /// End (Crown + Action button, or a tap) arms this rather than ending
@@ -152,6 +188,8 @@ final class SessionCoordinator {
     func confirmFocused() {
         guard case .active = state, menuItems.indices.contains(focusedIndex) else { return }
         switch menuItems[focusedIndex] {
+        case .voiceNote:
+            Task { await toggleVoiceNote() }
         case .mark(let kind):
             addMarker(kind: kind)
             DiveHapticPlayer.play(.markerPlaced)
@@ -172,13 +210,21 @@ final class SessionCoordinator {
     /// end confirmation, a second confirms and ends. Haptics stand in for the
     /// dialog the diver may not be able to see underwater.
     func handleEndGesture() {
-        guard case .active = state else { return }
-        if pendingEndConfirmation {
-            DiveHapticPlayer.play(.surface)
-            confirmEnd()
-        } else {
-            pendingEndConfirmation = true
-            DiveHapticPlayer.play(.markerPlaced)
+        switch state {
+        case .active:
+            if pendingEndConfirmation {
+                DiveHapticPlayer.play(.surface)
+                confirmEnd()
+            } else {
+                pendingEndConfirmation = true
+                DiveHapticPlayer.play(.markerPlaced)
+            }
+        case .summary:
+            // After a dive the dual-click is the touch-free "Done" — dismiss the
+            // summary (the Action button alone already starts a new session).
+            dismissSummary()
+        case .idle:
+            break
         }
     }
 
@@ -194,7 +240,16 @@ final class SessionCoordinator {
     func handleActionButton() {
         guard case .active = state else { return }
         if isSubmerged {
-            addMarker(kind: MarkerKind(.note))
+            // Underwater the screen is water-locked but the Crown still moves the
+            // highlight, so place the focused marker — or the default when the
+            // diver is parked on End (we never end a dive via the Action button
+            // underwater; that's the Action + side dual-click).
+            if menuItems.indices.contains(focusedIndex),
+               case .mark(let kind) = menuItems[focusedIndex] {
+                addMarker(kind: kind)
+            } else {
+                addMarker(kind: defaultMarkerKind)
+            }
             DiveHapticPlayer.play(.markerPlaced)
         } else {
             confirmFocused()
@@ -204,10 +259,18 @@ final class SessionCoordinator {
     private let sessionManager: SessionManager
     let workout = WorkoutController()
     private let sync = SyncManager()
+    let audioRecorder = AudioNoteRecorder()
+
+    /// True while a surface voice note is recording. Drives the carousel pill.
+    var isRecordingVoiceNote: Bool { audioRecorder.isRecording }
 
     init(modelContext: ModelContext) {
         sessionManager = SessionManager(modelContext: modelContext)
         sessionManager.onHapticEvent = { DiveHapticPlayer.play($0) }
+        // Auto-stop a surface voice note the instant the diver submerges.
+        sessionManager.onSubmerge = { [weak self] in self?.stopVoiceNote() }
+        // The hard cap also stops via the coordinator so the file is still attached.
+        audioRecorder.onCap = { [weak self] in self?.stopVoiceNote() }
         sync.onPendingCountChange = { [weak self] count in
             Task { @MainActor in self?.pendingSyncCount = count }
         }
@@ -217,6 +280,49 @@ final class SessionCoordinator {
         sync.activate()
         // Let the Action-button intent route into this live coordinator.
         LiveSessionRegistry.shared.coordinator = self
+    }
+
+    /// Starts a surface voice note, or stops the current one. Surface-only;
+    /// underwater the screen is water-locked and recording auto-stops anyway.
+    func toggleVoiceNote() async {
+        guard case .active = state else { return }
+        if audioRecorder.isRecording {
+            stopVoiceNote()
+        } else {
+            guard !isSubmerged else { return }
+            if await audioRecorder.start() {
+                // The mic-permission prompt can take a while; if the diver
+                // submerged during it, the onSubmerge auto-stop already missed
+                // (isRecording was still false), so stop now instead of recording
+                // underwater with no way to stop until the cap.
+                if isSubmerged {
+                    stopVoiceNote()
+                } else {
+                    WKInterfaceDevice.current().play(.start)
+                }
+            }
+        }
+    }
+
+    /// Stops recording (if any), attaches the clip to the last marker, and
+    /// returns focus to that marker type so the next confirm places another.
+    private func stopVoiceNote() {
+        guard let fileName = audioRecorder.stop() else { return }
+        sessionManager.attachAudioToLastMarker(fileName)
+        WKInterfaceDevice.current().play(.stop)
+        focusedIndex = lastMarkerFocusIndex
+    }
+
+    /// Carousel index of the most-recently-placed marker's kind, or the default.
+    private var lastMarkerFocusIndex: Int {
+        if let kind = sessionManager.markers.last?.kind,
+           let index = menuItems.firstIndex(where: {
+               if case .mark(let item) = $0 { return item.id == kind.id }
+               return false
+           }) {
+            return index
+        }
+        return defaultFocusIndex
     }
 
     func start() async {
@@ -235,7 +341,7 @@ final class SessionCoordinator {
             try await workout.requestAuthorization()
             try await workout.start()
             try await sessionManager.startSession()
-            focusedIndex = 0
+            focusedIndex = defaultFocusIndex
             pendingEndConfirmation = false
             state = .active(start: sessionManager.startTime ?? Date())
         } catch {
@@ -258,6 +364,10 @@ final class SessionCoordinator {
         let session = try? sessionManager.stopSession()
         if let session {
             try? sync.send(session)
+            // Ship any voice-note files the session's markers reference.
+            for fileName in session.markers.compactMap(\.audioFileName) {
+                sync.sendAudioFile(AudioNoteRecorder.url(for: fileName), fileName: fileName)
+            }
             state = .summary(session)
         } else {
             state = .idle

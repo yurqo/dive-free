@@ -33,12 +33,15 @@ struct DiveDetectorTests {
         #expect(dives.map(\.maxDepthMeters) == [6, 9])
     }
 
-    @Test("ignores shallow bobbing below the minimum dive depth")
+    @Test("ignores a shallow, brief bob (fails both depth and duration)")
     func ignoresShallowNoise() {
+        // Under OR, a dip is only dropped when it's both too shallow and too brief.
         let detector = DiveDetector(
-            config: DiveDetectionConfig(minimumDiveDepthMeters: 1.5, minimumDiveDuration: 0)
+            config: DiveDetectionConfig(minimumDiveDepthMeters: 1.5, minimumDiveDuration: 5)
         )
-        let dives = detector.detectDives(from: samples([0, 0.5, 1.2, 0.3, 0]))
+        // Two readings above the surface threshold but under the depth bar,
+        // spanning ~1s — neither OR side fires.
+        let dives = detector.detectDives(from: samples([0, 1.2, 1.3, 0]))
 
         #expect(dives.isEmpty)
     }

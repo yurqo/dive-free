@@ -29,6 +29,18 @@ public extension LocationProviding {
     }
 }
 
+private extension GeoPoint {
+    /// Maps a `CLLocation` to a `GeoPoint`, carrying horizontal accuracy when
+    /// CoreLocation reports a valid (non-negative) value.
+    init(_ location: CLLocation) {
+        self.init(
+            latitude: location.coordinate.latitude,
+            longitude: location.coordinate.longitude,
+            horizontalAccuracy: location.horizontalAccuracy >= 0 ? location.horizontalAccuracy : nil
+        )
+    }
+}
+
 /// CoreLocation-backed provider. Uses `CLLocationUpdate.liveUpdates`, which
 /// requests when-in-use authorization as needed.
 public struct CoreLocationProvider: LocationProviding {
@@ -39,10 +51,7 @@ public struct CoreLocationProvider: LocationProviding {
             for try await update in CLLocationUpdate.liveUpdates() {
                 if update.authorizationDenied { return nil }
                 if let location = update.location {
-                    return GeoPoint(
-                        latitude: location.coordinate.latitude,
-                        longitude: location.coordinate.longitude
-                    )
+                    return GeoPoint(location)
                 }
             }
         } catch {
@@ -59,10 +68,7 @@ public struct CoreLocationProvider: LocationProviding {
                         if Task.isCancelled { break }
                         if update.authorizationDenied { break }
                         if let location = update.location {
-                            continuation.yield(GeoPoint(
-                                latitude: location.coordinate.latitude,
-                                longitude: location.coordinate.longitude
-                            ))
+                            continuation.yield(GeoPoint(location))
                         }
                     }
                 } catch {}

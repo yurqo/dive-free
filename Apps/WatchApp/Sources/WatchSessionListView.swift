@@ -22,19 +22,25 @@ struct WatchSessionListView: View {
                     List {
                         ForEach(sessions) { record in
                             let domain = record.toDomain()
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(record.startTime, style: .date)
-                                    .font(.headline)
-                                Text("\(domain.diveCount) dives · \(DepthFormat.value(domain.maxDepthMeters)) m max")
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                                    .monospacedDigit()
+                            NavigationLink(value: record) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(record.startTime.formatted(.dateTime.month(.abbreviated).day().hour().minute()))
+                                        .font(.headline)
+                                    Text("\(domain.diveCount) dives · \(DepthFormat.value(domain.maxDepthMeters)) m max")
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                        .monospacedDigit()
+                                }
                             }
                         }
                     }
                 }
             }
             .navigationTitle("Sessions")
+            .navigationDestination(for: SessionRecord.self) { record in
+                WatchSessionSummaryView(session: record.toDomain())
+                    .navigationTitle(record.startTime.formatted(.dateTime.month(.abbreviated).day().hour().minute()))
+            }
         }
     }
 }

@@ -8,6 +8,8 @@ import Domain
 /// map is zoomed out.
 struct SessionTrackMapView: View {
     let session: DiveSession
+    /// Pan/zoom enabled. Off for the inline preview (tap opens the full map).
+    var interactive: Bool = true
 
     /// Current visible latitude span, driving how aggressively points cluster.
     @State private var latitudeSpan: Double = 0.02
@@ -18,13 +20,22 @@ struct SessionTrackMapView: View {
     private let diveSegments: [DiveSegment]
     private let points: [Point]
 
-    init(session: DiveSession) {
+    /// `range` limits the map to a single segment's time window (the surface
+    /// path + markers within it); `nil` shows the whole session.
+    init(session: DiveSession, interactive: Bool = true, range: ClosedRange<Date>? = nil) {
         self.session = session
+        self.interactive = interactive
+        func inRange(_ time: Date) -> Bool { range.map { $0.contains(time) } ?? true }
+
         self.surfacePath = session.track
             .sorted { $0.timestamp < $1.timestamp }
+            .filter { inRange($0.timestamp) }
             .map { $0.location.coordinate }
 
-        let orderedDives = session.dives.sorted { $0.startTime < $1.startTime }
+        // Dives belong to the full-session map only — a surface-leg map (range set)
+        // shows just that leg's path + markers, not the bracketing dives whose
+        // boundary times coincide with the leg's range endpoints.
+        let orderedDives = range == nil ? session.dives.sorted { $0.startTime < $1.startTime } : []
         self.diveSegments = orderedDives.enumerated().compactMap { index, dive in
             guard let s = session.surfaceLocation(at: dive.startTime),
                   let e = session.surfaceLocation(at: dive.endTime) else { return nil }
@@ -41,7 +52,7 @@ struct SessionTrackMapView: View {
                 points.append(Point(id: "up-\(dive.id)", geo: e, glyph: .surfacing(number)))
             }
         }
-        for marker in session.markers {
+        for marker in session.markers where inRange(marker.timestamp) {
             if let geo = session.markerLocation(marker) {
                 points.append(Point(id: "marker-\(marker.id)", geo: geo, glyph: .marker(marker.kind.emoji)))
             }
@@ -50,7 +61,7 @@ struct SessionTrackMapView: View {
     }
 
     var body: some View {
-        Map(initialPosition: .automatic) {
+        Map(initialPosition: .automatic, interactionModes: interactive ? .all : []) {
             // Surface path.
             if surfacePath.count >= 2 {
                 MapPolyline(coordinates: surfacePath)

@@ -70,6 +70,7 @@ let watchApp = Target.target(
         "NSHealthShareUsageDescription": "Used to read workout and health data for your dive sessions.",
         "NSHealthUpdateUsageDescription": "Used to save your dive sessions as workouts.",
         "NSLocationWhenInUseUsageDescription": "Used to record where your dives happen.",
+        "NSMicrophoneUsageDescription": "Used to record voice notes about a dive while you're at the surface.",
         // Keep the app alive in the background for the HKWorkoutSession, and
         // receive water-submersion depth (the latter also registers the app
         // under Settings → General → Auto-Launch → When Submerged so it can
@@ -85,6 +86,8 @@ let watchApp = Target.target(
         // App Intents (the Action-button workout + marker intents). Without it
         // extraction is skipped and the intents never register with the system.
         .sdk(name: "AppIntents", type: .framework),
+        // The session summary/list maps use MapKit's SwiftUI Map on watchOS.
+        .sdk(name: "MapKit", type: .framework),
         .target(name: "Domain"),
         .target(name: "Persistence"),
         .target(name: "Sensors"),

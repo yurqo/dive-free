@@ -14,8 +14,10 @@ struct DomainEdgeCaseTests {
     @Test("detector ignores a single momentary sample (zero duration)")
     func singleSample() {
         let detector = DiveDetector(config: DiveDetectionConfig(minimumDiveDepthMeters: 0.5, minimumDiveDuration: 1))
+        // A lone deep reading has zero time span; even though it clears the depth
+        // bar, the zero-duration floor rejects it (no phantom dive from noise).
         let dives = detector.detectDives(from: [DepthSample(timestamp: t0, depthMeters: 9)])
-        #expect(dives.isEmpty) // duration is 0, below the 1s minimum
+        #expect(dives.isEmpty)
     }
 
     @Test("a dive with no samples still reports duration and an empty profile")
