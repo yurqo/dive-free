@@ -21,6 +21,14 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     /// Called on the phone when a session arrives from the watch.
     public var onReceiveSession: (@Sendable (DiveSession) -> Void)?
 
+    /// Called on the phone after a voice-note file has been received and stored
+    /// (passed the stored URL). The file is already copied into `audioDirectory`.
+    public var onReceiveAudioFile: (@Sendable (URL) -> Void)?
+
+    /// Directory the receiver copies incoming voice-note files into (set by the
+    /// phone app). When `nil`, incoming files are ignored.
+    public var audioDirectory: URL?
+
     /// Called on the watch when the iPhone's custom-marker definitions change.
     public var onReceiveCustomMarkers: (@Sendable ([MarkerKind]) -> Void)?
 
@@ -33,6 +41,7 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     static let payloadKey = "session"
     static let idKey = "id"
     static let markersKey = "customMarkers"
+    static let fileNameKey = "fileName"
 
     private let lock = NSLock()
     /// Payloads sent but not yet confirmed delivered, keyed by transfer id.
@@ -116,6 +125,16 @@ public final class SyncManager: NSObject, @unchecked Sendable {
         performTransfer(id, data)
     }
 
+    /// Sends a voice-note file to the counterpart device. Uses the background-safe
+    /// `transferFile`; the `fileName` rides in metadata so the receiver stores it
+    /// under the name the session's markers reference.
+    public func sendAudioFile(_ url: URL, fileName: String) {
+        #if canImport(WatchConnectivity)
+        guard FileManager.default.fileExists(atPath: url.path) else { return }
+        WCSession.default.transferFile(url, metadata: [Self.fileNameKey: fileName])
+        #endif
+    }
+
     // MARK: - Transport-agnostic core (unit-tested directly)
 
     /// Records the outcome of a transfer: clear on success, re-send on failure
@@ -173,6 +192,18 @@ extension SyncManager: WCSessionDelegate {
 
     public func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any]) {
         handleReceived(userInfo)
+    }
+
+    public func session(_ session: WCSession, didReceive file: WCSessionFile) {
+        guard let dir = audioDirectory else { return }
+        let fileName = (file.metadata?[Self.fileNameKey] as? String) ?? file.fileURL.lastPathComponent
+        let fileManager = FileManager.default
+        try? fileManager.createDirectory(at: dir, withIntermediateDirectories: true)
+        let destination = dir.appendingPathComponent(fileName)
+        try? fileManager.removeItem(at: destination)
+        // Copy synchronously — the system deletes the temp file once we return.
+        guard (try? fileManager.copyItem(at: file.fileURL, to: destination)) != nil else { return }
+        onReceiveAudioFile?(destination)
     }
 
     public func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {

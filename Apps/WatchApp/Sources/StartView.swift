@@ -4,9 +4,15 @@ import SwiftUI
 /// are the adjacent pages — see `WatchRootView`.)
 struct StartView: View {
     @Environment(SessionCoordinator.self) private var session
+    @State private var showGuide = false
 
     var body: some View {
+        // Bottom-weighted: a larger top spacer than bottom (2:1) drops the icon +
+        // Start group toward the lower half and pins "How to use?" to the bottom,
+        // just above the page indicator.
         VStack(spacing: 10) {
+            Spacer()
+            Spacer()
             Image(systemName: "water.waves")
                 .font(.largeTitle)
                 .foregroundStyle(.teal)
@@ -22,14 +28,19 @@ struct StartView: View {
                     .foregroundStyle(.orange)
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
-            } else {
-                Text("Swipe for sessions & settings")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
             }
+            Spacer()
+            Button { showGuide = true } label: {
+                Label("How to use?", systemImage: "questionmark.circle")
+                    .font(.caption2)
+                    .labelStyle(.titleAndIcon)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.teal)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.horizontal, 4)
+        .padding(.bottom, 2)
+        .sheet(isPresented: $showGuide) { WatchUserGuideView() }
     }
 }

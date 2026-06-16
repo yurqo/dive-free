@@ -42,8 +42,11 @@ public struct DiveDetector: Sendable {
             guard let first = current.first, let last = current.last else { return }
             let maxDepth = current.map(\.depthMeters).max() ?? 0
             let duration = last.timestamp.timeIntervalSince(first.timestamp)
-            guard maxDepth >= config.minimumDiveDepthMeters,
-                  duration >= config.minimumDiveDuration else { return }
+            // A candidate counts if it's deep enough OR long enough (either
+            // qualifies), so a brief deep drop and a shallow lingering dip both
+            // register as dives.
+            guard maxDepth >= config.minimumDiveDepthMeters
+                || duration >= config.minimumDiveDuration else { return }
             dives.append(
                 Dive(
                     startTime: first.timestamp,

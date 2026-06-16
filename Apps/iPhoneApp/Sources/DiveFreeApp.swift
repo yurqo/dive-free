@@ -39,6 +39,9 @@ struct DiveFreeApp: App {
                             try? SessionImporter(context: container.mainContext).importSession(session)
                         }
                     }
+                    // Store voice-note files the watch transfers, keyed by the
+                    // name the markers reference, so they're playable from detail.
+                    sync.audioDirectory = VoiceNoteStore.directory
                     sync.activate()
                     // Push current custom markers so the Watch carousel has them.
                     let descriptor = FetchDescriptor<CustomMarkerRecord>(sortBy: [SortDescriptor(\.createdAt)])

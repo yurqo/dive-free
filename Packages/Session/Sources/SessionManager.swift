@@ -93,6 +93,23 @@ public final class SessionManager {
     @ObservationIgnored
     public var onHapticEvent: (@MainActor (DiveHapticEvent) -> Void)?
 
+    /// Called when the diver crosses from the surface into a dive (the moment a
+    /// new descent begins). Used to auto-stop a surface voice-note recording.
+    @ObservationIgnored
+    public var onSubmerge: (@MainActor () -> Void)?
+
+    /// Attaches a recorded voice-note filename to the most recently placed
+    /// marker, or — if none has been placed yet this session — drops a `.note`
+    /// marker to carry it. No-op when idle.
+    public func attachAudioToLastMarker(_ fileName: String) {
+        guard isActive else { return }
+        if markers.isEmpty {
+            markers.append(EventMarker(timestamp: Date(), kind: MarkerKind(.note), audioFileName: fileName))
+        } else {
+            markers[markers.count - 1].audioFileName = fileName
+        }
+    }
+
     private let sensors: SensorManager
     private let detector: DiveDetector
     private let modelContext: ModelContext
@@ -105,6 +122,9 @@ public final class SessionManager {
     /// `nil` if none yet this session. Drives the live "GPS acquired?" indicator —
     /// a fix going stale means the watch lost signal (e.g. wrist underwater).
     public private(set) var lastLocationFixAt: Date?
+    /// Horizontal accuracy (meters) of the most recent GPS fix, or `nil` if none
+    /// yet / unknown. Drives the live "±N m" GPS-quality readout.
+    public private(set) var lastLocationAccuracy: Double?
     /// Ordered surface fixes captured during the session — the surface path.
     private var track: [TrackPoint] = []
     private var locationTask: Task<Void, Never>?
@@ -137,6 +157,7 @@ public final class SessionManager {
         lastSurfacedAt = nil
         capturedLocation = nil
         lastLocationFixAt = nil
+        lastLocationAccuracy = nil
         track = []
         hapticTracker = DiveHapticTracker(
             config: DiveHapticConfig(surfaceThresholdMeters: detector.config.surfaceThresholdMeters)
@@ -163,6 +184,7 @@ public final class SessionManager {
     private func handleLocationFix(_ point: GeoPoint) {
         let now = Date()
         lastLocationFixAt = now
+        lastLocationAccuracy = point.horizontalAccuracy
         if capturedLocation == nil { capturedLocation = point }
         if let last = track.last, now.timeIntervalSince(last.timestamp) < Self.minTrackInterval { return }
         track.append(TrackPoint(timestamp: now, location: point))
@@ -180,7 +202,11 @@ public final class SessionManager {
         // image — it starts when a counted dive ends and resets on the next
         // descent.
         if depth > detector.config.surfaceThresholdMeters {
-            if currentDiveStart == nil { currentDiveStart = Date(); currentDiveMaxDepth = 0 }
+            if currentDiveStart == nil {
+                currentDiveStart = Date()
+                currentDiveMaxDepth = 0
+                onSubmerge?()
+            }
             currentDiveMaxDepth = max(currentDiveMaxDepth, depth)
             lastSurfacedAt = nil
         } else {
@@ -226,6 +252,7 @@ public final class SessionManager {
         lastSurfacedAt = nil
         track = []
         lastLocationFixAt = nil
+        lastLocationAccuracy = nil
         return session
     }
 }

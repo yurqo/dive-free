@@ -20,6 +20,7 @@ struct WatchRootView: View {
                 SessionRootView()
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .task { await startIfPending() }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { Task { await startIfPending() } }

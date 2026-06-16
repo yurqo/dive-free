@@ -15,10 +15,15 @@ public struct DepthSample: Sendable, Equatable, Codable {
 public struct GeoPoint: Sendable, Equatable, Codable {
     public var latitude: Double
     public var longitude: Double
+    /// Horizontal accuracy of the fix in meters (lower is better), or `nil` for
+    /// interpolated/legacy points with no known accuracy. Optional so payloads
+    /// from older app versions (which had no accuracy field) still decode.
+    public var horizontalAccuracy: Double?
 
-    public init(latitude: Double, longitude: Double) {
+    public init(latitude: Double, longitude: Double, horizontalAccuracy: Double? = nil) {
         self.latitude = latitude
         self.longitude = longitude
+        self.horizontalAccuracy = horizontalAccuracy
     }
 
     /// Great-circle distance to another point, in meters (haversine).
@@ -112,18 +117,26 @@ public struct EventMarker: Sendable, Equatable, Codable, Identifiable {
     public var timestamp: Date
     public var kind: MarkerKind
     public var text: String?
+    /// Filename of a voice note recorded for this marker, within the app's
+    /// voice-notes directory. `nil` when there's no recording. Optional so
+    /// payloads from older app versions still decode.
+    public var audioFileName: String?
 
-    public init(id: UUID = UUID(), timestamp: Date, kind: MarkerKind, text: String? = nil) {
+    public init(id: UUID = UUID(), timestamp: Date, kind: MarkerKind, text: String? = nil, audioFileName: String? = nil) {
         self.id = id
         self.timestamp = timestamp
         self.kind = kind
         self.text = text
+        self.audioFileName = audioFileName
     }
 
     /// Convenience for built-in kinds.
-    public init(id: UUID = UUID(), timestamp: Date, kind: EventKind, text: String? = nil) {
-        self.init(id: id, timestamp: timestamp, kind: MarkerKind(kind), text: text)
+    public init(id: UUID = UUID(), timestamp: Date, kind: EventKind, text: String? = nil, audioFileName: String? = nil) {
+        self.init(id: id, timestamp: timestamp, kind: MarkerKind(kind), text: text, audioFileName: audioFileName)
     }
+
+    /// Whether a voice note is attached.
+    public var hasAudio: Bool { audioFileName != nil }
 }
 
 /// One point of a dive's depth-over-time profile, with elapsed seconds since
@@ -293,6 +306,40 @@ public struct DiveSession: Sendable, Equatable, Codable, Identifiable {
         return surfaceLocation(at: marker.timestamp)
     }
 
+    /// The session as an ordered timeline of dives and the surface intervals
+    /// around them (before the first dive, between dives, and after the last).
+    /// Surface gaps shorter than a second are dropped as noise.
+    public var segments: [SessionSegment] {
+        let ordered = dives.sorted { $0.startTime < $1.startTime }
+        var result: [SessionSegment] = []
+        var cursor = startTime
+        func markersIn(_ from: Date, _ to: Date) -> Int {
+            markers.filter { $0.timestamp >= from && $0.timestamp <= to }.count
+        }
+        func appendSurface(upTo end: Date) {
+            guard end.timeIntervalSince(cursor) >= 1 else { return }
+            // Surface distance traveled during just this interval (track hops
+            // between the cursor and the next dive / session end).
+            let distance = track
+                .filter { $0.timestamp >= cursor && $0.timestamp <= end }
+                .surfaceDistanceMeters
+            result.append(SessionSegment(
+                id: result.count, kind: .surface, startTime: cursor, endTime: end,
+                distanceMeters: distance, markerCount: markersIn(cursor, end)
+            ))
+        }
+        for dive in ordered {
+            appendSurface(upTo: dive.startTime)
+            result.append(SessionSegment(
+                id: result.count, kind: .dive(dive), startTime: dive.startTime, endTime: dive.endTime,
+                markerCount: markersIn(dive.startTime, dive.endTime)
+            ))
+            cursor = max(cursor, dive.endTime)
+        }
+        appendSurface(upTo: endTime ?? cursor)
+        return result
+    }
+
     public init(
         id: UUID = UUID(),
         startTime: Date,
@@ -326,5 +373,45 @@ public struct DiveSession: Sendable, Equatable, Codable, Identifiable {
         markers = try c.decode([EventMarker].self, forKey: .markers)
         location = try c.decodeIfPresent(GeoPoint.self, forKey: .location)
         track = try c.decodeIfPresent([TrackPoint].self, forKey: .track) ?? []
+    }
+}
+
+/// One leg of a session's timeline: either a dive (submersion) or a surface
+/// interval between/around dives. Built by `DiveSession.segments` so the summary
+/// can render the session as an ordered list.
+public struct SessionSegment: Sendable, Equatable, Identifiable {
+    public enum Kind: Sendable, Equatable {
+        case dive(Dive)
+        case surface
+    }
+
+    public let id: Int
+    public let kind: Kind
+    public let startTime: Date
+    public let endTime: Date
+    /// Surface distance traveled during this segment (meters). Meaningful for
+    /// surface intervals; 0 for dives (GPS doesn't track underwater).
+    public let distanceMeters: Double
+    /// Number of markers placed during this segment's time window.
+    public let markerCount: Int
+
+    public var duration: TimeInterval { endTime.timeIntervalSince(startTime) }
+
+    /// The dive when this segment is a dive, else `nil`.
+    public var dive: Dive? {
+        if case .dive(let dive) = kind { return dive }
+        return nil
+    }
+
+    /// Whether this segment is a dive (vs a surface interval).
+    public var isDive: Bool { dive != nil }
+
+    public init(id: Int, kind: Kind, startTime: Date, endTime: Date, distanceMeters: Double = 0, markerCount: Int = 0) {
+        self.id = id
+        self.kind = kind
+        self.startTime = startTime
+        self.endTime = endTime
+        self.distanceMeters = distanceMeters
+        self.markerCount = markerCount
     }
 }

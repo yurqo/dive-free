@@ -13,12 +13,14 @@ struct SessionDetailView: View {
         case idle, uploading, uploaded, failed(String)
     }
     @State private var exportStatus: ExportStatus = .idle
+    @State private var showFullMap = false
 
     var body: some View {
         let domain = session.toDomain()
         List {
             Section {
                 LabeledContent("Date", value: domain.startTime.formatted(date: .abbreviated, time: .shortened))
+                LabeledContent("Total", value: Duration.seconds(domain.totalDuration).formatted(.time(pattern: .hourMinuteSecond)))
                 LabeledContent("Dives", value: "\(domain.diveCount)")
                 LabeledContent("Max depth", value: DepthFormat.string(domain.maxDepthMeters))
                 if let average = domain.averageSurfaceInterval {
@@ -27,45 +29,157 @@ struct SessionDetailView: View {
                         value: Duration.seconds(average).formatted(.time(pattern: .minuteSecond))
                     )
                 }
-            }
-
-            Section("Location") {
-                if !domain.track.isEmpty {
-                    // Full surface path + dive points + markers when we recorded a track.
-                    SessionTrackMapView(session: domain)
-                        .frame(height: 260)
-                        .listRowInsets(EdgeInsets())
-                } else if let location = domain.location {
-                    SessionMapView(location: location)
-                        .frame(height: 220)
-                        .listRowInsets(EdgeInsets())
-                } else {
-                    // GPS rarely fixes underwater, so a missing location is normal.
-                    Label("No location recorded", systemImage: "location.slash")
-                        .foregroundStyle(.secondary)
+                if domain.surfaceDistanceMeters >= 1 {
+                    LabeledContent("Distance", value: distanceText(domain.surfaceDistanceMeters))
                 }
             }
+
+            segmentsSection(domain)
 
             markersSection(domain)
 
             stravaSection(domain)
 
-            if domain.dives.isEmpty {
-                ContentUnavailableView(
-                    "No Dives",
-                    systemImage: "chart.xyaxis.line",
-                    description: Text("This session has no recorded dives.")
-                )
+            // Full session map at the bottom.
+            locationSection(domain)
+        }
+        .navigationTitle(domain.startTime.formatted(date: .abbreviated, time: .omitted))
+        .navigationBarTitleDisplayMode(.inline)
+        .fullScreenCover(isPresented: $showFullMap) { fullMap(domain) }
+    }
+
+    // MARK: - Location
+
+    /// The session map: full surface path + dive/marker points when a track was
+    /// recorded, else a single dive-site pin. Non-interactive inline; tap to open
+    /// the full interactive map.
+    @ViewBuilder
+    private func locationSection(_ domain: DiveSession) -> some View {
+        Section("Location") {
+            if !domain.track.isEmpty {
+                mapPreview { SessionTrackMapView(session: domain, interactive: false) }
+            } else if let location = domain.location {
+                mapPreview { SessionMapView(location: location, interactive: false) }
             } else {
-                ForEach(Array(domain.dives.enumerated()), id: \.element.id) { index, dive in
-                    Section("Dive \(index + 1) · \(DepthFormat.string(dive.maxDepthMeters)) max") {
-                        DepthChartView(dive: dive, markers: domain.markers)
+                // GPS rarely fixes underwater, so a missing location is normal.
+                Label("No location recorded", systemImage: "location.slash")
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func mapPreview<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        content()
+            .frame(height: 220)
+            .listRowInsets(EdgeInsets())
+            .contentShape(Rectangle())
+            .onTapGesture { showFullMap = true }
+            .overlay(alignment: .topTrailing) {
+                Image(systemName: "arrow.up.left.and.arrow.down.right")
+                    .font(.callout)
+                    .padding(8)
+                    .background(.ultraThinMaterial, in: Circle())
+                    .padding(10)
+            }
+    }
+
+    @ViewBuilder
+    private func fullMap(_ domain: DiveSession) -> some View {
+        NavigationStack {
+            Group {
+                if !domain.track.isEmpty {
+                    SessionTrackMapView(session: domain, interactive: true).ignoresSafeArea()
+                } else if let location = domain.location {
+                    SessionMapView(location: location, interactive: true).ignoresSafeArea()
+                } else {
+                    Color.clear
+                }
+            }
+            .navigationTitle("Map")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") { showFullMap = false }
+                }
+            }
+        }
+    }
+
+    // MARK: - Segments
+
+    /// The session timeline: surface intervals and dives, each with start offset,
+    /// duration, and (for dives) max depth. Dive rows push the depth profile.
+    @ViewBuilder
+    private func segmentsSection(_ domain: DiveSession) -> some View {
+        let segments = domain.segments
+        if !segments.isEmpty {
+            Section("Segments") {
+                ForEach(segments) { segment in
+                    if let dive = segment.dive {
+                        // Dive → depth profile (with markers).
+                        NavigationLink {
+                            DiveDetailView(dive: dive, index: diveNumber(of: dive, in: domain), markers: domain.markers)
+                        } label: {
+                            segmentRow(segment, sessionStart: domain.startTime)
+                        }
+                    } else {
+                        // Surface → that leg's path on the map (with markers).
+                        NavigationLink {
+                            SessionTrackMapView(session: domain, range: segment.startTime...segment.endTime)
+                                .ignoresSafeArea()
+                                .navigationTitle("Surface")
+                                .navigationBarTitleDisplayMode(.inline)
+                        } label: {
+                            segmentRow(segment, sessionStart: domain.startTime)
+                        }
                     }
                 }
             }
         }
-        .navigationTitle(domain.startTime.formatted(date: .abbreviated, time: .omitted))
-        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func segmentRow(_ segment: SessionSegment, sessionStart: Date) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: segment.isDive ? "arrow.down" : "water.waves")
+                .foregroundStyle(segment.isDive ? .teal : .blue)
+                .frame(width: 24)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(segment.isDive ? "Dive" : "Surface")
+                Text("+" + offset(segment.startTime, from: sessionStart)
+                     + (segment.markerCount > 0 ? "  📍\(segment.markerCount)" : ""))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+            Spacer()
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(Duration.seconds(segment.duration).formatted(.time(pattern: .minuteSecond)))
+                    .monospacedDigit()
+                if let dive = segment.dive {
+                    Text(DepthFormat.string(dive.maxDepthMeters))
+                        .font(.caption)
+                        .foregroundStyle(.teal)
+                        .monospacedDigit()
+                } else if segment.distanceMeters >= 1 {
+                    Text(distanceText(segment.distanceMeters))
+                        .font(.caption)
+                        .foregroundStyle(.teal)
+                        .monospacedDigit()
+                }
+            }
+        }
+    }
+
+    private func offset(_ time: Date, from start: Date) -> String {
+        Duration.seconds(time.timeIntervalSince(start)).formatted(.time(pattern: .minuteSecond))
+    }
+
+    private func diveNumber(of dive: Dive, in domain: DiveSession) -> Int {
+        (domain.dives.sorted { $0.startTime < $1.startTime }.firstIndex { $0.id == dive.id } ?? 0) + 1
+    }
+
+    private func distanceText(_ meters: Double) -> String {
+        meters < 1000 ? "\(Int(meters)) m" : String(format: "%.1f km", meters / 1000)
     }
 
     @ViewBuilder
@@ -82,6 +196,11 @@ struct SessionDetailView: View {
                                 Text(text)
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
+                            }
+                            if let fileName = marker.audioFileName {
+                                VoiceNotePlayButton(fileName: fileName)
+                                    .font(.caption)
+                                    .buttonStyle(.borderless)
                             }
                         }
                         Spacer()
