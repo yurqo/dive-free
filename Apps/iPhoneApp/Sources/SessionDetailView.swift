@@ -30,13 +30,13 @@ struct SessionDetailView: View {
                     )
                 }
                 if domain.surfaceDistanceMeters >= 1 {
-                    LabeledContent("Distance", value: distanceText(domain.surfaceDistanceMeters))
+                    LabeledContent("Distance", value: DistanceFormat.string(domain.surfaceDistanceMeters))
                 }
             }
 
             segmentsSection(domain)
 
-            markersSection(domain)
+            MarkerListSection(markers: domain.markers)
 
             stravaSection(domain)
 
@@ -120,17 +120,14 @@ struct SessionDetailView: View {
                         NavigationLink {
                             DiveDetailView(dive: dive, index: diveNumber(of: dive, in: domain), markers: domain.markers)
                         } label: {
-                            segmentRow(segment, sessionStart: domain.startTime)
+                            segmentRow(segment, sessionStart: domain.startTime, hasAudio: segmentHasAudio(segment, in: domain))
                         }
                     } else {
-                        // Surface → that leg's path on the map (with markers).
+                        // Surface → that leg's static map, distance/time, markers.
                         NavigationLink {
-                            SessionTrackMapView(session: domain, range: segment.startTime...segment.endTime)
-                                .ignoresSafeArea()
-                                .navigationTitle("Surface")
-                                .navigationBarTitleDisplayMode(.inline)
+                            SurfaceDetailView(session: domain, segment: segment)
                         } label: {
-                            segmentRow(segment, sessionStart: domain.startTime)
+                            segmentRow(segment, sessionStart: domain.startTime, hasAudio: segmentHasAudio(segment, in: domain))
                         }
                     }
                 }
@@ -138,18 +135,25 @@ struct SessionDetailView: View {
         }
     }
 
-    private func segmentRow(_ segment: SessionSegment, sessionStart: Date) -> some View {
+    private func segmentRow(_ segment: SessionSegment, sessionStart: Date, hasAudio: Bool) -> some View {
         HStack(spacing: 12) {
             Image(systemName: segment.isDive ? "arrow.down" : "water.waves")
                 .foregroundStyle(segment.isDive ? .teal : .blue)
                 .frame(width: 24)
             VStack(alignment: .leading, spacing: 2) {
                 Text(segment.isDive ? "Dive" : "Surface")
-                Text("+" + offset(segment.startTime, from: sessionStart)
-                     + (segment.markerCount > 0 ? "  📍\(segment.markerCount)" : ""))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .monospacedDigit()
+                HStack(spacing: 4) {
+                    Text("+" + offset(segment.startTime, from: sessionStart)
+                         + (segment.markerCount > 0 ? "  📍\(segment.markerCount)" : ""))
+                        .monospacedDigit()
+                    // Flags a segment whose markers carry a voice note.
+                    if hasAudio {
+                        Image(systemName: "play.circle.fill")
+                            .foregroundStyle(.teal)
+                    }
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 2) {
@@ -161,7 +165,7 @@ struct SessionDetailView: View {
                         .foregroundStyle(.teal)
                         .monospacedDigit()
                 } else if segment.distanceMeters >= 1 {
-                    Text(distanceText(segment.distanceMeters))
+                    Text(DistanceFormat.string(segment.distanceMeters))
                         .font(.caption)
                         .foregroundStyle(.teal)
                         .monospacedDigit()
@@ -178,39 +182,10 @@ struct SessionDetailView: View {
         (domain.dives.sorted { $0.startTime < $1.startTime }.firstIndex { $0.id == dive.id } ?? 0) + 1
     }
 
-    private func distanceText(_ meters: Double) -> String {
-        meters < 1000 ? "\(Int(meters)) m" : String(format: "%.1f km", meters / 1000)
-    }
-
-    @ViewBuilder
-    private func markersSection(_ domain: DiveSession) -> some View {
-        if !domain.markers.isEmpty {
-            Section("Markers") {
-                ForEach(domain.markers.sorted { $0.timestamp < $1.timestamp }) { marker in
-                    HStack(spacing: 12) {
-                        Text(marker.kind.emoji)
-                            .font(.title3)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(marker.kind.label)
-                            if let text = marker.text, !text.isEmpty {
-                                Text(text)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            if let fileName = marker.audioFileName {
-                                VoiceNotePlayButton(fileName: fileName)
-                                    .font(.caption)
-                                    .buttonStyle(.borderless)
-                            }
-                        }
-                        Spacer()
-                        Text(marker.timestamp, format: .dateTime.hour().minute())
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .monospacedDigit()
-                    }
-                }
-            }
+    /// Whether any marker in this segment's window carries a voice note.
+    private func segmentHasAudio(_ segment: SessionSegment, in domain: DiveSession) -> Bool {
+        domain.markers.contains {
+            $0.audioFileName != nil && $0.timestamp >= segment.startTime && $0.timestamp <= segment.endTime
         }
     }
 
@@ -297,4 +272,50 @@ private struct SessionDetailPreview: View {
 
 #Preview {
     SessionDetailPreview()
+}
+
+/// A "Markers" list section: one row per marker (emoji, label, optional note,
+/// a play button when a voice note is attached, and the clock time). Shared by
+/// the whole-session detail and the per-segment dive/surface detail screens.
+struct MarkerListSection: View {
+    let markers: [EventMarker]
+
+    var body: some View {
+        if !markers.isEmpty {
+            Section("Markers") {
+                ForEach(markers.sorted { $0.timestamp < $1.timestamp }) { marker in
+                    MarkerRow(marker: marker)
+                }
+            }
+        }
+    }
+}
+
+private struct MarkerRow: View {
+    let marker: EventMarker
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Text(marker.kind.emoji)
+                .font(.title3)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(marker.kind.label)
+                if let text = marker.text, !text.isEmpty {
+                    Text(text)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                if let fileName = marker.audioFileName {
+                    VoiceNotePlayButton(fileName: fileName)
+                        .font(.caption)
+                        .buttonStyle(.borderless)
+                }
+            }
+            Spacer()
+            Text(marker.timestamp, format: .dateTime.hour().minute())
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
+        }
+    }
 }

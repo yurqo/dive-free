@@ -24,3 +24,13 @@ public enum DepthFormat {
         return String(format: "%.1f", meters)
     }
 }
+
+/// Formats surface distances: whole meters under a kilometer, switching to
+/// kilometers with one decimal at/above 1 km. Shared by the watch and phone
+/// summaries and segment detail screens.
+public enum DistanceFormat {
+    /// e.g. `"450 m"` or `"1.2 km"`.
+    public static func string(_ meters: Double) -> String {
+        meters < 1000 ? "\(Int(meters)) m" : String(format: "%.1f km", meters / 1000)
+    }
+}

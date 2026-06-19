@@ -10,21 +10,36 @@ struct VoiceNotePlayButton: View {
     @State private var player: AVAudioPlayer?
     @State private var isPlaying = false
     @State private var available = false
+    @State private var duration: TimeInterval?
 
     var body: some View {
         Button {
             isPlaying ? stop() : play()
         } label: {
-            Label(
-                isPlaying ? "Stop" : (available ? "Play voice note" : "Voice note syncing…"),
-                systemImage: isPlaying ? "stop.circle.fill" : "play.circle.fill"
-            )
+            Label(title, systemImage: isPlaying ? "stop.circle.fill" : "play.circle.fill")
         }
         .disabled(!available)
         .foregroundStyle(available ? .teal : .secondary)
-        .onAppear { available = VoiceNoteStore.exists(fileName) }
+        .onAppear { refresh() }
         .onReceive(NotificationCenter.default.publisher(for: .voiceNoteReceived)) { _ in
-            available = VoiceNoteStore.exists(fileName)
+            refresh()
+        }
+    }
+
+    /// Button text: a syncing notice until the clip arrives, otherwise Play/Stop
+    /// with the clip length appended once it's known.
+    private var title: String {
+        guard available else { return "Voice note syncing…" }
+        let base = isPlaying ? "Stop" : "Play voice note"
+        guard let duration else { return base }
+        return "\(base) · \(Duration.seconds(duration.rounded()).formatted(.time(pattern: .minuteSecond)))"
+    }
+
+    /// Refreshes availability and reads the clip length once the file exists.
+    private func refresh() {
+        available = VoiceNoteStore.exists(fileName)
+        if available, duration == nil {
+            duration = try? AVAudioPlayer(contentsOf: VoiceNoteStore.url(for: fileName)).duration
         }
     }
 

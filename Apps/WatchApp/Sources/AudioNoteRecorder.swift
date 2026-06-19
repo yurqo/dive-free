@@ -21,14 +21,49 @@ final class AudioNoteRecorder {
     static let maxDuration: TimeInterval = 120
 
     /// Directory holding voice-note files (created on demand).
-    static var directory: URL {
+    nonisolated static var directory: URL {
         let base = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let dir = base.appendingPathComponent("VoiceNotes", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
     }
 
-    static func url(for fileName: String) -> URL { directory.appendingPathComponent(fileName) }
+    nonisolated static func url(for fileName: String) -> URL { directory.appendingPathComponent(fileName) }
+
+    /// Concatenates two voice-note clips (existing first, then the new one) into a
+    /// single `.m4a`, returning the merged file's name and deleting the two
+    /// sources. Lets repeated recordings on the same marker accumulate instead of
+    /// the newer one silently replacing the older.
+    ///
+    /// watchOS has no `AVAssetExportSession`, so we copy PCM frames through
+    /// `AVAudioFile` (streamed in chunks to keep memory bounded), re-encoding to
+    /// the same AAC/m4a format the clips were recorded in. `nonisolated async` so
+    /// the decode/encode runs off the main actor.
+    nonisolated static func merge(_ firstName: String, with secondName: String) async throws -> String {
+        let mergedName = "voice-\(UUID().uuidString).m4a"
+        let outputURL = url(for: mergedName)
+
+        // Reuse the first clip's own format for the writer (same AAC/m4a settings).
+        let template = try AVAudioFile(forReading: url(for: firstName))
+        let output = try AVAudioFile(forWriting: outputURL, settings: template.fileFormat.settings)
+
+        for name in [firstName, secondName] {
+            let input = try AVAudioFile(forReading: url(for: name))
+            let format = input.processingFormat
+            let chunk: AVAudioFrameCount = 32_768
+            while true {
+                guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: chunk) else { break }
+                try input.read(into: buffer, frameCount: chunk)
+                if buffer.frameLength == 0 { break }
+                try output.write(from: buffer)
+            }
+        }
+
+        // The clips now live in the merged file — drop the sources.
+        try? FileManager.default.removeItem(at: url(for: firstName))
+        try? FileManager.default.removeItem(at: url(for: secondName))
+        return mergedName
+    }
 
     /// Requests mic permission (once), configures the session, and starts
     /// recording. Returns `false` if permission was denied or setup failed.

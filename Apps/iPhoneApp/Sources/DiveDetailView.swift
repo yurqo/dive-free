@@ -1,12 +1,18 @@
 import SwiftUI
 import Domain
 
-/// A single dive's detail: headline figures plus its depth-profile chart. Pushed
-/// from a dive row in the session's segment list.
+/// A single dive's detail: headline figures, its depth-profile chart, and the
+/// markers placed during the dive. Pushed from a dive row in the session's
+/// segment list.
 struct DiveDetailView: View {
     let dive: Dive
     let index: Int
     var markers: [EventMarker] = []
+
+    /// Markers placed during this dive's window.
+    private var diveMarkers: [EventMarker] {
+        markers.filter { $0.timestamp >= dive.startTime && $0.timestamp <= dive.endTime }
+    }
 
     var body: some View {
         List {
@@ -16,10 +22,78 @@ struct DiveDetailView: View {
                 LabeledContent("Start", value: dive.startTime.formatted(date: .omitted, time: .standard))
             }
             Section("Depth profile") {
-                DepthChartView(dive: dive, markers: markers)
+                DepthChartView(dive: dive, markers: diveMarkers)
             }
+            MarkerListSection(markers: diveMarkers)
         }
         .navigationTitle("Dive \(index)")
         .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+/// A single surface interval's detail: a static map of that leg's path (the same
+/// size as a dive's depth profile; tap it to open the full zoomable map), its
+/// distance and duration, and any markers placed during it. Pushed from a surface
+/// row in the session's segment list.
+struct SurfaceDetailView: View {
+    let session: DiveSession
+    let segment: SessionSegment
+
+    @State private var showFullMap = false
+
+    private var range: ClosedRange<Date> { segment.startTime...segment.endTime }
+
+    /// Markers placed during this surface interval.
+    private var surfaceMarkers: [EventMarker] {
+        session.markers.filter { $0.timestamp >= segment.startTime && $0.timestamp <= segment.endTime }
+    }
+
+    /// Whether this leg has a surface path to draw.
+    private var hasPath: Bool {
+        session.track.contains { range.contains($0.timestamp) }
+    }
+
+    var body: some View {
+        List {
+            if hasPath {
+                Section {
+                    // Static (non-zoomable) preview, sized like the dive profile;
+                    // tap opens the full interactive map for this leg.
+                    SessionTrackMapView(session: session, interactive: false, range: range)
+                        .frame(height: 220)
+                        .listRowInsets(EdgeInsets())
+                        .contentShape(Rectangle())
+                        .onTapGesture { showFullMap = true }
+                        .overlay(alignment: .topTrailing) {
+                            Image(systemName: "arrow.up.left.and.arrow.down.right")
+                                .font(.callout)
+                                .padding(8)
+                                .background(.ultraThinMaterial, in: Circle())
+                                .padding(10)
+                        }
+                }
+            }
+            Section {
+                LabeledContent("Distance", value: DistanceFormat.string(segment.distanceMeters))
+                LabeledContent("Duration", value: Duration.seconds(segment.duration).formatted(.time(pattern: .minuteSecond)))
+                LabeledContent("Start", value: segment.startTime.formatted(date: .omitted, time: .standard))
+            }
+            MarkerListSection(markers: surfaceMarkers)
+        }
+        .navigationTitle("Surface")
+        .navigationBarTitleDisplayMode(.inline)
+        .fullScreenCover(isPresented: $showFullMap) {
+            NavigationStack {
+                SessionTrackMapView(session: session, interactive: true, range: range)
+                    .ignoresSafeArea()
+                    .navigationTitle("Surface")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button("Done") { showFullMap = false }
+                        }
+                    }
+            }
+        }
     }
 }

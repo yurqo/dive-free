@@ -49,92 +49,110 @@ struct SessionRootView: View {
 
     // MARK: - Active session
 
-    /// Layout, top → bottom: session time (left) sitting under the OS clock
-    /// (right); a GPS icon + accuracy line; the big depth readout filling the
-    /// middle; then the session counters stitched right above the bottom pill.
+    /// Layout: the session time and GPS ride in the top bar beside the OS clock
+    /// (via the navigation toolbar, the same way the summary's ↻ / ✓ buttons do);
+    /// the big depth readout fills the middle; the session counters sit right above
+    /// the bottom pill.
     private var activeView: some View {
         @Bindable var session = session
-        return VStack(spacing: 3) {
-            topBar
-            gpsRow
-            // The centerpiece fills everything between the pinned top block
-            // (time + GPS) and the pinned bottom block (counters + pill) so they
-            // never move when the mode or content changes.
-            centerpiece
-            statsLine
-            // The pill is a non-AOD affordance; the Crown drives it both at the
-            // surface and underwater, and the Action button confirms it.
-            if !isLuminanceReduced {
-                actionPill
+        // A NavigationStack purely so the top bar lines the session time / GPS up
+        // with the OS clock natively — no manual safe-area math. There's no
+        // ScrollView inside, so it doesn't claim the Crown from the carousel.
+        return NavigationStack {
+            VStack(spacing: 3) {
+                // The centerpiece fills everything between the top bar and the
+                // bottom pill so they never move when the mode or content changes.
+                centerpiece
+                statsLine
+                // The pill is a non-AOD affordance; the Crown drives it both at the
+                // surface and underwater, and the Action button confirms it.
+                if !isLuminanceReduced {
+                    actionPill
+                }
             }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(8)
-        // Extend into the top/bottom safe areas so the session time rises next to
-        // the OS clock and the pill's bottom margin matches the 8pt side margin.
-        .ignoresSafeArea(.container, edges: [.top, .bottom])
-        // Crown navigation lives only on the live screen — not in the summary/idle
-        // states, which would warn "Crown Sequencer without a view property" and
-        // fight the summary's own scrolling.
-        .confirmationDialog(
-            "End session?",
-            isPresented: $session.pendingEndConfirmation,
-            titleVisibility: .visible
-        ) {
-            Button("End Session", role: .destructive) { session.confirmEnd() }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            // Underwater the screen is water-locked, so the buttons can't be
-            // tapped — on Ultra, press Action + side together again to confirm.
-            Text("On Ultra, press the Action + side button together again to end.")
-        }
-        .focusable()
-        .focused($menuFocused)
-        .digitalCrownRotation(
-            $crownPosition,
-            from: 0,
-            // Span `crownStepsPerItem` detents per item so each item takes more
-            // rotation — the bigger the multiplier, the finer/slower the scroll.
-            through: Double(max(session.menuItems.count - 1, 0) * crownStepsPerItem),
-            by: 1,
-            sensitivity: .low,
-            isContinuous: false,
-            // Per-detent haptic off; we buzz once per item change below instead.
-            isHapticFeedbackEnabled: false
-        )
-        .onChange(of: crownPosition) { _, newValue in
-            let index = Int((newValue / Double(crownStepsPerItem)).rounded())
-            if index != lastFocusedIndex {
-                lastFocusedIndex = index
-                // Stronger than .click so item changes are felt underwater.
-                WKInterfaceDevice.current().play(.notification)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(.horizontal, 8)
+            // Pull the content up under the nav bar a little so the big time isn't
+            // pushed far below the clock — reduces the gap above it and gives the
+            // number more height. (Stays clear of the toolbar row.)
+            .padding(.top, -12)
+            // A bit more bottom margin than the sides so the pill clears the
+            // display's rounded bottom corners, which otherwise clip it.
+            .padding(.bottom, 16)
+            // Extend under the bottom safe area; the top is handled by the nav bar.
+            .ignoresSafeArea(.container, edges: .bottom)
+            // GPS (leading) + session time (trailing) flank the OS clock.
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) { gpsInfo }
+                ToolbarItem(placement: .topBarTrailing) { sessionTimeLabel }
             }
-            session.focus(index)
-        }
-        .onChange(of: session.focusedIndex) { _, newIndex in
-            // Re-sync the Crown when focus changes externally (e.g. after a voice
-            // note ends) — but not when the Crown itself drove the change.
-            let crownIndex = Int((crownPosition / Double(crownStepsPerItem)).rounded())
-            if crownIndex != newIndex {
-                crownPosition = Double(newIndex * crownStepsPerItem)
-                lastFocusedIndex = newIndex
+            .confirmationDialog(
+                "End session?",
+                isPresented: $session.pendingEndConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("End Session", role: .destructive) { session.confirmEnd() }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                // Underwater the screen is water-locked, so the buttons can't be
+                // tapped — on Ultra, press Action + side together again to confirm.
+                Text("On Ultra, press the Action + side button together again to end.")
             }
+            .focusable()
+            .focused($menuFocused)
+            .digitalCrownRotation(
+                $crownPosition,
+                from: 0,
+                // Span `crownStepsPerItem` detents per item so each item takes more
+                // rotation — the bigger the multiplier, the finer/slower the scroll.
+                through: Double(max(session.menuItems.count - 1, 0) * crownStepsPerItem),
+                by: 1,
+                sensitivity: .low,
+                isContinuous: false,
+                // Per-detent haptic off; we buzz once per item change below instead.
+                isHapticFeedbackEnabled: false
+            )
+            .onChange(of: crownPosition) { _, newValue in
+                let index = Int((newValue / Double(crownStepsPerItem)).rounded())
+                if index != lastFocusedIndex {
+                    lastFocusedIndex = index
+                    // Stronger than .click so item changes are felt underwater.
+                    WKInterfaceDevice.current().play(.notification)
+                }
+                session.focus(index)
+            }
+            .onChange(of: session.focusedIndex) { _, newIndex in
+                // Re-sync the Crown when focus changes externally (e.g. after a
+                // voice note ends) — but not when the Crown itself drove it.
+                let crownIndex = Int((crownPosition / Double(crownStepsPerItem)).rounded())
+                if crownIndex != newIndex {
+                    crownPosition = Double(newIndex * crownStepsPerItem)
+                    lastFocusedIndex = newIndex
+                }
+            }
+            // A tap confirms the focused item — the touch fallback when no Action
+            // button is assigned, and how the simulator drives the session (it has
+            // no Action button or Water Lock). On-device underwater this is usually
+            // inert because Water Lock disables the touchscreen; where it isn't, a
+            // tap on End only *arms* the confirmation, so it can't cut a dive short
+            // by accident.
+            .onTapGesture {
+                session.confirmFocused()
+            }
+            // WatchRootView mounts this view already-active, so focus the Crown when
+            // it appears or it won't drive the carousel at the start of a session.
+            .onAppear { focusCrown() }
         }
-        // On the surface the touchscreen works, so a tap confirms the focused
-        // item. Underwater (water-locked) touches are inert.
-        .onTapGesture {
-            if !session.isSubmerged { session.confirmFocused() }
-        }
-        // WatchRootView mounts this view already-active, so focus the Crown when
-        // it appears or it won't drive the carousel at the start of a session.
-        .onAppear { focusCrown() }
     }
 
-    /// Session elapsed time, top-left — styled to echo the OS clock that sits
-    /// top-right. Shown only with a depth sensor, where the hero is depth; on a
-    /// sensorless watch the hero is the time itself, so we don't repeat it here.
-    private var topBar: some View {
-        HStack {
+    /// Session elapsed time for the top-bar leading slot, beside the OS clock and
+    /// styled to echo it. Shown only with a depth sensor, where depth is the hero;
+    /// on a sensorless watch the hero is the time itself, so we don't repeat it. A
+    /// red mic dot rides alongside while a voice note records (kept visible even on
+    /// a sensorless watch).
+    @ViewBuilder
+    private var sessionTimeLabel: some View {
+        HStack(spacing: 4) {
             if session.hasDepthSensor {
                 TimelineView(.periodic(from: .now, by: 1)) { _ in
                     Text(Duration.seconds(session.elapsedTime).formatted(.time(pattern: .minuteSecond)))
@@ -142,64 +160,64 @@ struct SessionRootView: View {
                         .monospacedDigit()
                 }
             }
-            // Persistent recording indicator, visible even when the Crown is on
-            // another carousel item.
             if session.isRecordingVoiceNote {
                 Image(systemName: "mic.fill")
                     .font(.caption2)
                     .foregroundStyle(.red)
             }
-            Spacer()
         }
     }
 
-    /// GPS icon + accuracy, just under the time line. Location is the app's core
-    /// signal, so its quality lives up top.
-    private var gpsRow: some View {
+    /// GPS icon + accuracy for the top-bar trailing slot, beside the OS clock.
+    /// Location is the app's core signal, so its quality lives up top.
+    private var gpsInfo: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
             let (symbol, color) = gpsIconState(now: context.date)
             HStack(spacing: 4) {
                 Image(systemName: symbol)
                     .font(.caption2)
                     .foregroundStyle(color)
-                Text(gpsAccuracyText)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .monospacedDigit()
-                Spacer()
+                    // While acquiring the first fix, spin a small indicator over
+                    // the icon instead of spelling out an "Acquiring…" label.
+                    .overlay {
+                        if session.lastLocationFixAt == nil {
+                            ProgressView()
+                                .controlSize(.mini)
+                                .tint(color)
+                        }
+                    }
+                if let text = gpsAccuracyText {
+                    Text(text)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
             }
         }
     }
 
-    private var gpsAccuracyText: String {
+    /// Accuracy label beside the GPS icon: "±N m" once a fix carries an accuracy,
+    /// "GPS" if fixed without one, or `nil` while still acquiring — in which case
+    /// the spinner overlay stands in for the missing label.
+    private var gpsAccuracyText: String? {
         if let accuracy = session.lastLocationAccuracy {
             return "±\(Int(accuracy.rounded())) m"
         }
-        return session.lastLocationFixAt == nil ? "Acquiring…" : "GPS"
+        return session.lastLocationFixAt == nil ? nil : "GPS"
     }
 
-    /// The hero readout filling the middle, swapping by mode. Surfaced: big
-    /// surface time (recovery between dives, or total elapsed before the first
-    /// dive) under a wave + up-arrow. Submerged: big submersion time under a
-    /// wave + down-arrow, with the current depth in a medium line below it.
-    /// Both times are mm:ss with minutes unpadded (9:05 … 999:05).
+    /// The hero readout filling the middle: a big mm:ss time (minutes unpadded,
+    /// 9:05 … 999:05) with the mode icon on a second line below it. Surfaced: the
+    /// surface-recovery time (or total elapsed before the first dive) over the
+    /// up-arrow wave icon. Submerged: the submersion time over the down-arrow wave
+    /// icon followed by the current depth.
     private var centerpiece: some View {
         TimelineView(.periodic(from: .now, by: 1)) { _ in
             VStack(spacing: 4) {
-                if session.isSubmerged {
-                    heroTime(icon: submergedIcon, seconds: session.currentDiveElapsed ?? 0)
-                } else {
-                    heroTime(icon: surfacedIcon, seconds: session.surfaceInterval ?? session.elapsedTime)
-                }
-                // Depth shows only while submerged; the line is always laid out
-                // (just hidden at the surface) so the time above never shifts.
-                Text(session.isSubmerged && session.hasDepthSensor
-                     ? DepthFormat.string(session.currentDepthMeters) : " ")
-                    .font(.system(size: 36, weight: .bold, design: .rounded))
-                    .monospacedDigit()
-                    .minimumScaleFactor(0.5)
-                    .lineLimit(1)
-                    .opacity(session.isSubmerged && session.hasDepthSensor ? 1 : 0)
+                heroTime(seconds: session.isSubmerged
+                         ? (session.currentDiveElapsed ?? 0)
+                         : (session.surfaceInterval ?? session.elapsedTime))
+                secondLine
             }
         }
         // One greedy frame fills the space between the pinned top and bottom
@@ -207,16 +225,41 @@ struct SessionRootView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    /// The big mm:ss time with the mode icon to its left.
-    private func heroTime(icon: some View, seconds: TimeInterval) -> some View {
-        HStack(spacing: 8) {
-            icon
-            Text(Duration.seconds(seconds).formatted(.time(pattern: .minuteSecond)))
-                .font(.system(size: 64, weight: .bold, design: .rounded))
-                .monospacedDigit()
-                .minimumScaleFactor(0.4)
-                .lineLimit(1)
+    /// The big mm:ss time in DIN Condensed (tall, narrow, tabular figures), sized
+    /// to fill the available space via `minimumScaleFactor`. Plain `Text` so the
+    /// monospaced figures stay put as it ticks.
+    private func heroTime(seconds: TimeInterval) -> some View {
+        Text(Duration.seconds(seconds).formatted(.time(pattern: .minuteSecond)))
+            .font(.custom("DINCondensed-Bold", fixedSize: 180))
+            .minimumScaleFactor(0.2)
+            .lineLimit(1)
+            // Crop the empty descender band below the digits so the time sits
+            // tighter to the line beneath it.
+            .padding(.bottom, -30)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// Mode icon on its own line under the time: the surface icon alone (centered)
+    /// at the surface, or the dive icon in front of the current depth while
+    /// submerged. A fixed line height reserves the depth's space so the time above
+    /// doesn't resize between modes — and, by omitting the depth (rather than just
+    /// hiding it) at the surface, the lone icon centers instead of being offset.
+    private var secondLine: some View {
+        HStack(spacing: 6) {
+            if session.isSubmerged {
+                submergedIcon
+            } else {
+                surfacedIcon
+            }
+            if session.isSubmerged && session.hasDepthSensor {
+                Text(DepthFormat.string(session.currentDepthMeters))
+                    .font(.custom("DINAlternate-Bold", fixedSize: 36))
+                    .monospacedDigit()
+                    .minimumScaleFactor(0.5)
+                    .lineLimit(1)
+            }
         }
+        .frame(height: 46)
     }
 
     /// Wave with an up-arrow above it — at/returning to the surface.
@@ -225,7 +268,7 @@ struct SessionRootView: View {
             Image(systemName: "arrow.up")
             Image(systemName: "water.waves")
         }
-        .font(.system(size: 26, weight: .semibold))
+        .font(.system(size: 20, weight: .semibold))
         .foregroundStyle(.teal)
     }
 
@@ -235,7 +278,7 @@ struct SessionRootView: View {
             Image(systemName: "water.waves")
             Image(systemName: "arrow.down")
         }
-        .font(.system(size: 26, weight: .semibold))
+        .font(.system(size: 20, weight: .semibold))
         .foregroundStyle(.teal)
     }
 
@@ -266,13 +309,9 @@ struct SessionRootView: View {
         }
         parts.append("📍\(session.markerCount)")
         if session.surfaceDistanceMeters >= 1 {
-            parts.append(distanceText(session.surfaceDistanceMeters))
+            parts.append(DistanceFormat.string(session.surfaceDistanceMeters))
         }
         return parts.joined(separator: " · ")
-    }
-
-    private func distanceText(_ meters: Double) -> String {
-        meters < 1000 ? "\(Int(meters)) m" : String(format: "%.1f km", meters / 1000)
     }
 
     /// Bottom action pill (marker kinds, then End), driven by the Crown. Near-full
