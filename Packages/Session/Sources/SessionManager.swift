@@ -110,6 +110,15 @@ public final class SessionManager {
         }
     }
 
+    /// Attaches a voice-note filename to the marker with the given id, replacing
+    /// any existing clip. No-op if the marker no longer exists or the session is
+    /// idle. Lets a stitched clip land on the marker it was recorded for even if
+    /// other markers were placed while the (async) merge ran.
+    public func attachAudio(_ fileName: String, toMarkerWithID id: UUID) {
+        guard isActive, let index = markers.firstIndex(where: { $0.id == id }) else { return }
+        markers[index].audioFileName = fileName
+    }
+
     private let sensors: SensorManager
     private let detector: DiveDetector
     private let modelContext: ModelContext

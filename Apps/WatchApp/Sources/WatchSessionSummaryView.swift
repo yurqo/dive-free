@@ -48,7 +48,7 @@ struct WatchSessionSummaryView: View {
             if let average = session.averageSurfaceInterval {
                 summaryRow("Avg surface", Duration.seconds(average).formatted(.time(pattern: .minuteSecond)))
             }
-            summaryRow("Distance", distanceText(session.surfaceDistanceMeters))
+            summaryRow("Distance", DistanceFormat.string(session.surfaceDistanceMeters))
             summaryRow("Location", locationText)
         }
     }
@@ -60,10 +60,6 @@ struct WatchSessionSummaryView: View {
     private var locationText: String {
         guard let location = session.location else { return "No GPS fix" }
         return String(format: "%.4f, %.4f", location.latitude, location.longitude)
-    }
-
-    private func distanceText(_ meters: Double) -> String {
-        meters < 1000 ? "\(Int(meters)) m" : String(format: "%.1f km", meters / 1000)
     }
 
     // MARK: - Segments
@@ -86,15 +82,9 @@ struct WatchSessionSummaryView: View {
                         }
                         .buttonStyle(.plain)
                     } else {
-                        // Surface → that leg's path on the map (with markers).
+                        // Surface → that leg's static map, distance/time, markers.
                         NavigationLink {
-                            WatchSessionMapView(
-                                session: session,
-                                interactive: true,
-                                range: segment.startTime...segment.endTime
-                            )
-                            .ignoresSafeArea()
-                            .navigationTitle("Surface")
+                            WatchSurfaceDetailView(session: session, segment: segment)
                         } label: {
                             segmentRow(segment)
                         }
@@ -108,22 +98,34 @@ struct WatchSessionSummaryView: View {
     /// Uniform row for every segment: icon · +offset · metric · duration, where
     /// the metric is surface distance (surface) or max depth (dive).
     private func segmentRow(_ segment: SessionSegment) -> some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 5) {
             Image(systemName: segment.isDive ? "arrow.down" : "water.waves")
                 .foregroundStyle(segment.isDive ? AnyShapeStyle(.teal) : AnyShapeStyle(.blue))
-                .frame(width: 16)
+                .frame(width: 14)
+            // Offset + marker count sit together on the left, both fixedSize so
+            // neither truncates (the offset is the row's identity, and the count
+            // must show whole rather than collapse to an ellipsis).
             Text("+" + offset(segment.startTime))
                 .foregroundStyle(.secondary)
+                .fixedSize()
             if segment.markerCount > 0 {
                 Text("📍\(segment.markerCount)")
                     .foregroundStyle(.secondary)
+                    .fixedSize()
             }
-            Spacer()
+            // A play glyph flags a segment whose markers carry a voice note (open
+            // the segment to actually play it).
+            if hasAudio(segment) {
+                Image(systemName: "play.circle.fill")
+                    .foregroundStyle(.teal)
+                    .fixedSize()
+            }
+            Spacer(minLength: 4)
             Text(metricText(segment))
                 .foregroundStyle(.teal)
-                .frame(minWidth: 42, alignment: .trailing)
+                .frame(minWidth: 32, alignment: .trailing)
             Text(Duration.seconds(segment.duration).formatted(.time(pattern: .minuteSecond)))
-                .frame(minWidth: 40, alignment: .trailing)
+                .frame(minWidth: 30, alignment: .trailing)
         }
         .font(.caption)
         .monospacedDigit()
@@ -131,10 +133,17 @@ struct WatchSessionSummaryView: View {
         .padding(.vertical, 2)
     }
 
+    /// Whether any marker in this segment's window carries a voice note.
+    private func hasAudio(_ segment: SessionSegment) -> Bool {
+        session.markers.contains {
+            $0.audioFileName != nil && $0.timestamp >= segment.startTime && $0.timestamp <= segment.endTime
+        }
+    }
+
     /// The metric column: surface distance for surface intervals, max depth for dives.
     private func metricText(_ segment: SessionSegment) -> String {
         if let dive = segment.dive { return DepthFormat.string(dive.maxDepthMeters) }
-        return distanceText(segment.distanceMeters)
+        return DistanceFormat.string(segment.distanceMeters)
     }
 
     /// Segment start expressed as an offset from the session start (mm:ss).

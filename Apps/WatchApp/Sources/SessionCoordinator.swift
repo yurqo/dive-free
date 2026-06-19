@@ -71,6 +71,11 @@ final class SessionCoordinator {
     /// Guards `start()` against re-entry during its async setup (see `start()`).
     @ObservationIgnored private var isStarting = false
 
+    /// In-flight voice-note stitch (merging a new clip onto the last marker's
+    /// existing one). `stop()` awaits it so the saved session references the
+    /// merged clip rather than a source file the merge is about to delete.
+    @ObservationIgnored private var pendingMergeTask: Task<Void, Never>?
+
     var currentDepthMeters: Double { sessionManager.currentDepthMeters }
 
     // Exposed so `SessionRootView` can bind to elapsed time.
@@ -305,12 +310,35 @@ final class SessionCoordinator {
     }
 
     /// Stops recording (if any), attaches the clip to the last marker, and
-    /// returns focus to that marker type so the next confirm places another.
+    /// returns focus to that marker type so the next confirm places another. When
+    /// the last marker already carries a clip, the new one is stitched onto it
+    /// (off the main actor) so repeated recordings accumulate instead of the newer
+    /// overwriting — and orphaning — the older.
     private func stopVoiceNote() {
         guard let fileName = audioRecorder.stop() else { return }
-        sessionManager.attachAudioToLastMarker(fileName)
         WKInterfaceDevice.current().play(.stop)
-        focusedIndex = lastMarkerFocusIndex
+        // Capture the target marker's id now and attach by id after any in-flight
+        // merge finishes — so a marker placed while the merge runs can't steal the
+        // clip, and the real target can't end up pointing at a deleted source.
+        // Chaining onto the previous merge serializes them (no overlapping file I/O).
+        let targetID = sessionManager.markers.last?.id
+        let previous = pendingMergeTask
+        pendingMergeTask = Task { [weak self] in
+            _ = await previous?.value
+            guard let self else { return }
+            if let targetID,
+               let existing = self.sessionManager.markers.first(where: { $0.id == targetID })?.audioFileName {
+                // The target marker already has a clip — stitch the new one onto it.
+                let merged = (try? await AudioNoteRecorder.merge(existing, with: fileName)) ?? fileName
+                self.sessionManager.attachAudio(merged, toMarkerWithID: targetID)
+            } else if let targetID {
+                self.sessionManager.attachAudio(fileName, toMarkerWithID: targetID)
+            } else {
+                // No markers yet — drop a .note marker to carry the clip.
+                self.sessionManager.attachAudioToLastMarker(fileName)
+            }
+            self.focusedIndex = self.lastMarkerFocusIndex
+        }
     }
 
     /// Carousel index of the most-recently-placed marker's kind, or the default.
@@ -360,6 +388,10 @@ final class SessionCoordinator {
     @discardableResult
     func stop() async -> DiveSession? {
         guard case .active = state else { return nil }
+        // Finish any in-flight voice-note stitch first, so the saved session
+        // references the merged clip and not a source file the merge will delete.
+        await pendingMergeTask?.value
+        pendingMergeTask = nil
         await workout.end()
         let session = try? sessionManager.stopSession()
         if let session {
