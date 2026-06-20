@@ -10,6 +10,15 @@ public protocol DepthProvider: Sendable {
     func stop()
     /// An async stream of depth samples produced while started.
     func depthStream() -> AsyncStream<DepthSample>
+    /// An async stream of water-temperature samples. Empty by default; only the
+    /// real Ultra provider and the mock emit them.
+    func temperatureStream() -> AsyncStream<TemperatureSample>
+}
+
+public extension DepthProvider {
+    func temperatureStream() -> AsyncStream<TemperatureSample> {
+        AsyncStream { $0.finish() }
+    }
 }
 
 /// Produces no depth at all — for a real watch without the water-submersion
@@ -54,6 +63,23 @@ public struct MockDepthProvider: DepthProvider {
                     let depth = profile[index % profile.count]
                     continuation.yield(DepthSample(timestamp: Date(), depthMeters: depth))
                     index += 1
+                    try? await Task.sleep(for: .seconds(interval))
+                }
+                continuation.finish()
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
+    public func temperatureStream() -> AsyncStream<TemperatureSample> {
+        let interval = interval
+        return AsyncStream { continuation in
+            let task = Task {
+                var tick = 0
+                while !Task.isCancelled {
+                    // Gentle synthetic ~18–22 °C profile for previews/simulator.
+                    continuation.yield(TemperatureSample(timestamp: Date(), celsius: 20 + 2 * sin(Double(tick) / 8)))
+                    tick += 1
                     try? await Task.sleep(for: .seconds(interval))
                 }
                 continuation.finish()

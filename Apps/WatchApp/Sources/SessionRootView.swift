@@ -245,21 +245,57 @@ struct SessionRootView: View {
     /// doesn't resize between modes — and, by omitting the depth (rather than just
     /// hiding it) at the surface, the lone icon centers instead of being offset.
     private var secondLine: some View {
-        HStack(spacing: 6) {
-            if session.isSubmerged {
-                submergedIcon
-            } else {
-                surfacedIcon
+        ZStack {
+            // Centerpiece: mode icon, plus the current depth while submerged.
+            HStack(spacing: 6) {
+                if session.isSubmerged {
+                    submergedIcon
+                } else {
+                    surfacedIcon
+                }
+                if session.isSubmerged && session.hasDepthSensor {
+                    Text(DepthFormat.string(session.currentDepthMeters))
+                        .font(.custom("DINAlternate-Bold", fixedSize: 36))
+                        .monospacedDigit()
+                        .minimumScaleFactor(0.5)
+                        .lineLimit(1)
+                }
             }
-            if session.isSubmerged && session.hasDepthSensor {
-                Text(DepthFormat.string(session.currentDepthMeters))
-                    .font(.custom("DINAlternate-Bold", fixedSize: 36))
-                    .monospacedDigit()
-                    .minimumScaleFactor(0.5)
-                    .lineLimit(1)
+            // Flanking live metrics: temperature (left), heart rate (right). The
+            // temp slot stays blank on a watch without the submersion sensor.
+            HStack {
+                sideMetric(temperatureText, systemImage: "thermometer.medium", tint: Color(red: 0, green: 0.5, blue: 0))
+                Spacer()
+                sideMetric(heartRateText, systemImage: "heart.fill", tint: Color(red: 0.7, green: 0, blue: 0))
             }
         }
         .frame(height: 46)
+    }
+
+    private var temperatureText: String? {
+        // The submersion sensor only reads underwater; don't show a stale value
+        // (the last reading) once back at the surface.
+        guard session.isSubmerged else { return nil }
+        return session.currentTemperatureCelsius.map { "\(Int($0.rounded()))°" }
+    }
+
+    private var heartRateText: String? {
+        session.currentHeartRate.map { "\($0)" }
+    }
+
+    /// A small stacked icon-over-value used to flank the depth line — narrow, so a
+    /// 3-digit heart rate doesn't crowd the centered depth. Rendered invisible (but
+    /// keeping its place) when the value is absent, so the layout stays put.
+    private func sideMetric(_ text: String?, systemImage: String, tint: Color) -> some View {
+        VStack(spacing: 1) {
+            Image(systemName: systemImage)
+                .foregroundStyle(tint)
+            Text(text ?? "")
+                .foregroundStyle(.secondary)
+        }
+        .font(.caption2)
+        .monospacedDigit()
+        .opacity(text == nil ? 0 : 1)
     }
 
     /// Wave with an up-arrow above it — at/returning to the surface.

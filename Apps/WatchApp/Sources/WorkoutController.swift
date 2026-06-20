@@ -19,6 +19,17 @@ final class WorkoutController: NSObject {
 
     private(set) var isRunning = false
 
+    /// Most recent heart rate (bpm) for the live readout; `nil` until the first sample.
+    private(set) var currentHeartRate: Int?
+
+    /// Called on the main actor with each heart-rate reading (bpm) so the
+    /// coordinator can record it into the session's time series.
+    @ObservationIgnored var onHeartRate: (@MainActor (Double) -> Void)?
+
+    #if targetEnvironment(simulator)
+    @ObservationIgnored private var syntheticHeartRateTask: Task<Void, Never>?
+    #endif
+
     // MARK: - Authorisation
 
     func requestAuthorization() async throws {
@@ -77,17 +88,42 @@ final class WorkoutController: NSObject {
             builder = nil
             throw error
         }
+        #if targetEnvironment(simulator)
+        startSyntheticHeartRate()
+        #endif
     }
 
     func end() async {
         let end = Date()
+        #if targetEnvironment(simulator)
+        syntheticHeartRateTask?.cancel()
+        syntheticHeartRateTask = nil
+        #endif
         session?.end()
         try? await builder?.endCollection(at: end)
         _ = try? await builder?.finishWorkout()
         session = nil
         builder = nil
         isRunning = false
+        currentHeartRate = nil
     }
+
+    #if targetEnvironment(simulator)
+    /// The simulator has no HR sensor, so feed a gentle random-walk so the live
+    /// readout and HR chart are testable there.
+    private func startSyntheticHeartRate() {
+        syntheticHeartRateTask?.cancel()
+        syntheticHeartRateTask = Task { @MainActor [weak self] in
+            var bpm = 72.0
+            while !Task.isCancelled {
+                bpm = min(120, max(45, bpm + Double.random(in: -4...4)))
+                self?.currentHeartRate = Int(bpm.rounded())
+                self?.onHeartRate?(bpm)
+                try? await Task.sleep(for: .seconds(2))
+            }
+        }
+    }
+    #endif
 }
 
 // MARK: - HKWorkoutSessionDelegate
@@ -129,5 +165,14 @@ extension WorkoutController: HKLiveWorkoutBuilderDelegate {
     nonisolated func workoutBuilder(
         _ workoutBuilder: HKLiveWorkoutBuilder,
         didCollectDataOf collectedTypes: Set<HKSampleType>
-    ) {}
+    ) {
+        let hrType = HKQuantityType(.heartRate)
+        guard collectedTypes.contains(hrType),
+              let quantity = workoutBuilder.statistics(for: hrType)?.mostRecentQuantity() else { return }
+        let bpm = quantity.doubleValue(for: HKUnit.count().unitDivided(by: HKUnit.minute()))
+        Task { @MainActor in
+            self.currentHeartRate = Int(bpm.rounded())
+            self.onHeartRate?(bpm)
+        }
+    }
 }

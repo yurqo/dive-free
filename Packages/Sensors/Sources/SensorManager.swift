@@ -9,6 +9,10 @@ import Domain
 public final class SensorManager {
     public private(set) var currentDepthMeters: Double = 0
     public private(set) var samples: [DepthSample] = []
+    /// Latest water temperature (°C), or `nil` if none yet (no sensor / not submerged).
+    public private(set) var currentTemperatureCelsius: Double?
+    /// Water-temperature samples collected this session.
+    public private(set) var temperatureSamples: [TemperatureSample] = []
     public private(set) var isRunning = false
 
     /// Called on `@MainActor` after every ingested sample. Install this from
@@ -18,6 +22,10 @@ public final class SensorManager {
 
     private let provider: DepthProvider
     private var streamTask: Task<Void, Never>?
+    private var temperatureTask: Task<Void, Never>?
+    private var lastTemperatureSampleAt: Date?
+    /// Minimum spacing between stored temperature samples, to bound the series size.
+    private static let minTemperatureSampleInterval: TimeInterval = 2
 
     public init(provider: DepthProvider = makeDepthProvider()) {
         self.provider = provider
@@ -28,10 +36,19 @@ public final class SensorManager {
         try await provider.start()
         isRunning = true
         samples.removeAll()
+        temperatureSamples.removeAll()
+        currentTemperatureCelsius = nil
+        lastTemperatureSampleAt = nil
         streamTask = Task { [weak self] in
             guard let self else { return }
             for await sample in self.provider.depthStream() {
                 self.ingest(sample)
+            }
+        }
+        temperatureTask = Task { [weak self] in
+            guard let self else { return }
+            for await sample in self.provider.temperatureStream() {
+                self.ingestTemperature(sample)
             }
         }
     }
@@ -39,6 +56,8 @@ public final class SensorManager {
     public func stop() {
         streamTask?.cancel()
         streamTask = nil
+        temperatureTask?.cancel()
+        temperatureTask = nil
         provider.stop()
         isRunning = false
         onSamplesChanged = nil
@@ -48,5 +67,14 @@ public final class SensorManager {
         samples.append(sample)
         currentDepthMeters = sample.depthMeters
         onSamplesChanged?()
+    }
+
+    private func ingestTemperature(_ sample: TemperatureSample) {
+        // Live readout updates every reading; the stored series is throttled.
+        currentTemperatureCelsius = sample.celsius
+        if let last = lastTemperatureSampleAt,
+           sample.timestamp.timeIntervalSince(last) < Self.minTemperatureSampleInterval { return }
+        lastTemperatureSampleAt = sample.timestamp
+        temperatureSamples.append(sample)
     }
 }

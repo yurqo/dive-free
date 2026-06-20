@@ -11,6 +11,30 @@ public struct DepthSample: Sendable, Equatable, Codable {
     }
 }
 
+/// A single heart-rate reading (beats per minute), from the live workout. Sparse
+/// or absent underwater, where optical HR is unreliable.
+public struct HeartRateSample: Sendable, Equatable, Codable {
+    public var timestamp: Date
+    public var bpm: Double
+
+    public init(timestamp: Date, bpm: Double) {
+        self.timestamp = timestamp
+        self.bpm = bpm
+    }
+}
+
+/// A single water-temperature reading (°C), from the Apple Watch Ultra submersion
+/// sensor. Only produced while submerged, and only on hardware with the sensor.
+public struct TemperatureSample: Sendable, Equatable, Codable {
+    public var timestamp: Date
+    public var celsius: Double
+
+    public init(timestamp: Date, celsius: Double) {
+        self.timestamp = timestamp
+        self.celsius = celsius
+    }
+}
+
 /// A geographic coordinate where a session took place.
 public struct GeoPoint: Sendable, Equatable, Codable {
     public var latitude: Double
@@ -237,6 +261,10 @@ public struct DiveSession: Sendable, Equatable, Codable, Identifiable {
     public var location: GeoPoint?
     /// Ordered surface GPS fixes captured during the session (the surface path).
     public var track: [TrackPoint]
+    /// Heart-rate readings across the session (from the live workout).
+    public var heartRateSamples: [HeartRateSample]
+    /// Water-temperature readings across the session (Ultra submersion sensor).
+    public var temperatureSamples: [TemperatureSample]
 
     public var maxDepthMeters: Double { dives.map(\.maxDepthMeters).max() ?? 0 }
     public var diveCount: Int { dives.count }
@@ -347,7 +375,9 @@ public struct DiveSession: Sendable, Equatable, Codable, Identifiable {
         dives: [Dive] = [],
         markers: [EventMarker] = [],
         location: GeoPoint? = nil,
-        track: [TrackPoint] = []
+        track: [TrackPoint] = [],
+        heartRateSamples: [HeartRateSample] = [],
+        temperatureSamples: [TemperatureSample] = []
     ) {
         self.id = id
         self.startTime = startTime
@@ -356,10 +386,13 @@ public struct DiveSession: Sendable, Equatable, Codable, Identifiable {
         self.markers = markers
         self.location = location
         self.track = track
+        self.heartRateSamples = heartRateSamples
+        self.temperatureSamples = temperatureSamples
     }
 
     private enum CodingKeys: String, CodingKey {
         case id, startTime, endTime, dives, markers, location, track
+        case heartRateSamples, temperatureSamples
     }
 
     /// Decoded leniently so payloads from an older app version (which had no
@@ -373,6 +406,8 @@ public struct DiveSession: Sendable, Equatable, Codable, Identifiable {
         markers = try c.decode([EventMarker].self, forKey: .markers)
         location = try c.decodeIfPresent(GeoPoint.self, forKey: .location)
         track = try c.decodeIfPresent([TrackPoint].self, forKey: .track) ?? []
+        heartRateSamples = try c.decodeIfPresent([HeartRateSample].self, forKey: .heartRateSamples) ?? []
+        temperatureSamples = try c.decodeIfPresent([TemperatureSample].self, forKey: .temperatureSamples) ?? []
     }
 }
 

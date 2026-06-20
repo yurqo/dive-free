@@ -110,3 +110,62 @@ struct DepthChartView: View {
         .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 6))
     }
 }
+
+/// A simple time-series line chart for a session metric (heart rate, water
+/// temperature) — used for the whole session or a single segment's window.
+struct MetricChartView: View {
+    struct Point: Identifiable { let id: Int; let date: Date; let value: Double }
+    let title: String
+    let unit: String
+    let tint: Color
+    let points: [Point]
+
+    var isEmpty: Bool { points.isEmpty }
+
+    var body: some View {
+        Chart(points) { point in
+            LineMark(
+                x: .value("Time", point.date),
+                y: .value(title, point.value)
+            )
+            .interpolationMethod(.monotone)
+            .foregroundStyle(tint)
+        }
+        .chartYAxisLabel(unit)
+        .frame(height: 160)
+    }
+}
+
+extension MetricChartView {
+    /// Heart-rate chart (bpm), optionally limited to a time window.
+    init(heartRate samples: [HeartRateSample], in range: ClosedRange<Date>? = nil) {
+        self.init(
+            title: "Heart rate", unit: "bpm", tint: .red,
+            points: Self.points(samples.map { ($0.timestamp, $0.bpm) }, in: range)
+        )
+    }
+
+    /// Water-temperature chart (°C), optionally limited to a time window.
+    init(temperature samples: [TemperatureSample], in range: ClosedRange<Date>? = nil) {
+        self.init(
+            title: "Temperature", unit: "°C", tint: .green,
+            points: Self.points(samples.map { ($0.timestamp, $0.celsius) }, in: range)
+        )
+    }
+
+    private static func points(_ raw: [(Date, Double)], in range: ClosedRange<Date>?) -> [Point] {
+        raw.filter { range?.contains($0.0) ?? true }
+            .sorted { $0.0 < $1.0 }
+            .enumerated()
+            .map { Point(id: $0, date: $1.0, value: $1.1) }
+    }
+}
+
+#Preview("Heart-rate chart") {
+    MetricChartView(
+        heartRate: (0...60).map {
+            HeartRateSample(timestamp: Date(timeIntervalSinceNow: Double($0) * 10), bpm: 70 + 25 * sin(Double($0) / 6))
+        }
+    )
+    .padding()
+}

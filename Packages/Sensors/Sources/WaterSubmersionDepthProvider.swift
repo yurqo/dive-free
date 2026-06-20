@@ -11,6 +11,11 @@ func makeDepthSample(depth: Measurement<UnitLength>, date: Date) -> DepthSample 
     DepthSample(timestamp: date, depthMeters: depth.converted(to: .meters).value)
 }
 
+// Likewise extracted so the iOS test target can verify the temperature mapping.
+func makeTemperatureSample(temperature: Measurement<UnitTemperature>, date: Date) -> TemperatureSample {
+    TemperatureSample(timestamp: date, celsius: temperature.converted(to: .celsius).value)
+}
+
 #if os(watchOS)
 import CoreMotion
 
@@ -23,19 +28,31 @@ import CoreMotion
 public final class WaterSubmersionDepthProvider: NSObject, DepthProvider, CMWaterSubmersionManagerDelegate, @unchecked Sendable {
     private let manager = CMWaterSubmersionManager()
     private var continuation: AsyncStream<DepthSample>.Continuation?
-    private let _stream: AsyncStream<DepthSample>
+    private var _stream: AsyncStream<DepthSample>
+    private var tempContinuation: AsyncStream<TemperatureSample>.Continuation?
+    private var _temperatureStream: AsyncStream<TemperatureSample>
 
     override public init() {
-        var cap: AsyncStream<DepthSample>.Continuation?
-        _stream = AsyncStream { cap = $0 }
-        continuation = cap
+        (_stream, continuation) = Self.makeStream()
+        (_temperatureStream, tempContinuation) = Self.makeStream()
         super.init()
+    }
+
+    private static func makeStream<Element>() -> (AsyncStream<Element>, AsyncStream<Element>.Continuation) {
+        var continuation: AsyncStream<Element>.Continuation!
+        let stream = AsyncStream<Element> { continuation = $0 }
+        return (stream, continuation)
     }
 
     public func start() async throws {
         guard CMWaterSubmersionManager.waterSubmersionAvailable else {
             throw DepthProviderError.sensorUnavailable
         }
+        // Re-arm the streams: stop() finished the previous ones, and a finished
+        // AsyncStream can't be restarted — so without this a second session (the
+        // provider is reused for the app's lifetime) would record nothing.
+        (_stream, continuation) = Self.makeStream()
+        (_temperatureStream, tempContinuation) = Self.makeStream()
         manager.delegate = self
     }
 
@@ -43,9 +60,12 @@ public final class WaterSubmersionDepthProvider: NSObject, DepthProvider, CMWate
         manager.delegate = nil
         continuation?.finish()
         continuation = nil
+        tempContinuation?.finish()
+        tempContinuation = nil
     }
 
     public func depthStream() -> AsyncStream<DepthSample> { _stream }
+    public func temperatureStream() -> AsyncStream<TemperatureSample> { _temperatureStream }
 
     // MARK: - CMWaterSubmersionManagerDelegate
 
@@ -62,12 +82,15 @@ public final class WaterSubmersionDepthProvider: NSObject, DepthProvider, CMWate
     // Required by the protocol; not used for depth tracking.
     public func manager(_ manager: CMWaterSubmersionManager, didUpdate event: CMWaterSubmersionEvent) {}
 
-    // Required by the protocol; not used for depth tracking.
-    public func manager(_ manager: CMWaterSubmersionManager, didUpdate measurement: CMWaterTemperature) {}
+    public func manager(_ manager: CMWaterSubmersionManager, didUpdate measurement: CMWaterTemperature) {
+        tempContinuation?.yield(makeTemperatureSample(temperature: measurement.temperature, date: measurement.date))
+    }
 
     public func manager(_ manager: CMWaterSubmersionManager, errorOccurred error: any Error) {
         continuation?.finish()
         continuation = nil
+        tempContinuation?.finish()
+        tempContinuation = nil
     }
 }
 #endif
