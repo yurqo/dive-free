@@ -34,6 +34,8 @@ struct SessionDetailView: View {
                 }
             }
 
+            chartsSection(domain)
+
             segmentsSection(domain)
 
             MarkerListSection(markers: domain.markers)
@@ -118,7 +120,13 @@ struct SessionDetailView: View {
                     if let dive = segment.dive {
                         // Dive → depth profile (with markers).
                         NavigationLink {
-                            DiveDetailView(dive: dive, index: diveNumber(of: dive, in: domain), markers: domain.markers)
+                            DiveDetailView(
+                                dive: dive,
+                                index: diveNumber(of: dive, in: domain),
+                                markers: domain.markers,
+                                heartRateSamples: domain.heartRateSamples,
+                                temperatureSamples: domain.temperatureSamples
+                            )
                         } label: {
                             segmentRow(segment, sessionStart: domain.startTime, hasAudio: segmentHasAudio(segment, in: domain))
                         }
@@ -186,6 +194,22 @@ struct SessionDetailView: View {
     private func segmentHasAudio(_ segment: SessionSegment, in domain: DiveSession) -> Bool {
         domain.markers.contains {
             $0.audioFileName != nil && $0.timestamp >= segment.startTime && $0.timestamp <= segment.endTime
+        }
+    }
+
+    /// Whole-session heart-rate and water-temperature charts (each shown only when
+    /// that series has data — e.g. no temperature on a non-Ultra watch).
+    @ViewBuilder
+    private func chartsSection(_ domain: DiveSession) -> some View {
+        if !domain.heartRateSamples.isEmpty {
+            Section("Heart rate") {
+                MetricChartView(heartRate: domain.heartRateSamples)
+            }
+        }
+        if !domain.temperatureSamples.isEmpty {
+            Section("Temperature") {
+                MetricChartView(temperature: domain.temperatureSamples)
+            }
         }
     }
 
@@ -257,7 +281,13 @@ private struct SessionDetailPreview: View {
                     }
                 )
             ],
-            location: GeoPoint(latitude: 20.5, longitude: -87.0)
+            location: GeoPoint(latitude: 20.5, longitude: -87.0),
+            heartRateSamples: (0...120).map { i in
+                HeartRateSample(timestamp: t0.addingTimeInterval(Double(i) * 10), bpm: 70 + 25 * sin(Double(i) / 6))
+            },
+            temperatureSamples: (0...120).map { i in
+                TemperatureSample(timestamp: t0.addingTimeInterval(Double(i) * 10), celsius: 20 + 2 * cos(Double(i) / 8))
+            }
         )
         return SessionRecord(from: sample)
     }()

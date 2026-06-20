@@ -10,6 +10,8 @@ import Domain
 struct WatchDiveProfileView: View {
     let dive: Dive
     var markers: [EventMarker] = []
+    var heartRateSamples: [HeartRateSample] = []
+    var temperatureSamples: [TemperatureSample] = []
 
     /// Markers placed during this dive's window.
     private var diveMarkers: [EventMarker] {
@@ -72,6 +74,8 @@ struct WatchDiveProfileView: View {
                     segmentMetric("Time", Duration.seconds(dive.duration).formatted(.time(pattern: .minuteSecond)))
                 }
 
+                watchMetricCharts(heartRate: heartRateSamples, temperature: temperatureSamples, in: dive.startTime...dive.endTime)
+
                 WatchMarkerList(markers: diveMarkers)
             }
             .padding(.horizontal, 6)
@@ -129,6 +133,8 @@ struct WatchSurfaceDetailView: View {
                     segmentMetric("Distance", DistanceFormat.string(segment.distanceMeters))
                     segmentMetric("Time", Duration.seconds(segment.duration).formatted(.time(pattern: .minuteSecond)))
                 }
+
+                watchMetricCharts(heartRate: session.heartRateSamples, temperature: session.temperatureSamples, in: range)
 
                 WatchMarkerList(markers: surfaceMarkers)
             }
@@ -256,4 +262,55 @@ struct WatchVoiceNotePlayButton: View {
         // Release the session so other audio can resume.
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
+}
+
+/// Compact time-series line chart for a watch metric (heart rate, temperature),
+/// for the whole session or a single segment's window.
+struct WatchMetricChart: View {
+    struct Point: Identifiable { let id: Int; let date: Date; let value: Double }
+    let title: String
+    let tint: Color
+    let points: [Point]
+
+    var isEmpty: Bool { points.isEmpty }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(title)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            Chart(points) { point in
+                LineMark(x: .value("Time", point.date), y: .value(title, point.value))
+                    .interpolationMethod(.monotone)
+                    .foregroundStyle(tint)
+            }
+            .frame(height: 70)
+        }
+    }
+}
+
+extension WatchMetricChart {
+    init(heartRate samples: [HeartRateSample], in range: ClosedRange<Date>? = nil) {
+        self.init(title: "Heart rate (bpm)", tint: .red, points: Self.points(samples.map { ($0.timestamp, $0.bpm) }, in: range))
+    }
+
+    init(temperature samples: [TemperatureSample], in range: ClosedRange<Date>? = nil) {
+        self.init(title: "Temp (°C)", tint: .green, points: Self.points(samples.map { ($0.timestamp, $0.celsius) }, in: range))
+    }
+
+    private static func points(_ raw: [(Date, Double)], in range: ClosedRange<Date>?) -> [Point] {
+        raw.filter { range?.contains($0.0) ?? true }
+            .sorted { $0.0 < $1.0 }
+            .enumerated()
+            .map { Point(id: $0, date: $1.0, value: $1.1) }
+    }
+}
+
+/// Heart-rate + temperature charts for a window, each omitted when it has no data.
+@ViewBuilder
+func watchMetricCharts(heartRate: [HeartRateSample], temperature: [TemperatureSample], in range: ClosedRange<Date>?) -> some View {
+    let hr = WatchMetricChart(heartRate: heartRate, in: range)
+    let temp = WatchMetricChart(temperature: temperature, in: range)
+    if !hr.isEmpty { hr }
+    if !temp.isEmpty { temp }
 }

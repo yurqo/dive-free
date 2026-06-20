@@ -20,6 +20,27 @@ public final class SessionManager {
     /// Live depth forwarded from the sensor layer.
     public var currentDepthMeters: Double { sensors.currentDepthMeters }
 
+    /// Live water temperature (°C) from the submersion sensor, or `nil`.
+    public var currentTemperatureCelsius: Double? { sensors.currentTemperatureCelsius }
+
+    /// Heart-rate readings recorded this session. Fed from the live workout via
+    /// the app layer (HealthKit lives outside this package), not the sensor stream.
+    public private(set) var heartRateSamples: [HeartRateSample] = []
+    private var lastHeartRateSampleAt: Date?
+    /// Minimum spacing between stored HR samples, to bound the series on long
+    /// sessions (the live readout updates every callback regardless).
+    private static let minHeartRateSampleInterval: TimeInterval = 2
+
+    /// Records a heart-rate reading (bpm), throttled. No-op when idle.
+    public func recordHeartRate(_ bpm: Double) {
+        guard isActive else { return }
+        let now = Date()
+        if let last = lastHeartRateSampleAt,
+           now.timeIntervalSince(last) < Self.minHeartRateSampleInterval { return }
+        lastHeartRateSampleAt = now
+        heartRateSamples.append(HeartRateSample(timestamp: now, bpm: bpm))
+    }
+
     /// Seconds elapsed since the session started (0 when idle).
     public var elapsedTime: TimeInterval {
         guard let startTime else { return 0 }
@@ -160,6 +181,8 @@ public final class SessionManager {
         guard !isActive else { return }
         dives = []
         markers = []
+        heartRateSamples = []
+        lastHeartRateSampleAt = nil
         maxDepthMeters = 0
         currentDiveMaxDepth = 0
         currentDiveStart = nil
@@ -246,7 +269,9 @@ public final class SessionManager {
             dives: finalDives,
             markers: markers,
             location: capturedLocation,
-            track: track
+            track: track,
+            heartRateSamples: heartRateSamples,
+            temperatureSamples: sensors.temperatureSamples
         )
         let record = SessionRecord(from: session)
         modelContext.insert(record)
@@ -255,6 +280,8 @@ public final class SessionManager {
         startTime = nil
         dives = []
         markers = []
+        heartRateSamples = []
+        lastHeartRateSampleAt = nil
         maxDepthMeters = 0
         currentDiveMaxDepth = 0
         currentDiveStart = nil

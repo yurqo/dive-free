@@ -8,6 +8,8 @@ struct DiveDetailView: View {
     let dive: Dive
     let index: Int
     var markers: [EventMarker] = []
+    var heartRateSamples: [HeartRateSample] = []
+    var temperatureSamples: [TemperatureSample] = []
 
     /// Markers placed during this dive's window.
     private var diveMarkers: [EventMarker] {
@@ -24,6 +26,8 @@ struct DiveDetailView: View {
             Section("Depth profile") {
                 DepthChartView(dive: dive, markers: diveMarkers)
             }
+            metricChartSection("Heart rate", MetricChartView(heartRate: heartRateSamples, in: dive.startTime...dive.endTime))
+            metricChartSection("Temperature", MetricChartView(temperature: temperatureSamples, in: dive.startTime...dive.endTime))
             MarkerListSection(markers: diveMarkers)
         }
         .navigationTitle("Dive \(index)")
@@ -78,6 +82,8 @@ struct SurfaceDetailView: View {
                 LabeledContent("Duration", value: Duration.seconds(segment.duration).formatted(.time(pattern: .minuteSecond)))
                 LabeledContent("Start", value: segment.startTime.formatted(date: .omitted, time: .standard))
             }
+            metricChartSection("Heart rate", MetricChartView(heartRate: session.heartRateSamples, in: range))
+            metricChartSection("Temperature", MetricChartView(temperature: session.temperatureSamples, in: range))
             MarkerListSection(markers: surfaceMarkers)
         }
         .navigationTitle("Surface")
@@ -95,5 +101,14 @@ struct SurfaceDetailView: View {
                     }
             }
         }
+    }
+}
+
+/// Wraps a metric chart in a titled `Section`, omitting it entirely when the
+/// chart has no points in range (e.g. no temperature on a non-Ultra watch).
+@ViewBuilder
+private func metricChartSection(_ title: String, _ chart: MetricChartView) -> some View {
+    if !chart.isEmpty {
+        Section(title) { chart }
     }
 }

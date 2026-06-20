@@ -78,6 +78,12 @@ final class SessionCoordinator {
 
     var currentDepthMeters: Double { sessionManager.currentDepthMeters }
 
+    /// Live heart rate (bpm) from the workout, or `nil` until the first reading.
+    var currentHeartRate: Int? { workout.currentHeartRate }
+
+    /// Live water temperature (°C) from the submersion sensor, or `nil`.
+    var currentTemperatureCelsius: Double? { sessionManager.currentTemperatureCelsius }
+
     // Exposed so `SessionRootView` can bind to elapsed time.
     var elapsedTime: TimeInterval { sessionManager.elapsedTime }
 
@@ -274,6 +280,8 @@ final class SessionCoordinator {
         sessionManager.onHapticEvent = { DiveHapticPlayer.play($0) }
         // Auto-stop a surface voice note the instant the diver submerges.
         sessionManager.onSubmerge = { [weak self] in self?.stopVoiceNote() }
+        // Feed live workout heart rate into the session's time series.
+        workout.onHeartRate = { [weak self] bpm in self?.sessionManager.recordHeartRate(bpm) }
         // The hard cap also stops via the coordinator so the file is still attached.
         audioRecorder.onCap = { [weak self] in self?.stopVoiceNote() }
         sync.onPendingCountChange = { [weak self] count in

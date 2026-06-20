@@ -21,6 +21,10 @@ struct WatchSessionSummaryView: View {
             VStack(spacing: 10) {
                 stats
 
+                // Whole-session heart-rate / temperature charts (each omitted when
+                // that series is empty — e.g. no temperature on a non-Ultra watch).
+                watchMetricCharts(heartRate: session.heartRateSamples, temperature: session.temperatureSamples, in: nil)
+
                 segmentsSection
 
                 markerSummary
@@ -76,7 +80,12 @@ struct WatchSessionSummaryView: View {
                     if let dive = segment.dive {
                         // Dive → depth profile (with markers).
                         NavigationLink {
-                            WatchDiveProfileView(dive: dive, markers: session.markers)
+                            WatchDiveProfileView(
+                                dive: dive,
+                                markers: session.markers,
+                                heartRateSamples: session.heartRateSamples,
+                                temperatureSamples: session.temperatureSamples
+                            )
                         } label: {
                             segmentRow(segment)
                         }
@@ -237,4 +246,35 @@ struct WatchSessionSummaryView: View {
             }
         }
     }
+}
+
+private struct WatchSummaryPreview: View {
+    private let session: DiveSession = {
+        let t0 = Date()
+        return DiveSession(
+            startTime: t0,
+            endTime: t0.addingTimeInterval(600),
+            dives: [
+                Dive(
+                    startTime: t0.addingTimeInterval(30),
+                    endTime: t0.addingTimeInterval(90),
+                    maxDepthMeters: 8.4,
+                    samples: (0...12).map { DepthSample(timestamp: t0.addingTimeInterval(30 + Double($0) * 5), depthMeters: Double($0) * 0.7) }
+                )
+            ],
+            heartRateSamples: (0...30).map { HeartRateSample(timestamp: t0.addingTimeInterval(Double($0) * 20), bpm: 70 + 20 * sin(Double($0) / 5)) },
+            temperatureSamples: (0...30).map { TemperatureSample(timestamp: t0.addingTimeInterval(Double($0) * 20), celsius: 20 + 2 * cos(Double($0) / 6)) }
+        )
+    }()
+
+    var body: some View {
+        NavigationStack {
+            WatchSessionSummaryView(session: session)
+        }
+        .environment(SessionCoordinator(modelContext: try! DiveStore(inMemory: true).container.mainContext))
+    }
+}
+
+#Preview {
+    WatchSummaryPreview()
 }

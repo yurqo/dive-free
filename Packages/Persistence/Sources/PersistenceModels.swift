@@ -13,6 +13,10 @@ public final class SessionRecord {
     // Surface track stored as an inline Codable blob. Defaulted for lightweight
     // migration of rows created before tracks existed.
     public var track: [TrackPoint] = []
+    // Session-wide heart-rate / water-temperature series (inline Codable blobs,
+    // defaulted for migration of rows created before these existed).
+    public var heartRateSamples: [HeartRateSample] = []
+    public var temperatureSamples: [TemperatureSample] = []
 
     @Relationship(deleteRule: .cascade, inverse: \DiveRecord.session)
     public var dives: [DiveRecord]
@@ -27,6 +31,8 @@ public final class SessionRecord {
         latitude: Double? = nil,
         longitude: Double? = nil,
         track: [TrackPoint] = [],
+        heartRateSamples: [HeartRateSample] = [],
+        temperatureSamples: [TemperatureSample] = [],
         dives: [DiveRecord] = [],
         markers: [MarkerRecord] = []
     ) {
@@ -36,6 +42,8 @@ public final class SessionRecord {
         self.latitude = latitude
         self.longitude = longitude
         self.track = track
+        self.heartRateSamples = heartRateSamples
+        self.temperatureSamples = temperatureSamples
         self.dives = dives
         self.markers = markers
     }
@@ -162,7 +170,9 @@ public extension SessionRecord {
             dives: dives.map { $0.toDomain() },
             markers: markers.map { $0.toDomain() },
             location: location,
-            track: track
+            track: track,
+            heartRateSamples: heartRateSamples,
+            temperatureSamples: temperatureSamples
         )
     }
 }
@@ -206,6 +216,8 @@ public extension SessionRecord {
             latitude: session.location?.latitude,
             longitude: session.location?.longitude,
             track: session.track,
+            heartRateSamples: session.heartRateSamples,
+            temperatureSamples: session.temperatureSamples,
             dives: session.dives.map { DiveRecord(from: $0) },
             markers: session.markers.map { MarkerRecord(from: $0) }
         )
