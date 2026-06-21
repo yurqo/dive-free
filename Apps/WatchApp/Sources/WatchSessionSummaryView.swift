@@ -21,8 +21,16 @@ struct WatchSessionSummaryView: View {
             VStack(spacing: 10) {
                 stats
 
-                // Whole-session heart-rate / temperature charts (each omitted when
+                // Whole-session charts: depth profile on top (omitted with no
+                // depth samples), then heart rate / temperature (each omitted when
                 // that series is empty — e.g. no temperature on a non-Ultra watch).
+                // Bracket each dive with a surface (0 m) point so the line returns
+                // to the surface between dives instead of drawing straight across.
+                let depthSamples = session.dives
+                    .sorted { $0.startTime < $1.startTime }
+                    .flatMap { [DepthSample(timestamp: $0.startTime, depthMeters: 0)] + $0.samples + [DepthSample(timestamp: $0.endTime, depthMeters: 0)] }
+                let depthChart = WatchMetricChart(depth: depthSamples)
+                if !depthChart.isEmpty { depthChart }
                 watchMetricCharts(heartRate: session.heartRateSamples, temperature: session.temperatureSamples, in: nil)
 
                 segmentsSection
@@ -82,6 +90,7 @@ struct WatchSessionSummaryView: View {
                         NavigationLink {
                             WatchDiveProfileView(
                                 dive: dive,
+                                number: diveNumber(for: dive),
                                 markers: session.markers,
                                 heartRateSamples: session.heartRateSamples,
                                 temperatureSamples: session.temperatureSamples
@@ -158,6 +167,12 @@ struct WatchSessionSummaryView: View {
     /// Segment start expressed as an offset from the session start (mm:ss).
     private func offset(_ time: Date) -> String {
         Duration.seconds(time.timeIntervalSince(session.startTime)).formatted(.time(pattern: .minuteSecond))
+    }
+
+    /// 1-based position of a dive among the session's dives (ordered by start),
+    /// for the "Dive #N" title.
+    private func diveNumber(for dive: Dive) -> Int {
+        (session.dives.sorted { $0.startTime < $1.startTime }.firstIndex { $0.id == dive.id } ?? 0) + 1
     }
 
     // MARK: - Map

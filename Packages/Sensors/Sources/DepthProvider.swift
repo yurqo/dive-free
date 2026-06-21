@@ -44,11 +44,25 @@ public struct MockDepthProvider: DepthProvider {
 
     public init(
         interval: Double = 0.5,
-        profile: [Double] = [0, 1, 3, 6, 9, 11, 9, 6, 3, 1, 0, 0]
+        profile: [Double] = MockDepthProvider.defaultProfile
     ) {
         self.interval = interval
         self.profile = profile
     }
+
+    /// A smooth 0 → 9 m → 0 descent/ascent at 0.25 m per sample — 0.5 m/s at the
+    /// default 0.5 s interval — crossing every metre milestone, then clamped to the
+    /// 6 m ceiling (like the real sensor's pastMaxDepth) so the dive dwells at 6 m
+    /// and the simulator exercises the per-metre and ceiling cues.
+    public static let defaultProfile: [Double] = {
+        let step = 0.25, peak = 9.0
+        let down = Array(stride(from: 0.0, through: peak, by: step))
+        let up = Array(stride(from: peak - step, through: 0.0, by: -step))
+        let dive = (down + up).map { min($0, DepthFormat.maxMeasurableMeters) }
+        // ~100 s surface break (200 × 0.5 s) so the recovery timer runs through
+        // all of its colours before the next dive.
+        return dive + Array(repeating: 0.0, count: 200)
+    }()
 
     public func start() async throws {}
     public func stop() {}

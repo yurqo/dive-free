@@ -83,8 +83,9 @@ struct SessionRootView: View {
             .ignoresSafeArea(.container, edges: .bottom)
             // GPS (leading) + session time (trailing) flank the OS clock.
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) { gpsInfo }
-                ToolbarItem(placement: .topBarTrailing) { sessionTimeLabel }
+                // Nudge the top-bar items up to sit tighter against the OS clock row.
+                ToolbarItem(placement: .topBarLeading) { gpsInfo.padding(.bottom, 20) }
+                ToolbarItem(placement: .topBarTrailing) { sessionTimeLabel.padding(.bottom, 20) }
             }
             .confirmationDialog(
                 "End session?",
@@ -156,7 +157,7 @@ struct SessionRootView: View {
             if session.hasDepthSensor {
                 TimelineView(.periodic(from: .now, by: 1)) { _ in
                     Text(Duration.seconds(session.elapsedTime).formatted(.time(pattern: .minuteSecond)))
-                        .font(.system(size: 18, weight: .semibold, design: .rounded))
+                        .font(.system(size: 17, weight: .semibold, design: .rounded))
                         .monospacedDigit()
                 }
             }
@@ -177,16 +178,14 @@ struct SessionRootView: View {
                 Image(systemName: symbol)
                     .font(.caption2)
                     .foregroundStyle(color)
-                    // While acquiring the first fix, spin a small indicator over
-                    // the icon instead of spelling out an "Acquiring…" label.
-                    .overlay {
-                        if session.lastLocationFixAt == nil {
-                            ProgressView()
-                                .controlSize(.mini)
-                                .tint(color)
-                        }
-                    }
-                if let text = gpsAccuracyText {
+                // While acquiring the first fix, show a small spinner in place of
+                // the accuracy label (which is nil until a fix lands); once fixed,
+                // show the "±N m" / "GPS" accuracy beside the icon.
+                if session.lastLocationFixAt == nil {
+                    ProgressView()
+                        .controlSize(.mini)
+                        .tint(color)
+                } else if let text = gpsAccuracyText {
                     Text(text)
                         .font(.caption2)
                         .foregroundStyle(.secondary)
@@ -198,7 +197,7 @@ struct SessionRootView: View {
 
     /// Accuracy label beside the GPS icon: "±N m" once a fix carries an accuracy,
     /// "GPS" if fixed without one, or `nil` while still acquiring — in which case
-    /// the spinner overlay stands in for the missing label.
+    /// the spinner stands in for the missing label.
     private var gpsAccuracyText: String? {
         if let accuracy = session.lastLocationAccuracy {
             return "±\(Int(accuracy.rounded())) m"
@@ -216,7 +215,8 @@ struct SessionRootView: View {
             VStack(spacing: 4) {
                 heroTime(seconds: session.isSubmerged
                          ? (session.currentDiveElapsed ?? 0)
-                         : (session.surfaceInterval ?? session.elapsedTime))
+                         : (session.surfaceInterval ?? session.elapsedTime),
+                         color: heroTimeColor)
                 secondLine
             }
         }
@@ -225,12 +225,34 @@ struct SessionRootView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
+    /// Recommended recovery scales with the dive just completed: red below 1× the
+    /// dive time, orange below 2×, yellow below 3×, and white once well rested.
+    private static let redIntervalMultiple = 1.0
+    private static let orangeIntervalMultiple = 2.0
+    private static let yellowIntervalMultiple = 3.0
+
+    /// Tints the hero time to flag a short recovery break, relative to the last
+    /// dive's duration — but only for the surface-recovery interval after a dive.
+    /// Dive time and the pre-first-dive clock stay white.
+    private var heroTimeColor: Color {
+        guard !session.isSubmerged,
+              let interval = session.surfaceInterval,
+              let diveDuration = session.lastDiveDuration else { return .white }
+        switch interval {
+        case ..<(diveDuration * Self.redIntervalMultiple):    return .red
+        case ..<(diveDuration * Self.orangeIntervalMultiple): return .orange
+        case ..<(diveDuration * Self.yellowIntervalMultiple): return .yellow
+        default:                                              return .white
+        }
+    }
+
     /// The big mm:ss time in DIN Condensed (tall, narrow, tabular figures), sized
     /// to fill the available space via `minimumScaleFactor`. Plain `Text` so the
     /// monospaced figures stay put as it ticks.
-    private func heroTime(seconds: TimeInterval) -> some View {
+    private func heroTime(seconds: TimeInterval, color: Color = .white) -> some View {
         Text(Duration.seconds(seconds).formatted(.time(pattern: .minuteSecond)))
             .font(.custom("DINCondensed-Bold", fixedSize: 180))
+            .foregroundStyle(color)
             .minimumScaleFactor(0.2)
             .lineLimit(1)
             // Crop the empty descender band below the digits so the time sits
@@ -264,38 +286,108 @@ struct SessionRootView: View {
             // Flanking live metrics: temperature (left), heart rate (right). The
             // temp slot stays blank on a watch without the submersion sensor.
             HStack {
-                sideMetric(temperatureText, systemImage: "thermometer.medium", tint: Color(red: 0, green: 0.5, blue: 0))
+                sideMetric(temperatureText, systemImage: "thermometer.medium", tint: Color(red: 0, green: 0.5, blue: 0), live: temperatureLive)
                 Spacer()
-                sideMetric(heartRateText, systemImage: "heart.fill", tint: Color(red: 0.7, green: 0, blue: 0))
+                HeartRateMetric(bpm: session.currentHeartRate)
             }
         }
         .frame(height: 46)
     }
 
     private var temperatureText: String? {
-        // The submersion sensor only reads underwater; don't show a stale value
-        // (the last reading) once back at the surface.
-        guard session.isSubmerged else { return nil }
-        return session.currentTemperatureCelsius.map { "\(Int($0.rounded()))°" }
+        // Keep the last reading on screen for the rest of the session, even after
+        // surfacing — the submersion sensor only reads underwater, so once we've
+        // seen a value we retain it (shown dimmed when not live; see
+        // temperatureLive). Stays nil — and the slot blank — on a watch without
+        // the sensor, which never produces a reading.
+        session.currentTemperatureCelsius.map { "\(Int($0.rounded()))°" }
     }
 
-    private var heartRateText: String? {
-        session.currentHeartRate.map { "\($0)" }
+    /// Whether the temperature readout is live (submerged, so the sensor is
+    /// actively reading) vs a retained last value, which is shown dimmed.
+    private var temperatureLive: Bool {
+        session.isSubmerged
     }
 
     /// A small stacked icon-over-value used to flank the depth line — narrow, so a
-    /// 3-digit heart rate doesn't crowd the centered depth. Rendered invisible (but
+    /// wide value doesn't crowd the centered depth. Rendered invisible (but
     /// keeping its place) when the value is absent, so the layout stays put.
-    private func sideMetric(_ text: String?, systemImage: String, tint: Color) -> some View {
-        VStack(spacing: 1) {
+    private func sideMetric(_ text: String?, systemImage: String, tint: Color, live: Bool = true) -> some View {
+        // Leading-aligned so the icon stays pinned to the left edge regardless of
+        // the value's width (it sits on the left flank).
+        VStack(alignment: .leading, spacing: 1) {
             Image(systemName: systemImage)
                 .foregroundStyle(tint)
+                .opacity(live ? 1 : 0.5) // dim the icon when showing a retained (stale) value
             Text(text ?? "")
                 .foregroundStyle(.secondary)
         }
         .font(.caption2)
         .monospacedDigit()
         .opacity(text == nil ? 0 : 1)
+    }
+
+    /// Heart-rate slot: a heart that beats with a lub-dub double thump at the live
+    /// rate with the bpm below it, or a dim, static heart over "--" when there's no
+    /// reading (HR is sparse or absent underwater). Matches `sideMetric`'s narrow
+    /// stacked layout; the thump is a render-only `scaleEffect`, so it never nudges
+    /// the centered depth.
+    private struct HeartRateMetric: View {
+        let bpm: Int?
+        @Environment(\.accessibilityReduceMotion) private var reduceMotion
+        @State private var scale = 1.0
+        @State private var hasSettled = false
+
+        private static let activeTint = Color(red: 0.7, green: 0, blue: 0)
+
+        var body: some View {
+            // Trailing-aligned so the heart stays pinned to the right edge and
+            // doesn't jump when the bpm goes from two digits to three.
+            VStack(alignment: .trailing, spacing: 1) {
+                Image(systemName: "heart.fill")
+                    .foregroundStyle(Self.activeTint)
+                    .opacity(bpm == nil ? 0.35 : 1)
+                    .scaleEffect(scale)
+                    .animation(.easeOut(duration: 0.14), value: scale)
+                Text(bpm.map { "\($0)" } ?? "--")
+                    .foregroundStyle(.secondary)
+            }
+            .font(.caption2)
+            .monospacedDigit()
+            .task(id: bpm) { await pump() }
+        }
+
+        /// Beats a lub-dub double thump once per cardiac cycle at the live rate;
+        /// stays static when there's no reading or Reduce Motion is on.
+        /// `.task(id: bpm)` restarts this whenever the rate changes, re-syncing.
+        private func pump() async {
+            scale = 1.0
+            guard let bpm, bpm > 0, !reduceMotion else { return }
+            // On first run, let the screen-entry layout settle before animating —
+            // otherwise the very first beat coincides with the initial layout and
+            // the scale animation drags the heart in from its pre-layout origin
+            // ("flying" across the screen). Once settled, beats are pure scale.
+            if !hasSettled {
+                try? await Task.sleep(for: .seconds(0.35))
+                hasSettled = true
+            }
+            let interval = 60.0 / Double(bpm)
+            let cycle = 0.41 // total of the four phases below
+            while !Task.isCancelled {
+                await hold(1.3, for: 0.10)  // lub — strong first beat
+                await hold(1.08, for: 0.09) // partial relaxation between the two
+                await hold(1.22, for: 0.10) // dub — softer second beat
+                await hold(1.0, for: 0.12)  // settle to rest
+                try? await Task.sleep(for: .seconds(max(0.05, interval - cycle)))
+            }
+        }
+
+        /// Sets the heart scale (animated via the view's scale animation) and holds
+        /// it for the phase's duration before the next phase begins.
+        private func hold(_ value: Double, for seconds: Double) async {
+            scale = value
+            try? await Task.sleep(for: .seconds(seconds))
+        }
     }
 
     /// Wave with an up-arrow above it — at/returning to the surface.
@@ -333,15 +425,18 @@ struct SessionRootView: View {
 
     private var statsText: String {
         // The dive / surface time is the hero above, so the counters omit it.
+        // Max depth is meaningless at the 6 m ceiling, so it's dropped: the live
+        // depth is on the second line while submerged, and the surfaced line
+        // shows the last dive's time + depth as recovery context instead.
         if session.isSubmerged {
-            return session.hasDepthSensor
-                ? "max \(DepthFormat.value(session.currentDiveMaxDepth)) m · 📍\(session.currentDiveMarkerCount)"
-                : "📍\(session.currentDiveMarkerCount)"
+            return "📍\(session.currentDiveMarkerCount)"
         }
         var parts: [String] = []
         if session.hasDepthSensor {
             parts.append("\(session.diveCount) dives")
-            parts.append("\(DepthFormat.value(session.maxDepthMeters)) m")
+            if let duration = session.lastDiveDuration, let depth = session.lastDiveMaxDepth {
+                parts.append("last \(Duration.seconds(duration).formatted(.time(pattern: .minuteSecond))) · \(DepthFormat.value(depth)) m")
+            }
         }
         parts.append("📍\(session.markerCount)")
         if session.surfaceDistanceMeters >= 1 {

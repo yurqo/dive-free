@@ -112,6 +112,14 @@ final class SessionCoordinator {
     /// or before the first completed dive. Drives the surface-interval timer.
     var surfaceInterval: TimeInterval? { sessionManager.surfaceInterval }
 
+    /// Duration of the most recently completed dive, or `nil` before the first
+    /// dive. Used to scale the recommended surface-interval (recovery) thresholds.
+    var lastDiveDuration: TimeInterval? { sessionManager.dives.last?.duration }
+
+    /// Max depth (m) of the most recently completed dive, or `nil` before the
+    /// first dive. Shown during the surface interval as recovery context.
+    var lastDiveMaxDepth: Double? { sessionManager.dives.last?.maxDepthMeters }
+
     /// True while the diver is below the surface threshold. The Action button
     /// drops a marker when submerged and confirms the focused menu item when at
     /// the surface.
@@ -277,7 +285,10 @@ final class SessionCoordinator {
 
     init(modelContext: ModelContext) {
         sessionManager = SessionManager(modelContext: modelContext)
-        sessionManager.onHapticEvent = { DiveHapticPlayer.play($0) }
+        sessionManager.onHapticEvent = { event in
+            DiveHapticPlayer.play(event)
+            DiveTonePlayer.play(for: event)
+        }
         // Auto-stop a surface voice note the instant the diver submerges.
         sessionManager.onSubmerge = { [weak self] in self?.stopVoiceNote() }
         // Feed live workout heart rate into the session's time series.
