@@ -52,8 +52,12 @@ struct WatchSessionSummaryView: View {
             summaryRow("Date", session.startTime.formatted(date: .abbreviated, time: .shortened))
             summaryRow("Total", Duration.seconds(session.totalDuration).formatted(.time(pattern: .hourMinuteSecond)))
             summaryRow("Dives", "\(session.diveCount)")
-            summaryRow("Max depth", DepthFormat.string(session.maxDepthMeters))
-            summaryRow("Bottom time", Duration.seconds(totalDiveTime).formatted(.time(pattern: .minuteSecond)))
+            // Depth-derived stats are meaningless without dives (a non-Ultra
+            // GPS+HR session, or a dive-watch session where nobody submerged).
+            if session.diveCount > 0 {
+                summaryRow("Max depth", DepthFormat.string(session.maxDepthMeters))
+                summaryRow("Bottom time", Duration.seconds(totalDiveTime).formatted(.time(pattern: .minuteSecond)))
+            }
             if let longest = longestDive {
                 summaryRow("Longest dive", Duration.seconds(longest).formatted(.time(pattern: .minuteSecond)))
             }

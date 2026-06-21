@@ -26,7 +26,9 @@ struct WatchSessionListView: View {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(record.startTime.formatted(.dateTime.month(.abbreviated).day().hour().minute()))
                                         .font(.headline)
-                                    Text("\(domain.diveCount) dives · \(DepthFormat.value(domain.maxDepthMeters)) m max")
+                                    Text(domain.diveCount > 0
+                                         ? "\(domain.diveCount) dives · \(DepthFormat.value(domain.maxDepthMeters)) m max"
+                                         : "\(domain.diveCount) dives")
                                         .font(.caption2)
                                         .foregroundStyle(.secondary)
                                         .monospacedDigit()

@@ -76,9 +76,9 @@ struct SessionRootView: View {
             // pushed far below the clock — reduces the gap above it and gives the
             // number more height. (Stays clear of the toolbar row.)
             .padding(.top, -12)
-            // A bit more bottom margin than the sides so the pill clears the
-            // display's rounded bottom corners, which otherwise clip it.
-            .padding(.bottom, 16)
+            // Bottom margin for the pill — 0 = flush to the edge; bump up if the
+            // display's rounded bottom corners clip the pill on any model.
+            .padding(.bottom, 0)
             // Extend under the bottom safe area; the top is handled by the nav bar.
             .ignoresSafeArea(.container, edges: .bottom)
             // GPS (leading) + session time (trailing) flank the OS clock.
@@ -96,8 +96,11 @@ struct SessionRootView: View {
                 Button("Cancel", role: .cancel) {}
             } message: {
                 // Underwater the screen is water-locked, so the buttons can't be
-                // tapped — on Ultra, press Action + side together again to confirm.
-                Text("On Ultra, press the Action + side button together again to end.")
+                // tapped — on Ultra use the Action + side combo; otherwise unlock
+                // with the Crown, then tap.
+                Text(session.hasActionButton
+                     ? "On Ultra, press the Action + side button together again to end."
+                     : "Turn the Crown to unlock, then tap to end.")
             }
             .focusable()
             .focused($menuFocused)
@@ -433,9 +436,9 @@ struct SessionRootView: View {
         }
         var parts: [String] = []
         if session.hasDepthSensor {
-            parts.append("\(session.diveCount) dives")
+            parts.append("↓\(session.diveCount)")
             if let duration = session.lastDiveDuration, let depth = session.lastDiveMaxDepth {
-                parts.append("last \(Duration.seconds(duration).formatted(.time(pattern: .minuteSecond))) · \(DepthFormat.value(depth)) m")
+                parts.append("⏱\(Duration.seconds(duration).formatted(.time(pattern: .minuteSecond))) · \(DepthFormat.value(depth)) m")
             }
         }
         parts.append("📍\(session.markerCount)")
@@ -445,36 +448,39 @@ struct SessionRootView: View {
         return parts.joined(separator: " · ")
     }
 
-    /// Bottom action pill (marker kinds, then End), driven by the Crown. Near-full
-    /// width so its rounded ends nest into the watch's bottom corners.
+    /// Bottom action bar (marker kinds, then End), driven by the Crown — a flat,
+    /// full-width rectangle flush to the screen's bottom edge, showing the focused
+    /// option as a black label over the tinted fill.
     private var actionPill: some View {
-        let item = session.menuItems[min(session.focusedIndex, max(session.menuItems.count - 1, 0))]
+        let items = session.menuItems
+        let current = items[min(session.focusedIndex, max(items.count - 1, 0))]
         // While a voice note is recording, the Voice Note item reads "Stop".
-        let recording = item == .voiceNote && session.isRecordingVoiceNote
+        let recording = current == .voiceNote && session.isRecordingVoiceNote
         // Voice Note is yellow when idle and red while recording; End is red;
         // markers are teal.
         let tint: Color
-        if item == .end {
+        if current == .end {
             tint = .red
-        } else if item == .voiceNote {
+        } else if current == .voiceNote {
             tint = recording ? .red : .yellow
         } else {
             tint = .teal
         }
+        // Exact physical screen width so the bar reaches both edges regardless of
+        // the content's safe-area / padding insets.
+        let screenWidth = WKInterfaceDevice.current().screenBounds.width
+
         return HStack(spacing: 6) {
-            if let emoji = item.emoji {
+            if let emoji = current.emoji {
                 Text(emoji).font(.title3)
             } else {
-                Image(systemName: recording ? "stop.circle.fill" : item.systemImage).font(.title3)
+                Image(systemName: recording ? "stop.circle.fill" : current.systemImage).font(.title3)
             }
-            Text(recording ? "Stop" : item.title).font(.caption).fontWeight(.medium).lineLimit(1)
+            Text(recording ? "Stop" : current.title).font(.caption).fontWeight(.medium).lineLimit(1)
         }
-        .foregroundStyle(tint)
-        // Fixed height so the pill doesn't shrink when End (an SF Symbol) is
-        // focused vs the taller marker emoji.
-        .frame(maxWidth: .infinity, minHeight: 30, maxHeight: 30)
-        .padding(.vertical, 6)
-        .background(Capsule().stroke(tint.opacity(0.7), lineWidth: 3))
+        .foregroundStyle(.black)
+        .frame(width: screenWidth, height: 36)
+        .background(tint)
     }
 
     /// Seconds without a fix before GPS reads "lost" — generous enough to

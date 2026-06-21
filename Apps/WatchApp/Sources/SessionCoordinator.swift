@@ -137,6 +137,19 @@ final class SessionCoordinator {
     /// (Series 9 and earlier, SE) the UI hides depth and runs GPS + markers only.
     var hasDepthSensor: Bool { DepthSensor.isAvailable }
 
+    /// Whether this watch has an Action button (Ultra only). No public API exists,
+    /// so on device we default to `true` — worst case a non-Ultra shows the action
+    /// pill, which is harmless (the surface tap-to-confirm fallback works). The
+    /// simulator honours the Settings override so the no-Action-button flow is
+    /// testable.
+    var hasActionButton: Bool {
+        #if targetEnvironment(simulator)
+        return SimCapabilityOverride.value(SimCapabilityOverride.actionButtonKey)
+        #else
+        return true
+        #endif
+    }
+
     // MARK: - Crown action menu
 
     /// User-defined custom marker kinds, synced from the iPhone.

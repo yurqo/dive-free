@@ -1,5 +1,6 @@
 import SwiftUI
 import Domain
+import Sensors
 
 /// Settings page of the watch home pager: the default marker and the Digital
 /// Crown scroll speed for the in-session action carousel, persisted via
@@ -12,6 +13,13 @@ struct WatchSettingsView: View {
     // old values felt far too fast, especially underwater.
     @AppStorage("crownStepsPerItem") private var crownStepsPerItem = 6
     @AppStorage("defaultMarkerKindID") private var defaultMarkerKindID = EventKind.note.rawValue
+
+    #if targetEnvironment(simulator)
+    // Debug overrides to fake device capabilities in the Simulator (which has no
+    // real sensors). Simulator builds only.
+    @AppStorage(SimCapabilityOverride.depthSensorKey) private var simDepthSensor = true
+    @AppStorage(SimCapabilityOverride.actionButtonKey) private var simActionButton = true
+    #endif
 
     /// Built-in kinds, plus any custom kinds synced from the iPhone.
     private var markerKinds: [MarkerKind] { EventKind.builtInMarkerKinds + session.customKinds }
@@ -43,6 +51,17 @@ struct WatchSettingsView: View {
                 } footer: {
                     Text("How far you turn the Digital Crown to move one item in the action carousel. Slower is easier underwater.")
                 }
+
+                #if targetEnvironment(simulator)
+                Section {
+                    Toggle("Depth sensor", isOn: $simDepthSensor)
+                    Toggle("Action button", isOn: $simActionButton)
+                } header: {
+                    Text("Simulator")
+                } footer: {
+                    Text("Fake device capabilities to preview the non-Ultra flows. Restart the app after changing. Simulator only.")
+                }
+                #endif
             }
             .navigationTitle("Settings")
         }
