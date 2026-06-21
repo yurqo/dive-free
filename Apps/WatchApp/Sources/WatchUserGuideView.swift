@@ -39,6 +39,26 @@ struct WatchUserGuideView: View {
                         "Depth needs an Ultra or Series 10/11. Other watches still log the GPS track and your markers.",
                         systemImage: "gauge.with.dots.needle.bottom.50percent"
                     )
+                    item(
+                        "Surface interval",
+                        "After a dive the big timer is your surface recovery, tinted by how long you've rested vs. your last dive: red under 1×, orange under 2×, yellow under 3×, white beyond.",
+                        systemImage: "timer"
+                    )
+                    item(
+                        "Heart rate & temp",
+                        "Your live heart rate beats on the right (any watch). Water temperature shows on the left on an Ultra while underwater, dimming to the last reading at the surface. A dash means no reading yet.",
+                        systemImage: "heart.fill"
+                    )
+                    item(
+                        "Snug strap",
+                        "Wear the watch snug — a finger-width above the wrist bone — and tighten the strap before diving. A firm fit keeps the optical sensor reading your heart rate, especially in cold water.",
+                        systemImage: "applewatch"
+                    )
+                    item(
+                        "GPS",
+                        "The arrow top-left shows GPS: a spinner while acquiring, then accuracy. Let it fix before you dive to tag your spot — GPS can't track underwater.",
+                        systemImage: "location.fill"
+                    )
                 }
                 .padding()
             }

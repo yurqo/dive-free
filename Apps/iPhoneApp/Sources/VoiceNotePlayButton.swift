@@ -11,6 +11,7 @@ struct VoiceNotePlayButton: View {
     @State private var isPlaying = false
     @State private var available = false
     @State private var duration: TimeInterval?
+    @State private var currentTime: TimeInterval = 0
 
     var body: some View {
         Button {
@@ -27,12 +28,13 @@ struct VoiceNotePlayButton: View {
     }
 
     /// Button text: a syncing notice until the clip arrives, otherwise Play/Stop
-    /// with the clip length appended once it's known.
+    /// with a time appended — the elapsed position while playing, the clip length
+    /// when idle.
     private var title: String {
         guard available else { return "Voice note syncing…" }
         let base = isPlaying ? "Stop" : "Play voice note"
-        guard let duration else { return base }
-        return "\(base) · \(Duration.seconds(duration.rounded()).formatted(.time(pattern: .minuteSecond)))"
+        guard let time = isPlaying ? currentTime : duration else { return base }
+        return "\(base) · \(Duration.seconds(time.rounded()).formatted(.time(pattern: .minuteSecond)))"
     }
 
     /// Refreshes availability and reads the clip length once the file exists.
@@ -50,10 +52,18 @@ struct VoiceNotePlayButton: View {
             let newPlayer = try AVAudioPlayer(contentsOf: VoiceNoteStore.url(for: fileName))
             newPlayer.play()
             player = newPlayer
+            currentTime = 0
             isPlaying = true
-            // Reset when the clip finishes (unless stopped or replaced first).
+            // Tick the elapsed position for the clip's length, then reset. Bounded
+            // by wall-clock rather than isPlaying (which can read false the instant
+            // after play(), cutting playback off immediately).
             Task {
-                try? await Task.sleep(for: .seconds(max(newPlayer.duration, 0.1)))
+                let total = max(newPlayer.duration, 0.1)
+                let start = Date()
+                while player === newPlayer, Date().timeIntervalSince(start) < total {
+                    currentTime = newPlayer.currentTime
+                    try? await Task.sleep(for: .seconds(0.3))
+                }
                 if player === newPlayer { stop() }
             }
         } catch {

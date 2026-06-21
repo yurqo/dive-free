@@ -172,7 +172,7 @@ public final class SessionManager {
         self.location = location
         self.modelContext = modelContext
         self.hapticTracker = DiveHapticTracker(
-            config: DiveHapticConfig(surfaceThresholdMeters: detector.config.surfaceThresholdMeters)
+            config: DiveHapticConfig(surfaceThresholdMeters: detector.config.surfaceThresholdMeters, milestoneIntervalMeters: 1.0)
         )
     }
 
@@ -192,7 +192,7 @@ public final class SessionManager {
         lastLocationAccuracy = nil
         track = []
         hapticTracker = DiveHapticTracker(
-            config: DiveHapticConfig(surfaceThresholdMeters: detector.config.surfaceThresholdMeters)
+            config: DiveHapticConfig(surfaceThresholdMeters: detector.config.surfaceThresholdMeters, milestoneIntervalMeters: 1.0)
         )
         // Stream surface GPS fixes in the background to build the track — don't
         // block the session start on it (it just stays empty if denied/

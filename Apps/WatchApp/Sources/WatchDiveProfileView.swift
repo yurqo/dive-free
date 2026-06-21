@@ -9,6 +9,8 @@ import Domain
 /// Pushed from a dive row in the session summary's segment list.
 struct WatchDiveProfileView: View {
     let dive: Dive
+    /// 1-based position of this dive within the session, for the "Dive #N" title.
+    var number: Int?
     var markers: [EventMarker] = []
     var heartRateSamples: [HeartRateSample] = []
     var temperatureSamples: [TemperatureSample] = []
@@ -41,6 +43,12 @@ struct WatchDiveProfileView: View {
         let points = dive.depthProfile
         ScrollView {
             VStack(spacing: 10) {
+                // Headline stats up top, as a table matching the session summary.
+                VStack(spacing: 4) {
+                    statRow("Max depth", DepthFormat.string(dive.maxDepthMeters))
+                    statRow("Dive time", Duration.seconds(dive.duration).formatted(.time(pattern: .minuteSecond)))
+                }
+
                 if points.isEmpty {
                     ContentUnavailableView("No profile", systemImage: "chart.xyaxis.line")
                 } else {
@@ -69,18 +77,13 @@ struct WatchDiveProfileView: View {
                     .frame(height: 130)
                 }
 
-                HStack(spacing: 16) {
-                    segmentMetric("Max", DepthFormat.string(dive.maxDepthMeters))
-                    segmentMetric("Time", Duration.seconds(dive.duration).formatted(.time(pattern: .minuteSecond)))
-                }
-
                 watchMetricCharts(heartRate: heartRateSamples, temperature: temperatureSamples, in: dive.startTime...dive.endTime)
 
                 WatchMarkerList(markers: diveMarkers)
             }
             .padding(.horizontal, 6)
         }
-        .navigationTitle("Dive")
+        .navigationTitle(number.map { "Dive #\($0)" } ?? "Dive")
     }
 }
 
@@ -141,6 +144,21 @@ struct WatchSurfaceDetailView: View {
             .padding(.horizontal, 6)
         }
         .navigationTitle("Surface")
+    }
+}
+
+/// A label-left / value-right stat row, matching the session summary's table.
+private func statRow(_ label: String, _ value: String) -> some View {
+    HStack {
+        Text(label)
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+        Spacer()
+        Text(value)
+            .font(.caption)
+            .monospacedDigit()
+            .lineLimit(1)
+            .minimumScaleFactor(0.6)
     }
 }
 
@@ -212,6 +230,7 @@ struct WatchVoiceNotePlayButton: View {
     @State private var player: AVAudioPlayer?
     @State private var isPlaying = false
     @State private var duration: TimeInterval?
+    @State private var currentTime: TimeInterval = 0
 
     private var url: URL { AudioNoteRecorder.url(for: fileName) }
     private var exists: Bool { FileManager.default.fileExists(atPath: url.path) }
@@ -230,11 +249,12 @@ struct WatchVoiceNotePlayButton: View {
         .onAppear { if exists, duration == nil { duration = try? AVAudioPlayer(contentsOf: url).duration } }
     }
 
-    /// "Play" / "Stop" with the clip length appended once it's known.
+    /// "Play" / "Stop" with a time appended — the elapsed position while playing,
+    /// the clip length when idle.
     private var buttonLabel: String {
         let base = isPlaying ? "Stop" : "Play"
-        guard let duration else { return base }
-        return "\(base) · \(Duration.seconds(duration.rounded()).formatted(.time(pattern: .minuteSecond)))"
+        guard let time = isPlaying ? currentTime : duration else { return base }
+        return "\(base) · \(Duration.seconds(time.rounded()).formatted(.time(pattern: .minuteSecond)))"
     }
 
     private func play() {
@@ -244,10 +264,18 @@ struct WatchVoiceNotePlayButton: View {
             let newPlayer = try AVAudioPlayer(contentsOf: url)
             newPlayer.play()
             player = newPlayer
+            currentTime = 0
             isPlaying = true
-            // Reset when the clip finishes (unless stopped or replaced first).
+            // Tick the elapsed position for the clip's length, then reset. Bounded
+            // by wall-clock rather than isPlaying (which can read false the instant
+            // after play(), cutting playback off immediately).
             Task {
-                try? await Task.sleep(for: .seconds(max(newPlayer.duration, 0.1)))
+                let total = max(newPlayer.duration, 0.1)
+                let start = Date()
+                while player === newPlayer, Date().timeIntervalSince(start) < total {
+                    currentTime = newPlayer.currentTime
+                    try? await Task.sleep(for: .seconds(0.3))
+                }
                 if player === newPlayer { stop() }
             }
         } catch {
@@ -271,6 +299,8 @@ struct WatchMetricChart: View {
     let title: String
     let tint: Color
     let points: [Point]
+    /// Invert the Y axis so depth increases downward. Off for heart rate / temp.
+    var reversedY = false
 
     var isEmpty: Bool { points.isEmpty }
 
@@ -279,17 +309,35 @@ struct WatchMetricChart: View {
             Text(title)
                 .font(.caption2)
                 .foregroundStyle(.secondary)
-            Chart(points) { point in
-                LineMark(x: .value("Time", point.date), y: .value(title, point.value))
-                    .interpolationMethod(.monotone)
-                    .foregroundStyle(tint)
-            }
-            .frame(height: 70)
+            chart
+                .frame(height: 70)
+        }
+    }
+
+    @ViewBuilder private var chart: some View {
+        let base = Chart(points) { point in
+            LineMark(x: .value("Time", point.date), y: .value(title, point.value))
+                .interpolationMethod(.monotone)
+                .foregroundStyle(tint)
+        }
+        if reversedY {
+            base.chartYScale(domain: .automatic(includesZero: true, reversed: true))
+        } else {
+            base
         }
     }
 }
 
 extension WatchMetricChart {
+    init(depth samples: [DepthSample], in range: ClosedRange<Date>? = nil) {
+        self.init(
+            title: "Depth (m)",
+            tint: .teal,
+            points: Self.points(samples.map { ($0.timestamp, $0.depthMeters) }, in: range),
+            reversedY: true
+        )
+    }
+
     init(heartRate samples: [HeartRateSample], in range: ClosedRange<Date>? = nil) {
         self.init(title: "Heart rate (bpm)", tint: .red, points: Self.points(samples.map { ($0.timestamp, $0.bpm) }, in: range))
     }
