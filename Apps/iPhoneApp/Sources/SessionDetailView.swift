@@ -258,6 +258,10 @@ struct SessionDetailView: View {
             exportStatus = .failed("Connect Strava in Settings first.")
         } catch StravaError.rateLimited {
             exportStatus = .failed("Strava rate limit reached. Try again later.")
+        } catch StravaError.uploadFailed(let message) {
+            exportStatus = .failed(message)
+        } catch StravaError.uploadTimedOut {
+            exportStatus = .failed("Strava is still processing the upload. Check Strava in a minute.")
         } catch {
             exportStatus = .failed("Export failed. Please try again.")
         }
