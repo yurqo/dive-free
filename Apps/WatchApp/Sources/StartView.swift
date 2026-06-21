@@ -40,7 +40,8 @@ struct StartView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.horizontal, 4)
-        .padding(.bottom, 2)
+        // Lift "How to use?" clear of the page-indicator dots at the very bottom.
+        .padding(.bottom, 12)
         .sheet(isPresented: $showGuide) { WatchUserGuideView() }
     }
 }

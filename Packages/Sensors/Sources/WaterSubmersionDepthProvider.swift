@@ -95,13 +95,29 @@ public final class WaterSubmersionDepthProvider: NSObject, DepthProvider, CMWate
 }
 #endif
 
+/// Simulator-only capability overrides, written by the watch Settings (debug)
+/// toggles and read here, so the SE / Series-10-11 / Ultra tiers can be exercised
+/// in the simulator — which otherwise has no real sensors and reports depth as
+/// always available. These paths only matter in the Simulator.
+public enum SimCapabilityOverride {
+    public static let depthSensorKey = "sim.hasDepthSensor"
+    public static let actionButtonKey = "sim.hasActionButton"
+
+    /// Reads a Bool override, defaulting to `true` when unset.
+    public static func value(_ key: String) -> Bool {
+        UserDefaults.standard.object(forKey: key) as? Bool ?? true
+    }
+}
+
 /// Whether this device can measure water depth. `true` on a real Apple Watch
-/// Ultra (40 m) or Series 10/11 (6 m), and on the simulator (so previews show
-/// mock depth). `false` on a real watch without the sensor (Series 9 and
-/// earlier, SE) — the UI hides depth there.
+/// Ultra (40 m) or Series 10/11 (6 m). `false` on a real watch without the
+/// sensor (Series 9 and earlier, SE) — the UI hides depth there. In the
+/// simulator it follows the Settings override (default `true`).
 public enum DepthSensor {
     public static var isAvailable: Bool {
-        #if os(watchOS) && !targetEnvironment(simulator)
+        #if targetEnvironment(simulator)
+        return SimCapabilityOverride.value(SimCapabilityOverride.depthSensorKey)
+        #elseif os(watchOS)
         return CMWaterSubmersionManager.waterSubmersionAvailable
         #else
         return true
@@ -114,7 +130,14 @@ public enum DepthSensor {
 /// - real watch without it → `UnavailableDepthProvider` (no depth, no fake dives);
 /// - simulator / other platforms → `MockDepthProvider` (synthetic profile for dev).
 public func makeDepthProvider() -> DepthProvider {
-    #if os(watchOS) && !targetEnvironment(simulator)
+    #if targetEnvironment(simulator)
+    // Honour the Settings depth-sensor override so the no-depth reduced flow is
+    // testable: off → no depth/dives (like a real SE). (Picked up at session
+    // start; restart the app after toggling.)
+    return SimCapabilityOverride.value(SimCapabilityOverride.depthSensorKey)
+        ? MockDepthProvider()
+        : UnavailableDepthProvider()
+    #elseif os(watchOS)
     return CMWaterSubmersionManager.waterSubmersionAvailable
         ? WaterSubmersionDepthProvider()
         : UnavailableDepthProvider()
