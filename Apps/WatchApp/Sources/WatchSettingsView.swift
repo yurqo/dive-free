@@ -13,6 +13,7 @@ struct WatchSettingsView: View {
     // old values felt far too fast, especially underwater.
     @AppStorage("crownStepsPerItem") private var crownStepsPerItem = 6
     @AppStorage("defaultMarkerKindID") private var defaultMarkerKindID = EventKind.note.rawValue
+    @AppStorage(GPSPrecision.highPrecisionKey) private var highPrecisionGPS = false
 
     #if targetEnvironment(simulator)
     // Debug overrides to fake device capabilities in the Simulator (which has no
@@ -40,16 +41,28 @@ struct WatchSettingsView: View {
                 }
 
                 Section {
-                    Picker("Scroll speed", selection: $crownStepsPerItem) {
-                        Text("Fast").tag(3)
-                        Text("Medium").tag(4)
-                        Text("Slow").tag(6)
-                        Text("Slowest").tag(9)
+                    NavigationLink {
+                        ScrollSpeedView()
+                    } label: {
+                        HStack {
+                            Text("Scroll speed")
+                            Spacer()
+                            Text(ScrollSpeedView.label(forSteps: crownStepsPerItem))
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 } header: {
                     Text("Crown")
                 } footer: {
-                    Text("How far you turn the Digital Crown to move one item in the action carousel. Slower is easier underwater.")
+                    Text("Turn the Crown to feel each speed before you pick. Slower is easier underwater.")
+                }
+
+                Section {
+                    Toggle("High precision", isOn: $highPrecisionGPS)
+                } header: {
+                    Text("GPS")
+                } footer: {
+                    Text("More accurate dive-spot location and surface track. Drains the battery faster. Applies to your next session.")
                 }
 
                 #if targetEnvironment(simulator)

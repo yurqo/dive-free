@@ -52,7 +52,7 @@ struct SessionRootView: View {
     /// Layout: the session time and GPS ride in the top bar beside the OS clock
     /// (via the navigation toolbar, the same way the summary's ↻ / ✓ buttons do);
     /// the big depth readout fills the middle; the session counters sit right above
-    /// the bottom pill.
+    /// the bottom selector.
     private var activeView: some View {
         @Bindable var session = session
         // A NavigationStack purely so the top bar lines the session time / GPS up
@@ -61,13 +61,13 @@ struct SessionRootView: View {
         return NavigationStack {
             VStack(spacing: 3) {
                 // The centerpiece fills everything between the top bar and the
-                // bottom pill so they never move when the mode or content changes.
+                // bottom selector so they never move when the mode or content changes.
                 centerpiece
                 statsLine
-                // The pill is a non-AOD affordance; the Crown drives it both at the
+                // The selector is a non-AOD affordance; the Crown drives it both at the
                 // surface and underwater, and the Action button confirms it.
                 if !isLuminanceReduced {
-                    actionPill
+                    actionSelector
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -76,8 +76,8 @@ struct SessionRootView: View {
             // pushed far below the clock — reduces the gap above it and gives the
             // number more height. (Stays clear of the toolbar row.)
             .padding(.top, -12)
-            // Bottom margin for the pill — 0 = flush to the edge; bump up if the
-            // display's rounded bottom corners clip the pill on any model.
+            // Bottom margin for the selector — 0 = flush to the edge; bump up if the
+            // display's rounded bottom corners clip the selector on any model.
             .padding(.bottom, 0)
             // Extend under the bottom safe area; the top is handled by the nav bar.
             .ignoresSafeArea(.container, edges: .bottom)
@@ -413,7 +413,7 @@ struct SessionRootView: View {
         .foregroundStyle(.teal)
     }
 
-    /// Counters stitched right above the pill: this-dive figures while submerged,
+    /// Counters stitched right above the selector: this-dive figures while submerged,
     /// the session totals (+ surface recovery + distance) at the surface.
     private var statsLine: some View {
         TimelineView(.periodic(from: .now, by: 1)) { _ in
@@ -450,37 +450,12 @@ struct SessionRootView: View {
 
     /// Bottom action bar (marker kinds, then End), driven by the Crown — a flat,
     /// full-width rectangle flush to the screen's bottom edge, showing the focused
-    /// option as a black label over the tinted fill.
-    private var actionPill: some View {
+    /// option as a black label over the tinted fill. Shares `SessionActionBar`
+    /// with the Settings scroll-speed preview.
+    private var actionSelector: some View {
         let items = session.menuItems
         let current = items[min(session.focusedIndex, max(items.count - 1, 0))]
-        // While a voice note is recording, the Voice Note item reads "Stop".
-        let recording = current == .voiceNote && session.isRecordingVoiceNote
-        // Voice Note is yellow when idle and red while recording; End is red;
-        // markers are teal.
-        let tint: Color
-        if current == .end {
-            tint = .red
-        } else if current == .voiceNote {
-            tint = recording ? .red : .yellow
-        } else {
-            tint = .teal
-        }
-        // Exact physical screen width so the bar reaches both edges regardless of
-        // the content's safe-area / padding insets.
-        let screenWidth = WKInterfaceDevice.current().screenBounds.width
-
-        return HStack(spacing: 6) {
-            if let emoji = current.emoji {
-                Text(emoji).font(.title3)
-            } else {
-                Image(systemName: recording ? "stop.circle.fill" : current.systemImage).font(.title3)
-            }
-            Text(recording ? "Stop" : current.title).font(.caption).fontWeight(.medium).lineLimit(1)
-        }
-        .foregroundStyle(.black)
-        .frame(width: screenWidth, height: 36)
-        .background(tint)
+        return SessionActionBar(action: current, isRecordingVoiceNote: session.isRecordingVoiceNote)
     }
 
     /// Seconds without a fix before GPS reads "lost" — generous enough to

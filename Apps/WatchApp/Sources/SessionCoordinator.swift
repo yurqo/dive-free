@@ -139,7 +139,7 @@ final class SessionCoordinator {
 
     /// Whether this watch has an Action button (Ultra only). No public API exists,
     /// so on device we default to `true` — worst case a non-Ultra shows the action
-    /// pill, which is harmless (the surface tap-to-confirm fallback works). The
+    /// selector, which is harmless (the surface tap-to-confirm fallback works). The
     /// simulator honours the Settings override so the no-Action-button flow is
     /// testable.
     var hasActionButton: Bool {
@@ -293,7 +293,7 @@ final class SessionCoordinator {
     private let sync = SyncManager()
     let audioRecorder = AudioNoteRecorder()
 
-    /// True while a surface voice note is recording. Drives the carousel pill.
+    /// True while a surface voice note is recording. Drives the carousel selector.
     var isRecordingVoiceNote: Bool { audioRecorder.isRecording }
 
     init(modelContext: ModelContext) {

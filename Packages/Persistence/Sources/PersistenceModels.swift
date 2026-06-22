@@ -17,6 +17,9 @@ public final class SessionRecord {
     // defaulted for migration of rows created before these existed).
     public var heartRateSamples: [HeartRateSample] = []
     public var temperatureSamples: [TemperatureSample] = []
+    // Reverse-geocoded area name, resolved after the session is saved. Optional
+    // (like latitude/longitude) so existing rows migrate to nil automatically.
+    public var locationName: String?
 
     @Relationship(deleteRule: .cascade, inverse: \DiveRecord.session)
     public var dives: [DiveRecord]
@@ -33,6 +36,7 @@ public final class SessionRecord {
         track: [TrackPoint] = [],
         heartRateSamples: [HeartRateSample] = [],
         temperatureSamples: [TemperatureSample] = [],
+        locationName: String? = nil,
         dives: [DiveRecord] = [],
         markers: [MarkerRecord] = []
     ) {
@@ -44,6 +48,7 @@ public final class SessionRecord {
         self.track = track
         self.heartRateSamples = heartRateSamples
         self.temperatureSamples = temperatureSamples
+        self.locationName = locationName
         self.dives = dives
         self.markers = markers
     }
@@ -172,7 +177,8 @@ public extension SessionRecord {
             location: location,
             track: track,
             heartRateSamples: heartRateSamples,
-            temperatureSamples: temperatureSamples
+            temperatureSamples: temperatureSamples,
+            locationName: locationName
         )
     }
 }
@@ -218,6 +224,7 @@ public extension SessionRecord {
             track: session.track,
             heartRateSamples: session.heartRateSamples,
             temperatureSamples: session.temperatureSamples,
+            locationName: session.locationName,
             dives: session.dives.map { DiveRecord(from: $0) },
             markers: session.markers.map { MarkerRecord(from: $0) }
         )
