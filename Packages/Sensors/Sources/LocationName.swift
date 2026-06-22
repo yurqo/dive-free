@@ -27,11 +27,17 @@ public enum LocationName {
     }
 
     private static func reverseGeocode(latitude: Double, longitude: Double) async -> String? {
-        await withCheckedContinuation { continuation in
-            let location = CLLocation(latitude: latitude, longitude: longitude)
+        // A bare `CLGeocoder()` temporary deallocates as soon as the call returns,
+        // which cancels the request so the completion (and our continuation) never
+        // fires. Keep it alive across the suspension by referencing it *after* the
+        // await — that pins it in the async frame without capturing a non-Sendable
+        // type in the @Sendable completion handler.
+        let geocoder = CLGeocoder()
+        let location = CLLocation(latitude: latitude, longitude: longitude)
+        let name: String? = await withCheckedContinuation { continuation in
             // CLGeocoder is soft-deprecated on OS 26 (use MKReverseGeocodingRequest),
             // but that's 26+-only; CLGeocoder still works on our watchOS 11 floor.
-            CLGeocoder().reverseGeocodeLocation(location) { placemarks, _ in
+            geocoder.reverseGeocodeLocation(location) { placemarks, _ in
                 let placemark = placemarks?.first
                 continuation.resume(
                     returning: placemark?.locality
@@ -41,5 +47,7 @@ public enum LocationName {
                 )
             }
         }
+        withExtendedLifetime(geocoder) {}
+        return name
     }
 }

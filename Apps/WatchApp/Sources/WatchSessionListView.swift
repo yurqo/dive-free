@@ -10,6 +10,9 @@ struct WatchSessionListView: View {
     @Query(sort: \SessionRecord.startTime, order: .reverse)
     private var sessions: [SessionRecord]
     @Environment(\.modelContext) private var modelContext
+    /// Sessions geocoded this launch, so a coordinate that resolves to no name
+    /// (open water, remote spots) isn't retried on every list appearance.
+    @State private var geocodeAttempted: Set<UUID> = []
 
     var body: some View {
         NavigationStack {
@@ -70,7 +73,12 @@ struct WatchSessionListView: View {
         for record in sessions {
             if Task.isCancelled { return }
             guard record.locationName == nil,
+                  !geocodeAttempted.contains(record.id),
                   let lat = record.latitude, let lon = record.longitude else { continue }
+            // Mark attempted up front so a coordinate that geocodes to nothing
+            // isn't re-tried this launch; a fresh launch clears it and retries
+            // (e.g. after the watch regains connectivity).
+            geocodeAttempted.insert(record.id)
             guard let name = await LocationName.resolve(latitude: lat, longitude: lon),
                   !name.isEmpty else { continue }
             record.locationName = name
