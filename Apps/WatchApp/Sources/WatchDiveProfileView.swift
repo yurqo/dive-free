@@ -68,7 +68,7 @@ struct WatchDiveProfileView: View {
                             )
                             .symbolSize(0)
                             .annotation(position: .overlay, spacing: 0) {
-                                Text(marker.emoji).font(.caption2)
+                                chartMarkerGlyph(marker.emoji)
                             }
                         }
                     }
@@ -292,13 +292,29 @@ struct WatchVoiceNotePlayButton: View {
     }
 }
 
+/// Emoji marker glyph for charts: the ink-cropped image (see `EmojiInk`) centred
+/// on its point, falling back to plain text. Shared by the per-dive profile and
+/// the whole-session depth chart.
+@MainActor
+@ViewBuilder
+private func chartMarkerGlyph(_ emoji: String, fontSize: CGFloat = 12) -> some View {
+    if let ink = EmojiInk.image(emoji, fontSize: fontSize) {
+        ink
+    } else {
+        Text(emoji).font(.system(size: fontSize))
+    }
+}
+
 /// Compact time-series line chart for a watch metric (heart rate, temperature),
 /// for the whole session or a single segment's window.
 struct WatchMetricChart: View {
     struct Point: Identifiable { let id: Int; let date: Date; let value: Double }
+    /// Optional emoji markers drawn over the line (used by the depth chart).
+    struct Marker: Identifiable { let id: UUID; let date: Date; let value: Double; let emoji: String }
     let title: String
     let tint: Color
     let points: [Point]
+    var markers: [Marker] = []
     /// Invert the Y axis so depth increases downward. Off for heart rate / temp.
     var reversedY = false
 
@@ -315,10 +331,19 @@ struct WatchMetricChart: View {
     }
 
     @ViewBuilder private var chart: some View {
-        let base = Chart(points) { point in
-            LineMark(x: .value("Time", point.date), y: .value(title, point.value))
-                .interpolationMethod(.monotone)
-                .foregroundStyle(tint)
+        let base = Chart {
+            ForEach(points) { point in
+                LineMark(x: .value("Time", point.date), y: .value(title, point.value))
+                    .interpolationMethod(.monotone)
+                    .foregroundStyle(tint)
+            }
+            ForEach(markers) { marker in
+                PointMark(x: .value("Time", marker.date), y: .value(title, marker.value))
+                    .symbolSize(0)
+                    .annotation(position: .overlay, spacing: 0) {
+                        chartMarkerGlyph(marker.emoji)
+                    }
+            }
         }
         if reversedY {
             base.chartYScale(domain: .automatic(includesZero: true, reversed: true))
@@ -329,11 +354,12 @@ struct WatchMetricChart: View {
 }
 
 extension WatchMetricChart {
-    init(depth samples: [DepthSample], in range: ClosedRange<Date>? = nil) {
+    init(depth samples: [DepthSample], markers: [EventMarker] = [], in range: ClosedRange<Date>? = nil) {
         self.init(
             title: "Depth (m)",
             tint: .teal,
             points: Self.points(samples.map { ($0.timestamp, $0.depthMeters) }, in: range),
+            markers: Self.depthMarkers(markers, on: samples, in: range),
             reversedY: true
         )
     }
@@ -351,6 +377,33 @@ extension WatchMetricChart {
             .sorted { $0.0 < $1.0 }
             .enumerated()
             .map { Point(id: $0, date: $1.0, value: $1.1) }
+    }
+
+    /// Places each marker on the depth line at its interpolated depth, dropping
+    /// any outside `range` or with no samples to land on.
+    private static func depthMarkers(_ markers: [EventMarker], on samples: [DepthSample], in range: ClosedRange<Date>?) -> [Marker] {
+        let sorted = samples.sorted { $0.timestamp < $1.timestamp }
+        return markers.compactMap { marker in
+            guard range?.contains(marker.timestamp) ?? true,
+                  let depth = interpolatedDepth(at: marker.timestamp, in: sorted) else { return nil }
+            return Marker(id: marker.id, date: marker.timestamp, value: depth, emoji: marker.kind.emoji)
+        }
+    }
+
+    /// Linear-interpolated depth at `time` along the sorted samples (clamped to
+    /// the ends); `nil` when there are no samples.
+    private static func interpolatedDepth(at time: Date, in sorted: [DepthSample]) -> Double? {
+        guard let first = sorted.first, let last = sorted.last else { return nil }
+        if time <= first.timestamp { return first.depthMeters }
+        if time >= last.timestamp { return last.depthMeters }
+        for i in 1..<sorted.count where time <= sorted[i].timestamp {
+            let a = sorted[i - 1], b = sorted[i]
+            let span = b.timestamp.timeIntervalSince(a.timestamp)
+            guard span > 0 else { return a.depthMeters }
+            let t = time.timeIntervalSince(a.timestamp) / span
+            return a.depthMeters + (b.depthMeters - a.depthMeters) * t
+        }
+        return last.depthMeters
     }
 }
 

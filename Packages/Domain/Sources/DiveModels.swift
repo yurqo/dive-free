@@ -265,6 +265,10 @@ public struct DiveSession: Sendable, Equatable, Codable, Identifiable {
     public var heartRateSamples: [HeartRateSample]
     /// Water-temperature readings across the session (Ultra submersion sensor).
     public var temperatureSamples: [TemperatureSample]
+    /// Reverse-geocoded short area name for the session's location (a locality or
+    /// region), resolved after the session is saved. `nil` until resolved, or when
+    /// there was no GPS fix / geocoding failed.
+    public var locationName: String?
 
     public var maxDepthMeters: Double { dives.map(\.maxDepthMeters).max() ?? 0 }
     public var diveCount: Int { dives.count }
@@ -377,7 +381,8 @@ public struct DiveSession: Sendable, Equatable, Codable, Identifiable {
         location: GeoPoint? = nil,
         track: [TrackPoint] = [],
         heartRateSamples: [HeartRateSample] = [],
-        temperatureSamples: [TemperatureSample] = []
+        temperatureSamples: [TemperatureSample] = [],
+        locationName: String? = nil
     ) {
         self.id = id
         self.startTime = startTime
@@ -388,11 +393,12 @@ public struct DiveSession: Sendable, Equatable, Codable, Identifiable {
         self.track = track
         self.heartRateSamples = heartRateSamples
         self.temperatureSamples = temperatureSamples
+        self.locationName = locationName
     }
 
     private enum CodingKeys: String, CodingKey {
         case id, startTime, endTime, dives, markers, location, track
-        case heartRateSamples, temperatureSamples
+        case heartRateSamples, temperatureSamples, locationName
     }
 
     /// Decoded leniently so payloads from an older app version (which had no
@@ -408,6 +414,7 @@ public struct DiveSession: Sendable, Equatable, Codable, Identifiable {
         track = try c.decodeIfPresent([TrackPoint].self, forKey: .track) ?? []
         heartRateSamples = try c.decodeIfPresent([HeartRateSample].self, forKey: .heartRateSamples) ?? []
         temperatureSamples = try c.decodeIfPresent([TemperatureSample].self, forKey: .temperatureSamples) ?? []
+        locationName = try c.decodeIfPresent(String.self, forKey: .locationName)
     }
 }
 

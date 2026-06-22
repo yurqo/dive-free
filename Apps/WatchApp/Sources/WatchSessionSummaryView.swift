@@ -29,7 +29,7 @@ struct WatchSessionSummaryView: View {
                 let depthSamples = session.dives
                     .sorted { $0.startTime < $1.startTime }
                     .flatMap { [DepthSample(timestamp: $0.startTime, depthMeters: 0)] + $0.samples + [DepthSample(timestamp: $0.endTime, depthMeters: 0)] }
-                let depthChart = WatchMetricChart(depth: depthSamples)
+                let depthChart = WatchMetricChart(depth: depthSamples, markers: session.markers)
                 if !depthChart.isEmpty { depthChart }
                 watchMetricCharts(heartRate: session.heartRateSamples, temperature: session.temperatureSamples, in: nil)
 

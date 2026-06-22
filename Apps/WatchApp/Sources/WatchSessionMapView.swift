@@ -104,7 +104,18 @@ struct WatchSessionMapView: View {
         switch glyph {
         case .submersion(let number): badge("arrow.down", number, .teal)
         case .surfacing(let number): badge("arrow.up", number, .blue)
-        case .marker(let emoji): Text(emoji).font(.caption)
+        case .marker(let emoji):
+            // Centre the emoji's *ink* on the coordinate. A raw `Text(emoji)`
+            // carries the font's line-box padding (mostly empty space beneath the
+            // glyph), so centring it leaves the glyph floating high. Instead we
+            // render the emoji to an image cropped to its visible pixels — the
+            // crop's geometric centre is the glyph's true visual centre, which the
+            // annotation's default `.center` anchor then pins to the coordinate.
+            if let ink = EmojiInk.image(emoji, fontSize: 14) {
+                ink
+            } else {
+                Text(emoji).font(.system(size: 14))
+            }
         }
     }
 
