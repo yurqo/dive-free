@@ -12,7 +12,7 @@ public struct DiveDetectionConfig: Sendable, Equatable {
     public init(
         surfaceThresholdMeters: Double = 1.0,
         minimumDiveDepthMeters: Double = 1.5,
-        minimumDiveDuration: TimeInterval = 5
+        minimumDiveDuration: TimeInterval = 3
     ) {
         self.surfaceThresholdMeters = surfaceThresholdMeters
         self.minimumDiveDepthMeters = minimumDiveDepthMeters
@@ -44,13 +44,15 @@ public struct DiveDetector: Sendable {
             let duration = last.timestamp.timeIntervalSince(first.timestamp)
             // Ignore an instantaneous spike (a single sample / zero time span): a
             // real dive always covers more than one reading, so a lone noisy deep
-            // sample shouldn't register as a zero-duration dive under the OR below.
+            // sample shouldn't register as a zero-duration dive (it would otherwise
+            // pass the depth-and-duration gate below when minimumDiveDuration is 0).
             guard duration > 0 else { return }
-            // A candidate counts if it's deep enough OR long enough (either
-            // qualifies), so a brief deep drop and a shallow lingering dip both
-            // register as dives.
+            // A dive must reach the minimum depth (going under is what defines a
+            // dive) AND last the minimum duration. The depth gate rejects long
+            // shallow bobs (wrist under at the surface); the duration gate rejects
+            // brief noise spikes.
             guard maxDepth >= config.minimumDiveDepthMeters
-                || duration >= config.minimumDiveDuration else { return }
+                && duration >= config.minimumDiveDuration else { return }
             dives.append(
                 Dive(
                     startTime: first.timestamp,
