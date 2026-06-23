@@ -18,6 +18,9 @@ public final class PhotoRecord {
     /// shown in the gallery without needing Photos access. `nil` if not cached.
     public var thumbnailFileName: String?
     public var createdAt: Date
+    /// Whether the referenced asset is a video (#139) — drives the play badge and
+    /// AVKit playback. Defaulted false for lightweight migration of photo rows.
+    public var isVideo: Bool = false
     /// The session this photo belongs to, if attached via a session.
     public var session: SessionRecord?
     /// The spot this photo is attached to directly.
@@ -31,6 +34,7 @@ public final class PhotoRecord {
         assetIdentifier: String? = nil,
         thumbnailFileName: String? = nil,
         createdAt: Date = Date(),
+        isVideo: Bool = false,
         session: SessionRecord? = nil,
         spot: Spot? = nil,
         marker: MarkerRecord? = nil
@@ -39,6 +43,7 @@ public final class PhotoRecord {
         self.assetIdentifier = assetIdentifier
         self.thumbnailFileName = thumbnailFileName
         self.createdAt = createdAt
+        self.isVideo = isVideo
         self.session = session
         self.spot = spot
         self.marker = marker

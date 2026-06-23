@@ -1,16 +1,20 @@
 import SwiftUI
 import PhotosUI
 import Photos
+import AVKit
 import UIKit
+import UniformTypeIdentifiers
 import Domain
 import Persistence
 
-/// A photo as handed to the owner to persist: a library reference (when one was
-/// obtained) plus a thumbnail to cache for offline display (#141). Full images are
-/// not copied — they stay in the Photos library.
+/// A media item as handed to the owner to persist: a library reference (when one
+/// was obtained) plus a thumbnail to cache for offline display (#141). Originals
+/// are not copied — they stay in the Photos library. `isVideo` drives playback and
+/// the play badge (#139).
 struct ImportedPhoto {
     let assetIdentifier: String?
     let thumbnail: UIImage?
+    var isVideo: Bool = false
 }
 
 /// A reusable "Photos" section: a thumbnail strip + add-from-library / take-photo
@@ -42,12 +46,13 @@ struct PhotoGallerySection<Extra: View>: View {
             }
             // .shared() makes each picked item's `itemIdentifier` a library asset id
             // we can reference later, instead of an opaque copy. Multi-select +
-            // the picker's own Add button = "multi-select + confirm" (#142).
-            PhotosPicker(selection: $libraryItems, matching: .images, photoLibrary: .shared()) {
+            // the picker's own Add button = "multi-select + confirm" (#142); images
+            // and videos (#139).
+            PhotosPicker(selection: $libraryItems, matching: .any(of: [.images, .videos]), photoLibrary: .shared()) {
                 Label("Add from Library", systemImage: "photo.on.rectangle")
             }
             if UIImagePickerController.isSourceTypeAvailable(.camera) {
-                Button { showCamera = true } label: { Label("Take Photo", systemImage: "camera") }
+                Button { showCamera = true } label: { Label("Take Photo or Video", systemImage: "camera") }
             }
             extraActions
         }
@@ -55,25 +60,50 @@ struct PhotoGallerySection<Extra: View>: View {
             guard !items.isEmpty else { return }
             Task {
                 var imported: [ImportedPhoto] = []
-                for item in items {
-                    if let data = try? await item.loadTransferable(type: Data.self), let image = UIImage(data: data) {
-                        imported.append(ImportedPhoto(assetIdentifier: item.itemIdentifier, thumbnail: image))
-                    }
-                }
-                if !imported.isEmpty { onAdd(imported) }
+                for item in items { imported.append(await importedPhoto(from: item)) }
+                let valid = imported.filter { $0.assetIdentifier != nil || $0.thumbnail != nil }
+                if !valid.isEmpty { onAdd(valid) }
                 libraryItems = []
             }
         }
         .sheet(isPresented: $showCamera) {
-            CameraPicker { image in
-                // Save the capture to Photos so it can be referenced like any other
-                // library asset; fall back to a thumbnail-only record if denied.
-                Task { onAdd([ImportedPhoto(assetIdentifier: await PhotoLibrary.save(image), thumbnail: image)]) }
-            }
-            .ignoresSafeArea()
+            CameraPicker { media in Task { await addCaptured(media) } }
+                .ignoresSafeArea()
         }
         .fullScreenCover(item: $fullScreen) { photo in
             PhotoPagerView(photos: photos, initialID: photo.id, onDelete: onDelete)
+        }
+    }
+
+    /// Builds an `ImportedPhoto` from a picked item. When Photos access is granted,
+    /// the asset's `mediaType` is authoritative (so a Live Photo isn't mistaken for
+    /// a video) and yields the thumbnail (poster frame for a video); otherwise we
+    /// fall back to the item's content types and its loaded image data.
+    private func importedPhoto(from item: PhotosPickerItem) async -> ImportedPhoto {
+        let identifier = item.itemIdentifier
+        let asset = identifier.flatMap { PhotoLibrary.asset(for: $0) }
+        let isVideo = asset.map { $0.mediaType == .video }
+            ?? item.supportedContentTypes.contains { $0.conforms(to: .movie) }
+        var thumbnail: UIImage?
+        if let asset {
+            thumbnail = await PhotoLibrary.thumbnail(for: asset)
+        } else if !isVideo, let data = try? await item.loadTransferable(type: Data.self) {
+            thumbnail = UIImage(data: data)
+        }
+        return ImportedPhoto(assetIdentifier: identifier, thumbnail: thumbnail, isVideo: isVideo)
+    }
+
+    /// Saves a camera capture to Photos and hands it to the owner.
+    private func addCaptured(_ media: CapturedMedia) async {
+        switch media {
+        case .image(let image):
+            onAdd([ImportedPhoto(assetIdentifier: await PhotoLibrary.save(image), thumbnail: image)])
+        case .video(let url):
+            let id = await PhotoLibrary.saveVideo(url)
+            try? FileManager.default.removeItem(at: url)  // clean up the temp copy
+            var poster: UIImage?
+            if let id, let asset = PhotoLibrary.asset(for: id) { poster = await PhotoLibrary.thumbnail(for: asset) }
+            onAdd([ImportedPhoto(assetIdentifier: id, thumbnail: poster, isVideo: true)])
         }
     }
 }
@@ -120,7 +150,7 @@ struct SessionPhotosSection: View {
     private func saveAll(_ imported: [ImportedPhoto]) {
         for photo in imported {
             let thumbnailFileName = photo.thumbnail.flatMap { PhotoStore.saveThumbnail($0) }
-            modelContext.insert(PhotoRecord(assetIdentifier: photo.assetIdentifier, thumbnailFileName: thumbnailFileName, session: session))
+            modelContext.insert(PhotoRecord(assetIdentifier: photo.assetIdentifier, thumbnailFileName: thumbnailFileName, isVideo: photo.isVideo, session: session))
         }
         try? modelContext.save()
         let identifiers = imported.compactMap(\.assetIdentifier)
@@ -149,7 +179,7 @@ struct SessionPhotosSection: View {
         guard await PhotoMatcher.requestReadAccess() else { showPermissionAlert = true; return }
         let existing = Set(session.photos.compactMap { $0.assetIdentifier })
         let window = PhotoMatcher.window(start: session.startTime, end: session.endTime ?? session.startTime)
-        let assets = PhotoMatcher.imageAssets(in: window, excluding: existing)
+        let assets = PhotoMatcher.mediaAssets(in: window, excluding: existing)
         suggestions = assets
         showSuggestions = !assets.isEmpty
         showNoMatches = assets.isEmpty
@@ -158,7 +188,11 @@ struct SessionPhotosSection: View {
     private func importAssets(_ assets: [PHAsset]) async {
         var imported: [ImportedPhoto] = []
         for asset in assets {
-            imported.append(ImportedPhoto(assetIdentifier: asset.localIdentifier, thumbnail: await PhotoLibrary.thumbnail(for: asset)))
+            imported.append(ImportedPhoto(
+                assetIdentifier: asset.localIdentifier,
+                thumbnail: await PhotoLibrary.thumbnail(for: asset),
+                isVideo: asset.mediaType == .video
+            ))
         }
         saveAll(imported)
     }
@@ -175,7 +209,7 @@ struct SpotPhotosSection: View {
             onAdd: { imported in
                 for photo in imported {
                     let thumbnailFileName = photo.thumbnail.flatMap { PhotoStore.saveThumbnail($0) }
-                    modelContext.insert(PhotoRecord(assetIdentifier: photo.assetIdentifier, thumbnailFileName: thumbnailFileName, spot: spot))
+                    modelContext.insert(PhotoRecord(assetIdentifier: photo.assetIdentifier, thumbnailFileName: thumbnailFileName, isVideo: photo.isVideo, spot: spot))
                 }
                 try? modelContext.save()
                 // Spot-direct photos mirror into the DiveFree "All" album (#145).
@@ -212,6 +246,14 @@ struct PhotoThumbnail: View {
         }
         .frame(width: 80, height: 80)
         .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay {
+            if photo.isVideo {
+                Image(systemName: "play.circle.fill")
+                    .font(.title2)
+                    .foregroundStyle(.white)
+                    .shadow(radius: 2)
+            }
+        }
         .task(id: photo.id) { await load() }
     }
 
@@ -247,7 +289,7 @@ struct PhotoPagerView: View {
         NavigationStack {
             TabView(selection: $selection) {
                 ForEach(photos) { photo in
-                    PhotoPage(photo: photo).tag(photo.id)
+                    PhotoPage(photo: photo, isActive: photo.id == selection).tag(photo.id)
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: photos.count > 1 ? .automatic : .never))
@@ -272,31 +314,41 @@ struct PhotoPagerView: View {
 /// fallback) plus a linked-marker banner when the photo belongs to a marker.
 private struct PhotoPage: View {
     let photo: PhotoRecord
+    let isActive: Bool
     @State private var image: UIImage?
+    @State private var player: AVPlayer?
     @State private var loading = true
 
     var body: some View {
         ZStack(alignment: .bottom) {
             Color.black
-            Group {
-                if let image {
-                    Image(uiImage: image).resizable().scaledToFit()
-                } else if loading {
-                    ProgressView().tint(.white)
-                } else {
-                    ContentUnavailableView(
-                        "Photo Unavailable",
-                        systemImage: "photo",
-                        description: Text("This photo is no longer in your Photos library.")
-                    )
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            content
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             if let marker = photo.marker {
                 markerBanner(marker)
             }
         }
         .task { await load() }
+        // Pause video audio when this page is swiped away (TabView keeps neighbors alive).
+        .onChange(of: isActive) { _, active in
+            if !active { player?.pause() }
+        }
+    }
+
+    @ViewBuilder private var content: some View {
+        if photo.isVideo, let player {
+            VideoPlayer(player: player)
+        } else if !photo.isVideo, let image {
+            Image(uiImage: image).resizable().scaledToFit()
+        } else if loading {
+            ProgressView().tint(.white)
+        } else {
+            ContentUnavailableView(
+                "Media Unavailable",
+                systemImage: photo.isVideo ? "play.slash" : "photo",
+                description: Text("This item is no longer in your Photos library.")
+            )
+        }
     }
 
     private func markerBanner(_ marker: MarkerRecord) -> some View {
@@ -318,6 +370,13 @@ private struct PhotoPage: View {
 
     private func load() async {
         defer { loading = false }
+        if photo.isVideo {
+            if let id = photo.assetIdentifier, await PhotoLibrary.requestAccess(),
+               let item = await PhotoLibrary.playerItem(forIdentifier: id) {
+                player = AVPlayer(playerItem: item)
+            }
+            return
+        }
         if let id = photo.assetIdentifier, await PhotoLibrary.requestAccess(),
            let full = await PhotoLibrary.fullImage(forIdentifier: id) {
             image = full
@@ -330,14 +389,22 @@ private struct PhotoPage: View {
     }
 }
 
-/// Camera capture (SwiftUI has no native camera) — wraps `UIImagePickerController`.
+/// A photo or video captured by the camera (#139).
+enum CapturedMedia {
+    case image(UIImage)
+    case video(URL)
+}
+
+/// Camera capture (SwiftUI has no native camera) — wraps `UIImagePickerController`,
+/// offering both photo and video capture.
 struct CameraPicker: UIViewControllerRepresentable {
-    let onImage: (UIImage) -> Void
+    let onCapture: (CapturedMedia) -> Void
     @Environment(\.dismiss) private var dismiss
 
     func makeUIViewController(context: Context) -> UIImagePickerController {
         let picker = UIImagePickerController()
         picker.sourceType = .camera
+        picker.mediaTypes = [UTType.image.identifier, UTType.movie.identifier]
         picker.delegate = context.coordinator
         return picker
     }
@@ -351,7 +418,17 @@ struct CameraPicker: UIViewControllerRepresentable {
         init(_ parent: CameraPicker) { self.parent = parent }
 
         func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
-            if let image = info[.originalImage] as? UIImage { parent.onImage(image) }
+            if let url = info[.mediaURL] as? URL {
+                // Copy out of the picker's tmp dir synchronously — it can be
+                // reclaimed before the async save reads it (then the capture is lost).
+                let dest = FileManager.default.temporaryDirectory
+                    .appendingPathComponent(UUID().uuidString)
+                    .appendingPathExtension(url.pathExtension)
+                try? FileManager.default.copyItem(at: url, to: dest)
+                parent.onCapture(.video(dest))
+            } else if let image = info[.originalImage] as? UIImage {
+                parent.onCapture(.image(image))
+            }
             parent.dismiss()
         }
 
