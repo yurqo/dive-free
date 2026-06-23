@@ -22,6 +22,9 @@ public final class PhotoRecord {
     public var session: SessionRecord?
     /// The spot this photo is attached to directly.
     public var spot: Spot?
+    /// An optional marker this photo is linked to (#143). Deleting the marker
+    /// nullifies this (the photo stays on its session/spot).
+    public var marker: MarkerRecord?
 
     public init(
         id: UUID = UUID(),
@@ -29,7 +32,8 @@ public final class PhotoRecord {
         thumbnailFileName: String? = nil,
         createdAt: Date = Date(),
         session: SessionRecord? = nil,
-        spot: Spot? = nil
+        spot: Spot? = nil,
+        marker: MarkerRecord? = nil
     ) {
         self.id = id
         self.assetIdentifier = assetIdentifier
@@ -37,5 +41,6 @@ public final class PhotoRecord {
         self.createdAt = createdAt
         self.session = session
         self.spot = spot
+        self.marker = marker
     }
 }

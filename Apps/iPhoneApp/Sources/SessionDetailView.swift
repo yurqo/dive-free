@@ -57,7 +57,7 @@ struct SessionDetailView: View {
 
             segmentsSection(domain)
 
-            MarkerListSection(markers: domain.markers)
+            MarkerListSection(markers: domain.markers, session: session)
 
             // Full session map.
             locationSection(domain)
@@ -383,13 +383,22 @@ private struct SessionDetailPreview: View {
 /// the whole-session detail and the per-segment dive/surface detail screens.
 struct MarkerListSection: View {
     let markers: [EventMarker]
+    /// When provided, rows are tappable to edit the matching record (#143).
+    var session: SessionRecord? = nil
+    @State private var editing: MarkerRecord?
 
     var body: some View {
         if !markers.isEmpty {
             Section("Markers") {
                 ForEach(markers.sorted { $0.timestamp < $1.timestamp }) { marker in
+                    let record = session.flatMap { session in session.markers.first { $0.id == marker.id } }
                     MarkerRow(marker: marker)
+                        .contentShape(Rectangle())
+                        .onTapGesture { if let record { editing = record } }
                 }
+            }
+            .sheet(item: $editing) { record in
+                if let session { MarkerEditView(marker: record, session: session) }
             }
         }
     }
