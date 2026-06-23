@@ -13,6 +13,10 @@ struct WatchSessionListView: View {
     /// Sessions geocoded this launch, so a coordinate that resolves to no name
     /// (open water, remote spots) isn't retried on every list appearance.
     @State private var geocodeAttempted: Set<UUID> = []
+    /// Lightweight per-row view models, rebuilt only when the session set changes
+    /// (not per scroll/redraw) — avoids deep-copying each session and re-running
+    /// the track haversine on every render.
+    @State private var rowCache: [PersistentIdentifier: SessionRow] = [:]
 
     var body: some View {
         NavigationStack {
@@ -26,18 +30,18 @@ struct WatchSessionListView: View {
                 } else {
                     List {
                         ForEach(sessions) { record in
-                            let domain = record.toDomain()
+                            let row = rowCache[record.persistentModelID] ?? SessionRow(record)
                             NavigationLink(value: record) {
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text(record.startTime.formatted(.dateTime.month(.abbreviated).day().hour().minute()))
+                                    Text(row.startTime.formatted(.dateTime.month(.abbreviated).day().hour().minute()))
                                         .font(.headline)
-                                    Text(statsLine(domain))
+                                    Text(statsLine(row))
                                         .font(.caption2)
                                         .foregroundStyle(.secondary)
                                         .monospacedDigit()
                                         .lineLimit(1)
                                         .minimumScaleFactor(0.7)
-                                    if let name = domain.locationName, !name.isEmpty {
+                                    if let name = row.locationName, !name.isEmpty {
                                         Text(name)
                                             .font(.caption2)
                                             .foregroundStyle(.secondary)
@@ -48,6 +52,7 @@ struct WatchSessionListView: View {
                         }
                     }
                     .task { await backfillLocationNames() }
+                    .onChange(of: rowSignature, initial: true) { rebuildRowCache() }
                 }
             }
             .navigationTitle("Sessions")
@@ -59,10 +64,23 @@ struct WatchSessionListView: View {
     }
 
     /// Second-line summary: total time · distance · ↓ dives · 📍 markers.
-    private func statsLine(_ session: DiveSession) -> String {
-        let time = Duration.seconds(session.totalDuration).formatted(.time(pattern: .minuteSecond))
-        let distance = DistanceFormat.string(session.surfaceDistanceMeters)
-        return "⏱\(time) · \(distance) · ↓\(session.diveCount) · 📍\(session.markers.count)"
+    private func statsLine(_ row: SessionRow) -> String {
+        let time = Duration.seconds(row.totalDuration).formatted(.time(pattern: .minuteSecond))
+        let distance = DistanceFormat.string(row.distanceMeters)
+        return "⏱\(time) · \(distance) · ↓\(row.diveCount) · 📍\(row.markerCount)"
+    }
+
+    /// Cheap signature of the displayed fields; when it changes, rebuild the row
+    /// cache. Distance depends only on the track (fixed once a session is saved),
+    /// so it isn't part of the signature.
+    private var rowSignature: String {
+        sessions
+            .map { "\($0.persistentModelID.hashValue):\($0.locationName ?? ""):\($0.dives.count):\($0.markers.count)" }
+            .joined(separator: "|")
+    }
+
+    private func rebuildRowCache() {
+        rowCache = Dictionary(uniqueKeysWithValues: sessions.map { ($0.persistentModelID, SessionRow($0)) })
     }
 
     /// Resolves and persists the area name for any session missing one, one at a
@@ -85,5 +103,29 @@ struct WatchSessionListView: View {
             record.locationName = name
             try? modelContext.save()
         }
+    }
+}
+
+/// Lightweight, precomputed view model for a session-list row: scalar fields read
+/// directly from the record plus the surface distance — without deep-copying the
+/// whole session (`toDomain`) per render.
+private struct SessionRow {
+    let startTime: Date
+    let totalDuration: TimeInterval
+    let diveCount: Int
+    let markerCount: Int
+    let distanceMeters: Double
+    let locationName: String?
+
+    init(_ record: SessionRecord) {
+        startTime = record.startTime
+        totalDuration = (record.endTime ?? record.startTime).timeIntervalSince(record.startTime)
+        diveCount = record.dives.count
+        markerCount = record.markers.count
+        // Distance from the track only (no dives/samples copy); honors smoothTrack.
+        distanceMeters = DiveSession(
+            startTime: record.startTime, track: record.track, smoothTrack: record.smoothTrack
+        ).surfaceDistanceMeters
+        locationName = record.locationName
     }
 }

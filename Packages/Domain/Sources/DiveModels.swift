@@ -73,6 +73,26 @@ public extension Array where Element == TrackPoint {
     }
 }
 
+public extension Array where Element == DepthSample {
+    /// Linearly-interpolated depth at `time`, **clamped to the first/last sample**
+    /// (so a marker inside the dive window always lands on the profile), or `nil`
+    /// only when there are no samples. Time-orders the samples internally. The one
+    /// shared depth-interpolation used by `Dive`, the charts, and Strava export.
+    func interpolatedDepth(at time: Date) -> Double? {
+        let ordered = sorted { $0.timestamp < $1.timestamp }
+        guard let first = ordered.first, let last = ordered.last else { return nil }
+        if time <= first.timestamp { return first.depthMeters }
+        if time >= last.timestamp { return last.depthMeters }
+        for (a, b) in zip(ordered, ordered.dropFirst()) where time >= a.timestamp && time <= b.timestamp {
+            let span = b.timestamp.timeIntervalSince(a.timestamp)
+            guard span > 0 else { return a.depthMeters }
+            let fraction = time.timeIntervalSince(a.timestamp) / span
+            return a.depthMeters + (b.depthMeters - a.depthMeters) * fraction
+        }
+        return last.depthMeters
+    }
+}
+
 /// Kinds of events a diver can mark during a session. Built-in kinds only;
 /// user-defined custom markers are tracked separately (see roadmap).
 public enum EventKind: String, Sendable, Codable, CaseIterable {
@@ -204,21 +224,12 @@ public struct Dive: Sendable, Equatable, Codable, Identifiable {
             }
     }
 
-    /// Linearly-interpolated depth at the given instant, or `nil` if the time
-    /// falls outside the dive's sample range. Used to place event markers on the
-    /// depth profile at the depth the diver was actually at when the marker
-    /// landed.
+    /// Linearly-interpolated depth at the given instant, clamped to the first/last
+    /// sample (so a marker inside the dive window always lands), or `nil` only when
+    /// the dive has no samples. Used to place event markers on the depth profile at
+    /// the depth the diver was actually at when the marker landed.
     public func interpolatedDepth(at time: Date) -> Double? {
-        let ordered = samples.sorted { $0.timestamp < $1.timestamp }
-        guard let first = ordered.first, let last = ordered.last,
-              time >= first.timestamp, time <= last.timestamp else { return nil }
-        for (a, b) in zip(ordered, ordered.dropFirst()) where time >= a.timestamp && time <= b.timestamp {
-            let span = b.timestamp.timeIntervalSince(a.timestamp)
-            guard span > 0 else { return a.depthMeters }
-            let fraction = time.timeIntervalSince(a.timestamp) / span
-            return a.depthMeters + (b.depthMeters - a.depthMeters) * fraction
-        }
-        return last.depthMeters
+        samples.interpolatedDepth(at: time)
     }
 
     public init(
