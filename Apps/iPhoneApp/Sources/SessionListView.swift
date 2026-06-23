@@ -31,8 +31,20 @@ struct SessionListView: View {
                         NavigationLink(value: session) {
                             HStack(spacing: 12) {
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text(session.startTime, style: .date)
-                                        .font(.headline)
+                                    if let title = domain.title, !title.isEmpty {
+                                        Text(title)
+                                            .font(.headline)
+                                        Text(session.startTime, style: .date)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    } else {
+                                        Text(session.startTime, style: .date)
+                                            .font(.headline)
+                                    }
+                                    if let rating = domain.rating {
+                                        StarRating(rating: rating)
+                                            .font(.caption2)
+                                    }
                                     Text("\(domain.diveCount) dives · max \(DepthFormat.string(domain.maxDepthMeters))")
                                         .font(.subheadline)
                                         .foregroundStyle(.secondary)
@@ -99,6 +111,7 @@ struct SessionListView: View {
         for session in sessions {
             if Task.isCancelled { return }
             guard session.locationName == nil,
+                  !session.locationNameEdited,
                   !geocodeAttempted.contains(session.id),
                   let lat = session.latitude, let lon = session.longitude else { continue }
             geocodeAttempted.insert(session.id)

@@ -73,6 +73,7 @@ struct WatchSessionListView: View {
         for record in sessions {
             if Task.isCancelled { return }
             guard record.locationName == nil,
+                  !record.locationNameEdited,
                   !geocodeAttempted.contains(record.id),
                   let lat = record.latitude, let lon = record.longitude else { continue }
             // Mark attempted up front so a coordinate that geocodes to nothing

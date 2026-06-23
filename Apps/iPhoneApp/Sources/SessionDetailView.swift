@@ -14,6 +14,7 @@ struct SessionDetailView: View {
     }
     @State private var exportStatus: ExportStatus = .idle
     @State private var showFullMap = false
+    @State private var showEdit = false
 
     var body: some View {
         let domain = session.toDomain()
@@ -35,6 +36,15 @@ struct SessionDetailView: View {
                 if domain.surfaceDistanceMeters >= 1 {
                     LabeledContent("Distance", value: DistanceFormat.string(domain.surfaceDistanceMeters))
                 }
+                if let rating = domain.rating {
+                    LabeledContent("Rating") { StarRating(rating: rating) }
+                }
+            }
+
+            if let notes = domain.notes, !notes.isEmpty {
+                Section("Notes") {
+                    Text(notes)
+                }
             }
 
             chartsSection(domain)
@@ -48,9 +58,15 @@ struct SessionDetailView: View {
             // Full session map at the bottom.
             locationSection(domain)
         }
-        .navigationTitle(domain.startTime.formatted(date: .abbreviated, time: .omitted))
+        .navigationTitle(domain.title ?? domain.startTime.formatted(date: .abbreviated, time: .omitted))
         .navigationBarTitleDisplayMode(.inline)
         .fullScreenCover(isPresented: $showFullMap) { fullMap(domain) }
+        .sheet(isPresented: $showEdit) { SessionEditView(session: session) }
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("Edit") { showEdit = true }
+            }
+        }
     }
 
     // MARK: - Location
