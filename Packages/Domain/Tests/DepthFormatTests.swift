@@ -74,3 +74,32 @@ struct TemperatureFormatTests {
         #expect(abs(TemperatureFormat.celsius(fromDisplay: 70, units: .imperial) - 21.111) < 0.01)
     }
 }
+
+@Suite("WindSpeedFormat")
+struct WindSpeedFormatTests {
+    @Test("speed converts to the chosen wind unit")
+    func speed() {
+        #expect(WindSpeedFormat.string(10, units: .metric) == "10 km/h")
+        #expect(WindSpeedFormat.string(10, units: UnitPreference(windSpeed: .ms)) == "2.8 m/s") // ≈ 2.78 m/s
+        #expect(WindSpeedFormat.string(10, units: .imperial) == "6 mph") // ≈ 6.2 mph
+        #expect(WindSpeedFormat.string(10, units: UnitPreference(windSpeed: .knots)) == "5 kn") // ≈ 5.4 kn
+    }
+
+    @Test("degrees map to a 16-point compass heading, wrapping around")
+    func compass() {
+        #expect(WindSpeedFormat.compass(0) == "N")
+        #expect(WindSpeedFormat.compass(45) == "NE")
+        #expect(WindSpeedFormat.compass(180) == "S")
+        #expect(WindSpeedFormat.compass(270) == "W")
+        #expect(WindSpeedFormat.compass(360) == "N") // wraps
+        #expect(WindSpeedFormat.compass(-45) == "NW") // 315°
+        #expect(WindSpeedFormat.compass(nil) == nil)
+    }
+
+    @Test("summary prepends the direction when known, nil without a speed")
+    func summary() {
+        #expect(WindSpeedFormat.summary(speedKmh: 10, directionDegrees: 45, units: .metric) == "NE, 10 km/h")
+        #expect(WindSpeedFormat.summary(speedKmh: 10, directionDegrees: nil, units: .metric) == "10 km/h")
+        #expect(WindSpeedFormat.summary(speedKmh: nil, directionDegrees: 45, units: .metric) == nil)
+    }
+}

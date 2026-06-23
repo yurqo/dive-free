@@ -64,6 +64,7 @@ public final class SessionRecord {
     // the fetch succeeded so the deferred pass doesn't refetch.
     public var weatherCode: Int?
     public var windSpeedKmh: Double?
+    public var windDirectionDegrees: Double?
     public var waveHeightMeters: Double?
     public var weatherFetched: Bool = false
 
@@ -72,11 +73,17 @@ public final class SessionRecord {
     public var weather: DiveWeather? {
         get {
             guard weatherFetched else { return nil }
-            return DiveWeather(weatherCode: weatherCode, windSpeedKmh: windSpeedKmh, waveHeightMeters: waveHeightMeters)
+            return DiveWeather(
+                weatherCode: weatherCode,
+                windSpeedKmh: windSpeedKmh,
+                windDirectionDegrees: windDirectionDegrees,
+                waveHeightMeters: waveHeightMeters
+            )
         }
         set {
             weatherCode = newValue?.weatherCode
             windSpeedKmh = newValue?.windSpeedKmh
+            windDirectionDegrees = newValue?.windDirectionDegrees
             waveHeightMeters = newValue?.waveHeightMeters
         }
     }
@@ -145,6 +152,7 @@ public final class SessionRecord {
         self.airTemperatureCelsius = conditions.airTemperatureCelsius
         self.weatherCode = weather?.weatherCode
         self.windSpeedKmh = weather?.windSpeedKmh
+        self.windDirectionDegrees = weather?.windDirectionDegrees
         self.waveHeightMeters = weather?.waveHeightMeters
         self.weatherFetched = weatherFetched
         self.smoothTrack = smoothTrack

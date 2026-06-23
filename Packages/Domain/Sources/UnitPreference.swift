@@ -21,6 +21,13 @@ public enum TemperatureUnit: String, Codable, CaseIterable, Sendable {
     case celsius, fahrenheit
 }
 
+/// Wind-speed display unit. Independent of `UnitMode`: "metric" wind is commonly
+/// shown as either km/h *or* m/s, and marine users want knots, so the user picks
+/// this directly rather than it being derived from the mode.
+public enum WindSpeedUnit: String, Codable, CaseIterable, Sendable {
+    case kmh, ms, mph, knots
+}
+
 /// The user's units choice: a `mode` plus per-dimension overrides that only take
 /// effect in `custom` mode. Resolved into effective units via `depth`/`distance`/
 /// `temperature`, which the centralized formatters consult.
@@ -35,17 +42,38 @@ public struct UnitPreference: Codable, Sendable, Equatable {
     public var customDepth: DepthUnit
     public var customDistance: DistanceUnit
     public var customTemperature: TemperatureUnit
+    /// Wind-speed unit. Used as-is regardless of `mode` (see `WindSpeedUnit`).
+    public var windSpeed: WindSpeedUnit
 
     public init(
         mode: UnitMode = .metric,
         customDepth: DepthUnit = .meters,
         customDistance: DistanceUnit = .metric,
-        customTemperature: TemperatureUnit = .celsius
+        customTemperature: TemperatureUnit = .celsius,
+        windSpeed: WindSpeedUnit = .kmh
     ) {
         self.mode = mode
         self.customDepth = customDepth
         self.customDistance = customDistance
         self.customTemperature = customTemperature
+        self.windSpeed = windSpeed
+    }
+
+    /// Lenient decode so a synced payload from an older build (missing a
+    /// dimension) still applies rather than being dropped on cross-device
+    /// version skew — each absent field falls back to the region default.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let fallback = UnitPreference.regionDefault
+        mode = try container.decodeIfPresent(UnitMode.self, forKey: .mode) ?? fallback.mode
+        customDepth = try container.decodeIfPresent(DepthUnit.self, forKey: .customDepth) ?? fallback.customDepth
+        customDistance = try container.decodeIfPresent(DistanceUnit.self, forKey: .customDistance) ?? fallback.customDistance
+        customTemperature = try container.decodeIfPresent(TemperatureUnit.self, forKey: .customTemperature) ?? fallback.customTemperature
+        windSpeed = try container.decodeIfPresent(WindSpeedUnit.self, forKey: .windSpeed) ?? fallback.windSpeed
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case mode, customDepth, customDistance, customTemperature, windSpeed
     }
 
     public static let metric = UnitPreference(mode: .metric)
@@ -53,7 +81,8 @@ public struct UnitPreference: Codable, Sendable, Equatable {
         mode: .imperial,
         customDepth: .feet,
         customDistance: .imperial,
-        customTemperature: .fahrenheit
+        customTemperature: .fahrenheit,
+        windSpeed: .mph
     )
 
     /// Effective depth unit for the current mode.
@@ -91,6 +120,7 @@ public extension UnitPreference {
         public static let depth = "unitDepth"
         public static let distance = "unitDistance"
         public static let temperature = "unitTemperature"
+        public static let windSpeed = "unitWindSpeed"
     }
 
     /// The default before the user has chosen, inferred from device region:
@@ -112,7 +142,8 @@ public extension UnitPreference {
             mode: defaults.string(forKey: Key.mode).flatMap(UnitMode.init) ?? fallback.mode,
             customDepth: defaults.string(forKey: Key.depth).flatMap(DepthUnit.init) ?? fallback.customDepth,
             customDistance: defaults.string(forKey: Key.distance).flatMap(DistanceUnit.init) ?? fallback.customDistance,
-            customTemperature: defaults.string(forKey: Key.temperature).flatMap(TemperatureUnit.init) ?? fallback.customTemperature
+            customTemperature: defaults.string(forKey: Key.temperature).flatMap(TemperatureUnit.init) ?? fallback.customTemperature,
+            windSpeed: defaults.string(forKey: Key.windSpeed).flatMap(WindSpeedUnit.init) ?? fallback.windSpeed
         )
     }
 
@@ -123,5 +154,6 @@ public extension UnitPreference {
         defaults.set(customDepth.rawValue, forKey: Key.depth)
         defaults.set(customDistance.rawValue, forKey: Key.distance)
         defaults.set(customTemperature.rawValue, forKey: Key.temperature)
+        defaults.set(windSpeed.rawValue, forKey: Key.windSpeed)
     }
 }

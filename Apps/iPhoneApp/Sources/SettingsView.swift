@@ -16,6 +16,7 @@ struct SettingsView: View {
     @AppStorage(UnitPreference.Key.depth) private var depthRaw = UnitPreference.regionDefault.customDepth.rawValue
     @AppStorage(UnitPreference.Key.distance) private var distanceRaw = UnitPreference.regionDefault.customDistance.rawValue
     @AppStorage(UnitPreference.Key.temperature) private var temperatureRaw = UnitPreference.regionDefault.customTemperature.rawValue
+    @AppStorage(UnitPreference.Key.windSpeed) private var windSpeedRaw = UnitPreference.regionDefault.windSpeed.rawValue
 
     var body: some View {
         Form {
@@ -84,6 +85,14 @@ struct SettingsView: View {
                     Text("Fahrenheit").tag(TemperatureUnit.fahrenheit.rawValue)
                 }
             }
+            // Wind speed is independent of the mode (metric wind is shown as
+            // either km/h or m/s), so it's always selectable.
+            Picker("Wind speed", selection: $windSpeedRaw) {
+                Text("km/h").tag(WindSpeedUnit.kmh.rawValue)
+                Text("m/s").tag(WindSpeedUnit.ms.rawValue)
+                Text("mph").tag(WindSpeedUnit.mph.rawValue)
+                Text("Knots").tag(WindSpeedUnit.knots.rawValue)
+            }
         } header: {
             Text("Units")
         } footer: {
@@ -93,6 +102,7 @@ struct SettingsView: View {
         .onChange(of: depthRaw) { syncUnits() }
         .onChange(of: distanceRaw) { syncUnits() }
         .onChange(of: temperatureRaw) { syncUnits() }
+        .onChange(of: windSpeedRaw) { syncUnits() }
     }
 
     /// Push the (just-written) units preference to the watch.

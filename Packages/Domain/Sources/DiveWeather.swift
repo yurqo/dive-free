@@ -9,18 +9,27 @@ public struct DiveWeather: Codable, Sendable, Equatable {
     public var weatherCode: Int?
     /// Wind speed in km/h (Open-Meteo's default unit).
     public var windSpeedKmh: Double?
+    /// Meteorological wind direction in degrees (the heading the wind blows
+    /// *from*); rendered as a compass point next to the speed.
+    public var windDirectionDegrees: Double?
     /// Significant wave height in meters (marine API).
     public var waveHeightMeters: Double?
 
-    public init(weatherCode: Int? = nil, windSpeedKmh: Double? = nil, waveHeightMeters: Double? = nil) {
+    public init(
+        weatherCode: Int? = nil,
+        windSpeedKmh: Double? = nil,
+        windDirectionDegrees: Double? = nil,
+        waveHeightMeters: Double? = nil
+    ) {
         self.weatherCode = weatherCode
         self.windSpeedKmh = windSpeedKmh
+        self.windDirectionDegrees = windDirectionDegrees
         self.waveHeightMeters = waveHeightMeters
     }
 
     /// True when nothing useful was fetched.
     public var isEmpty: Bool {
-        weatherCode == nil && windSpeedKmh == nil && waveHeightMeters == nil
+        weatherCode == nil && windSpeedKmh == nil && windDirectionDegrees == nil && waveHeightMeters == nil
     }
 
     /// Human-readable summary of the WMO weather code, or `nil` if absent/unknown.

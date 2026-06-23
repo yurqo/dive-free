@@ -59,10 +59,11 @@ struct SessionDetailView: View {
 
             MarkerListSection(markers: domain.markers)
 
-            stravaSection(domain)
-
-            // Full session map at the bottom.
+            // Full session map.
             locationSection(domain)
+
+            // Export lives at the very bottom, under the map.
+            stravaSection(domain)
         }
         .navigationTitle(domain.title ?? domain.startTime.formatted(date: .abbreviated, time: .omitted))
         .navigationBarTitleDisplayMode(.inline)
@@ -84,8 +85,8 @@ struct SessionDetailView: View {
                 if let condition = weather.conditionDescription {
                     LabeledContent("Conditions", value: condition)
                 }
-                if let wind = weather.windSpeedKmh {
-                    LabeledContent("Wind", value: "\(Int(wind.rounded())) km/h")
+                if let wind = WindSpeedFormat.summary(speedKmh: weather.windSpeedKmh, directionDegrees: weather.windDirectionDegrees) {
+                    LabeledContent("Wind", value: wind)
                 }
                 if let wave = weather.waveHeightMeters {
                     LabeledContent("Waves", value: String(format: "%.1f m", wave))

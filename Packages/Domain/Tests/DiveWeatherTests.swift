@@ -8,6 +8,7 @@ struct DiveWeatherTests {
     func emptiness() {
         #expect(DiveWeather().isEmpty)
         #expect(!DiveWeather(weatherCode: 0).isEmpty)
+        #expect(!DiveWeather(windDirectionDegrees: 90).isEmpty)
         #expect(!DiveWeather(waveHeightMeters: 0.5).isEmpty)
     }
 
@@ -23,8 +24,16 @@ struct DiveWeatherTests {
 
     @Test("round-trips through JSON")
     func roundTrip() throws {
-        let weather = DiveWeather(weatherCode: 2, windSpeedKmh: 12, waveHeightMeters: 0.5)
+        let weather = DiveWeather(weatherCode: 2, windSpeedKmh: 12, windDirectionDegrees: 200, waveHeightMeters: 0.5)
         #expect(try JSONDecoder().decode(DiveWeather.self, from: JSONEncoder().encode(weather)) == weather)
+    }
+
+    @Test("legacy payload without wind direction decodes to nil")
+    func legacyDecode() throws {
+        let json = #"{"weatherCode":2,"windSpeedKmh":12,"waveHeightMeters":0.5}"#
+        let decoded = try JSONDecoder().decode(DiveWeather.self, from: Data(json.utf8))
+        #expect(decoded.windDirectionDegrees == nil)
+        #expect(decoded.windSpeedKmh == 12)
     }
 
     @Test("session weather defaults to nil/not-fetched; legacy payload decodes")

@@ -107,3 +107,59 @@ public enum TemperatureFormat {
         units.temperature == .celsius ? "°C" : "°F"
     }
 }
+
+/// Formats wind: speed (stored in km/h, Open-Meteo's default) in the user's chosen
+/// `WindSpeedUnit`, plus a compass heading from meteorological degrees. `summary`
+/// combines them into one line, e.g. `"NE, 10 km/h"`.
+public enum WindSpeedFormat {
+    static let mphPerKmh = 0.621371
+    static let knotsPerKmh = 0.539957
+    static let msPerKmh = 1.0 / 3.6
+
+    /// Wind speed with unit, e.g. `"10 km/h"` / `"2.8 m/s"` / `"6 mph"` / `"5 kn"`.
+    public static func string(_ kmh: Double, units: UnitPreference = .current) -> String {
+        "\(value(kmh, units: units)) \(unitLabel(units))"
+    }
+
+    /// Bare wind-speed number in the display unit (whole, except m/s → 1 decimal,
+    /// since metres-per-second values for wind are small).
+    public static func value(_ kmh: Double, units: UnitPreference = .current) -> String {
+        switch units.windSpeed {
+        case .kmh: return "\(Int(kmh.rounded()))"
+        case .ms: return String(format: "%.1f", kmh * msPerKmh)
+        case .mph: return "\(Int((kmh * mphPerKmh).rounded()))"
+        case .knots: return "\(Int((kmh * knotsPerKmh).rounded()))"
+        }
+    }
+
+    /// The wind-speed unit symbol (`"km/h"` / `"m/s"` / `"mph"` / `"kn"`).
+    public static func unitLabel(_ units: UnitPreference = .current) -> String {
+        switch units.windSpeed {
+        case .kmh: return "km/h"
+        case .ms: return "m/s"
+        case .mph: return "mph"
+        case .knots: return "kn"
+        }
+    }
+
+    /// 16-point compass abbreviation for a meteorological wind direction (the
+    /// heading the wind blows *from*), e.g. 45° → `"NE"`. `nil` when absent.
+    public static func compass(_ degrees: Double?) -> String? {
+        guard let degrees else { return nil }
+        let points = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
+                      "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"]
+        let wrapped = degrees.truncatingRemainder(dividingBy: 360)
+        let positive = wrapped < 0 ? wrapped + 360 : wrapped
+        let index = Int((positive / 22.5).rounded()) % 16
+        return points[index]
+    }
+
+    /// One-line wind summary, e.g. `"NE, 10 km/h"` (direction prepended when
+    /// known). `nil` when there's no wind speed to show.
+    public static func summary(speedKmh: Double?, directionDegrees: Double?, units: UnitPreference = .current) -> String? {
+        guard let speedKmh else { return nil }
+        let speed = string(speedKmh, units: units)
+        guard let direction = compass(directionDegrees) else { return speed }
+        return "\(direction), \(speed)"
+    }
+}
