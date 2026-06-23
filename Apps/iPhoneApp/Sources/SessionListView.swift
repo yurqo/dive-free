@@ -131,7 +131,7 @@ struct SessionListView: View {
     /// spot gets the resolved area name; idempotent, so it also backfills existing
     /// sessions on first launch.
     private func assignSpots() {
-        try? SpotAssigner(context: modelContext).assignUnassignedSessions()
+        _ = try? SpotAssigner(context: modelContext).assignUnassignedSessions()
     }
 
     /// Fetches weather + marine data for any session missing it, one at a time,
