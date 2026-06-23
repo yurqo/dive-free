@@ -120,8 +120,12 @@ struct SessionRootView: View {
                 let index = Int((newValue / Double(crownStepsPerItem)).rounded())
                 if index != lastFocusedIndex {
                     lastFocusedIndex = index
-                    // Stronger than .click so item changes are felt underwater.
-                    WKInterfaceDevice.current().play(.notification)
+                    // Light tick per item, a distinct chime at the ends of travel (#149).
+                    if index <= 0 || index >= max(session.menuItems.count - 1, 0) {
+                        CrownHaptics.end()
+                    } else {
+                        CrownHaptics.tick()
+                    }
                 }
                 session.focus(index)
             }
