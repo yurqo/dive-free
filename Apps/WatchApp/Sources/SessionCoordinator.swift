@@ -394,8 +394,8 @@ final class SessionCoordinator {
         // references the merged clip and not a source file the merge will delete.
         await pendingMergeTask?.value
         pendingMergeTask = nil
-        await workout.end()
-        let session = try? sessionManager.stopSession()
+        let activeEnergy = await workout.end()
+        let session = try? sessionManager.stopSession(activeEnergyKilocalories: activeEnergy)
         if let session {
             try? sync.send(session)
             // Ship any voice-note files the session's markers reference.

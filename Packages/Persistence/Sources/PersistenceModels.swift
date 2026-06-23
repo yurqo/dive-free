@@ -85,6 +85,10 @@ public final class SessionRecord {
     // Defaulted true for lightweight migration of rows created before the toggle.
     public var smoothTrack: Bool = true
 
+    // Total active energy burned over the session (kilocalories), from the
+    // workout. Optional → lightweight migration of rows created before it.
+    public var activeEnergyKilocalories: Double?
+
     /// The dive spot this session belongs to (assigned on import). Optional so
     /// existing rows migrate to nil and get backfilled by the spot assigner.
     public var spot: Spot?
@@ -116,6 +120,7 @@ public final class SessionRecord {
         weather: DiveWeather? = nil,
         weatherFetched: Bool = false,
         smoothTrack: Bool = true,
+        activeEnergyKilocalories: Double? = nil,
         dives: [DiveRecord] = [],
         markers: [MarkerRecord] = []
     ) {
@@ -143,6 +148,7 @@ public final class SessionRecord {
         self.waveHeightMeters = weather?.waveHeightMeters
         self.weatherFetched = weatherFetched
         self.smoothTrack = smoothTrack
+        self.activeEnergyKilocalories = activeEnergyKilocalories
         self.dives = dives
         self.markers = markers
     }
@@ -280,7 +286,8 @@ public extension SessionRecord {
             conditions: conditions,
             weather: weather,
             weatherFetched: weatherFetched,
-            smoothTrack: smoothTrack
+            smoothTrack: smoothTrack,
+            activeEnergyKilocalories: activeEnergyKilocalories
         )
     }
 }
@@ -335,6 +342,7 @@ public extension SessionRecord {
             weather: session.weather,
             weatherFetched: session.weatherFetched,
             smoothTrack: session.smoothTrack,
+            activeEnergyKilocalories: session.activeEnergyKilocalories,
             dives: session.dives.map { DiveRecord(from: $0) },
             markers: session.markers.map { MarkerRecord(from: $0) }
         )

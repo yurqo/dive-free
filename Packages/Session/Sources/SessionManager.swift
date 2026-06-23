@@ -307,7 +307,7 @@ public final class SessionManager {
     /// and returns the completed `DiveSession` domain value (nil if no session
     /// was active).
     @discardableResult
-    public func stopSession() throws -> DiveSession? {
+    public func stopSession(activeEnergyKilocalories: Double? = nil) throws -> DiveSession? {
         guard isActive, let start = startTime else { return nil }
         sensors.onSamplesChanged = nil
         sensors.stop()
@@ -327,7 +327,8 @@ public final class SessionManager {
             location: capturedLocation,
             track: track,
             heartRateSamples: heartRateSamples,
-            temperatureSamples: sensors.temperatureSamples
+            temperatureSamples: sensors.temperatureSamples,
+            activeEnergyKilocalories: activeEnergyKilocalories
         )
         let record = SessionRecord(from: session)
         modelContext.insert(record)
