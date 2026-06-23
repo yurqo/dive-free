@@ -1,0 +1,36 @@
+import Foundation
+import SwiftData
+
+/// A persistent dive spot: a place the diver has logged one or more sessions.
+/// Sessions auto-assign to the nearest spot within a radius (else a new spot is
+/// created), and the spot's center is the mean of its sessions' locations.
+@Model
+public final class Spot {
+    public var id: UUID
+    public var name: String
+    public var centerLatitude: Double
+    public var centerLongitude: Double
+    public var createdAt: Date
+    public var notes: String?
+
+    @Relationship(deleteRule: .nullify, inverse: \SessionRecord.spot)
+    public var sessions: [SessionRecord]
+
+    public init(
+        id: UUID = UUID(),
+        name: String,
+        centerLatitude: Double,
+        centerLongitude: Double,
+        createdAt: Date = Date(),
+        notes: String? = nil,
+        sessions: [SessionRecord] = []
+    ) {
+        self.id = id
+        self.name = name
+        self.centerLatitude = centerLatitude
+        self.centerLongitude = centerLongitude
+        self.createdAt = createdAt
+        self.notes = notes
+        self.sessions = sessions
+    }
+}
