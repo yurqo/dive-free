@@ -26,7 +26,7 @@ struct DiveFreeApp: App {
 
     var body: some Scene {
         WindowGroup {
-            SessionListView()
+            RootTabView()
                 .environment(strava)
                 .environment(\.syncManager, sync)
                 .unitsAware()
