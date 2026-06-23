@@ -78,3 +78,8 @@ fastlane/test_output
 
 # xcode-build-server config for SourceKit-LSP (machine-specific)
 buildServer.json
+
+# Cloudflare Worker (/Server)
+Server/node_modules/
+Server/.wrangler/
+Server/.dev.vars

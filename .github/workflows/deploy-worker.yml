@@ -1,0 +1,46 @@
+name: Deploy Worker
+
+# Deploys the Strava token proxy (/Server) to Cloudflare.
+#
+# Note: if Cloudflare Workers Builds (git integration) is also enabled for this
+# repo, both will deploy on push and race. Pick one primary path — either
+# disable Workers Builds auto-deploy and rely on this workflow, or keep Workers
+# Builds and trigger this only manually (workflow_dispatch).
+on:
+  push:
+    branches: [main]
+    paths:
+      - "Server/**"
+      - ".github/workflows/deploy-worker.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-worker
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: wrangler deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        working-directory: Server
+        run: npm ci || npm install
+
+      # Deploys with wrangler. Strava secrets (STRAVA_CLIENT_ID /
+      # STRAVA_CLIENT_SECRET) are NOT set here — they're configured once via
+      # `wrangler secret put` (or the dashboard) and persist across deploys.
+      - name: Deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: Server

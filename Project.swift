@@ -112,10 +112,6 @@ let iphoneApp = Target.target(
         // App uses only standard (exempt) HTTPS encryption — auto-clears the
         // TestFlight/App Store export-compliance prompt.
         "ITSAppUsesNonExemptEncryption": false,
-        // Strava client secret, substituted from the STRAVA_CLIENT_SECRET build
-        // setting at archive time (empty in local/CI test builds). Read via
-        // StravaConfig.clientSecret.
-        "STRAVA_CLIENT_SECRET": "$(STRAVA_CLIENT_SECRET)",
         "UISupportedInterfaceOrientations": ["UIInterfaceOrientationPortrait"],
         "UISupportedInterfaceOrientations~ipad": [
             "UIInterfaceOrientationPortrait",
@@ -170,9 +166,6 @@ let project = Project(
         "CURRENT_PROJECT_VERSION": "1",
         "DEVELOPMENT_TEAM": SettingValue(stringLiteral: developmentTeam),
         "CODE_SIGN_STYLE": "Automatic",
-        // Default empty; the TestFlight workflow overrides this at archive time
-        // with the STRAVA_CLIENT_SECRET repo secret. Keeps the secret out of git.
-        "STRAVA_CLIENT_SECRET": "",
     ]),
     targets: [iphoneApp, watchApp]
         + module("Domain")

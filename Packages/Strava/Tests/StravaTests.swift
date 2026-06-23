@@ -386,7 +386,6 @@ struct StravaExportTests {
         return StravaAuthManager(
             store: InMemoryTokenStore(tokens: tokens),
             webAuth: StubWebAuth(callback: URL(string: "x://y")!),
-            clientSecret: "secret",
             perform: tokenResponse(accessToken: "REFRESHED", expiresAt: Date().addingTimeInterval(3600).timeIntervalSince1970)
         )
     }
@@ -494,22 +493,30 @@ struct StravaOAuthTests {
         }
     }
 
-    @Test("token exchange request posts the code and authorization_code grant")
-    func tokenExchangeBody() {
-        let request = StravaOAuth.tokenExchangeRequest(code: "C", clientID: "123", clientSecret: "secret")
+    @Test("token exchange posts the code as JSON to the proxy /token endpoint")
+    func tokenExchangeBody() throws {
+        let proxy = URL(string: "https://proxy.example.com")!
+        let request = StravaOAuth.tokenExchangeRequest(code: "C", proxyBaseURL: proxy)
         #expect(request.httpMethod == "POST")
+        #expect(request.url?.path == "/token")
+        #expect(request.value(forHTTPHeaderField: "Content-Type") == "application/json")
+        let json = try JSONSerialization.jsonObject(with: request.httpBody ?? Data()) as? [String: String]
+        #expect(json == ["code": "C"])
+        // The client secret never leaves the proxy.
         let body = String(data: request.httpBody ?? Data(), encoding: .utf8) ?? ""
-        #expect(body.contains("code=C"))
-        #expect(body.contains("grant_type=authorization_code"))
-        #expect(body.contains("client_secret=secret"))
+        #expect(!body.contains("client_secret"))
     }
 
-    @Test("refresh request posts the refresh token and refresh_token grant")
-    func refreshBody() {
-        let request = StravaOAuth.refreshRequest(refreshToken: "RT", clientID: "123", clientSecret: "secret")
+    @Test("refresh posts the refresh token as JSON to the proxy /refresh endpoint")
+    func refreshBody() throws {
+        let proxy = URL(string: "https://proxy.example.com")!
+        let request = StravaOAuth.refreshRequest(refreshToken: "RT", proxyBaseURL: proxy)
+        #expect(request.httpMethod == "POST")
+        #expect(request.url?.path == "/refresh")
+        let json = try JSONSerialization.jsonObject(with: request.httpBody ?? Data()) as? [String: String]
+        #expect(json == ["refresh_token": "RT"])
         let body = String(data: request.httpBody ?? Data(), encoding: .utf8) ?? ""
-        #expect(body.contains("refresh_token=RT"))
-        #expect(body.contains("grant_type=refresh_token"))
+        #expect(!body.contains("client_secret"))
     }
 
     @Test("in-memory token store saves, loads, and clears")
@@ -552,7 +559,6 @@ struct StravaAuthManagerTests {
         let manager = StravaAuthManager(
             store: store,
             webAuth: StubWebAuth(callback: URL(string: "divefree://strava-callback?state=S&code=C")!),
-            clientSecret: "secret",
             perform: tokenResponse(accessToken: "AT", expiresAt: 9_999_999_999),
             makeState: { "S" }
         )
@@ -569,7 +575,6 @@ struct StravaAuthManagerTests {
         let manager = StravaAuthManager(
             store: InMemoryTokenStore(),
             webAuth: StubWebAuth(callback: URL(string: "divefree://strava-callback?state=S&error=access_denied")!),
-            clientSecret: "secret",
             perform: tokenResponse(accessToken: "AT", expiresAt: 0),
             makeState: { "S" }
         )
@@ -599,7 +604,6 @@ struct StravaAuthManagerTests {
         let manager = StravaAuthManager(
             store: store,
             webAuth: StubWebAuth(callback: URL(string: "x://y")!),
-            clientSecret: "secret",
             perform: { _ in Issue.record("should not refresh"); throw StravaError.notAuthenticated }
         )
         #expect(try await manager.validAccessToken() == "FRESH")
@@ -613,7 +617,6 @@ struct StravaAuthManagerTests {
         let manager = StravaAuthManager(
             store: store,
             webAuth: StubWebAuth(callback: URL(string: "x://y")!),
-            clientSecret: "secret",
             perform: tokenResponse(accessToken: "NEW", expiresAt: Date().addingTimeInterval(3600).timeIntervalSince1970)
         )
         #expect(try await manager.validAccessToken() == "NEW")

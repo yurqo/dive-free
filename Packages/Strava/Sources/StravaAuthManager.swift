@@ -14,20 +14,20 @@ public final class StravaAuthManager {
 
     private let store: StravaTokenStore
     private let webAuth: WebAuthenticating
-    private let clientSecret: String
+    private let proxyBaseURL: URL
     private let perform: (URLRequest) async throws -> (Data, URLResponse)
     private let makeState: () -> String
 
     public init(
         store: StravaTokenStore,
         webAuth: WebAuthenticating,
-        clientSecret: String = StravaConfig.clientSecret,
+        proxyBaseURL: URL = StravaConfig.proxyBaseURL,
         perform: @escaping (URLRequest) async throws -> (Data, URLResponse) = { try await URLSession.shared.data(for: $0) },
         makeState: @escaping () -> String = { UUID().uuidString }
     ) {
         self.store = store
         self.webAuth = webAuth
-        self.clientSecret = clientSecret
+        self.proxyBaseURL = proxyBaseURL
         self.perform = perform
         self.makeState = makeState
         self.isConnected = store.load() != nil
@@ -39,7 +39,7 @@ public final class StravaAuthManager {
         let authURL = StravaOAuth.authorizationURL(state: state)
         let callback = try await webAuth.authenticate(url: authURL, callbackScheme: StravaConfig.callbackScheme)
         let code = try StravaOAuth.authorizationCode(from: callback, expectedState: state)
-        let request = StravaOAuth.tokenExchangeRequest(code: code, clientSecret: clientSecret)
+        let request = StravaOAuth.tokenExchangeRequest(code: code, proxyBaseURL: proxyBaseURL)
         let tokens = try await exchangeTokens(request)
         try store.save(tokens)
         isConnected = true
@@ -60,7 +60,7 @@ public final class StravaAuthManager {
         }
         guard tokens.isExpired() else { return tokens.accessToken }
 
-        let request = StravaOAuth.refreshRequest(refreshToken: tokens.refreshToken, clientSecret: clientSecret)
+        let request = StravaOAuth.refreshRequest(refreshToken: tokens.refreshToken, proxyBaseURL: proxyBaseURL)
         let refreshed = try await exchangeTokens(request)
         try store.save(refreshed)
         isConnected = true
@@ -74,7 +74,7 @@ public final class StravaAuthManager {
             isConnected = false
             throw StravaError.notAuthenticated
         }
-        let request = StravaOAuth.refreshRequest(refreshToken: tokens.refreshToken, clientSecret: clientSecret)
+        let request = StravaOAuth.refreshRequest(refreshToken: tokens.refreshToken, proxyBaseURL: proxyBaseURL)
         let refreshed = try await exchangeTokens(request)
         try store.save(refreshed)
         isConnected = true
