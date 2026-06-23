@@ -4,12 +4,20 @@ import Photos
 import UIKit
 import Persistence
 
+/// A photo as handed to the owner to persist: a library reference (when one was
+/// obtained) plus a thumbnail to cache for offline display (#141). Full images are
+/// not copied — they stay in the Photos library.
+struct ImportedPhoto {
+    let assetIdentifier: String?
+    let thumbnail: UIImage
+}
+
 /// A reusable "Photos" section: a thumbnail strip + add-from-library / take-photo
 /// (plus any `extraActions` the owner adds), with full-screen view and delete. The
 /// owner supplies the photos and the add/delete side effects.
 struct PhotoGallerySection<Extra: View>: View {
     let photos: [PhotoRecord]
-    let onAdd: (UIImage) -> Void
+    let onAdd: (ImportedPhoto) -> Void
     let onDelete: (PhotoRecord) -> Void
     @ViewBuilder var extraActions: Extra
 
@@ -23,7 +31,7 @@ struct PhotoGallerySection<Extra: View>: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
                         ForEach(photos) { photo in
-                            PhotoThumbnail(fileName: photo.fileName)
+                            PhotoThumbnail(photo: photo)
                                 .onTapGesture { fullScreen = photo }
                         }
                     }
@@ -31,7 +39,9 @@ struct PhotoGallerySection<Extra: View>: View {
                 }
                 .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
             }
-            PhotosPicker(selection: $libraryItem, matching: .images) {
+            // .shared() makes the picked item's `itemIdentifier` a library asset id
+            // we can reference later, instead of an opaque copy.
+            PhotosPicker(selection: $libraryItem, matching: .images, photoLibrary: .shared()) {
                 Label("Add from Library", systemImage: "photo.on.rectangle")
             }
             if UIImagePickerController.isSourceTypeAvailable(.camera) {
@@ -43,16 +53,21 @@ struct PhotoGallerySection<Extra: View>: View {
             guard let item else { return }
             Task {
                 if let data = try? await item.loadTransferable(type: Data.self), let image = UIImage(data: data) {
-                    onAdd(image)
+                    onAdd(ImportedPhoto(assetIdentifier: item.itemIdentifier, thumbnail: image))
                 }
                 libraryItem = nil
             }
         }
         .sheet(isPresented: $showCamera) {
-            CameraPicker { onAdd($0) }.ignoresSafeArea()
+            CameraPicker { image in
+                // Save the capture to Photos so it can be referenced like any other
+                // library asset; fall back to a thumbnail-only record if denied.
+                Task { onAdd(ImportedPhoto(assetIdentifier: await PhotoLibrary.save(image), thumbnail: image)) }
+            }
+            .ignoresSafeArea()
         }
         .fullScreenCover(item: $fullScreen) { photo in
-            FullScreenPhotoView(fileName: photo.fileName) { onDelete(photo) }
+            FullScreenPhotoView(photo: photo) { onDelete(photo) }
         }
     }
 }
@@ -69,7 +84,7 @@ struct SessionPhotosSection: View {
     var body: some View {
         PhotoGallerySection(
             photos: session.photos.sorted { $0.createdAt < $1.createdAt },
-            onAdd: { save($0) },
+            onAdd: { save(assetIdentifier: $0.assetIdentifier, thumbnail: $0.thumbnail) },
             onDelete: { remove($0) }
         ) {
             Button { Task { await suggest() } } label: {
@@ -94,14 +109,14 @@ struct SessionPhotosSection: View {
         }
     }
 
-    private func save(_ image: UIImage, assetIdentifier: String? = nil) {
-        guard let fileName = PhotoStore.save(image) else { return }
-        modelContext.insert(PhotoRecord(fileName: fileName, assetIdentifier: assetIdentifier, session: session))
+    private func save(assetIdentifier: String?, thumbnail: UIImage?) {
+        let thumbnailFileName = thumbnail.flatMap { PhotoStore.saveThumbnail($0) }
+        modelContext.insert(PhotoRecord(assetIdentifier: assetIdentifier, thumbnailFileName: thumbnailFileName, session: session))
         try? modelContext.save()
     }
 
     private func remove(_ photo: PhotoRecord) {
-        PhotoStore.delete(photo.fileName)
+        PhotoStore.delete(photo.thumbnailFileName)
         modelContext.delete(photo)
         try? modelContext.save()
     }
@@ -118,9 +133,11 @@ struct SessionPhotosSection: View {
 
     private func importAssets(_ assets: [PHAsset]) async {
         for asset in assets {
-            guard let image = await PhotoMatcher.fullImage(for: asset) else { continue }
-            save(image, assetIdentifier: asset.localIdentifier)
+            let thumbnail = await PhotoLibrary.thumbnail(for: asset)
+            let thumbnailFileName = thumbnail.flatMap { PhotoStore.saveThumbnail($0) }
+            modelContext.insert(PhotoRecord(assetIdentifier: asset.localIdentifier, thumbnailFileName: thumbnailFileName, session: session))
         }
+        try? modelContext.save()
     }
 }
 
@@ -132,13 +149,13 @@ struct SpotPhotosSection: View {
     var body: some View {
         PhotoGallerySection(
             photos: (spot.photos + spot.sessions.flatMap { $0.photos }).sorted { $0.createdAt < $1.createdAt },
-            onAdd: { image in
-                guard let fileName = PhotoStore.save(image) else { return }
-                modelContext.insert(PhotoRecord(fileName: fileName, spot: spot))
+            onAdd: { imported in
+                let thumbnailFileName = PhotoStore.saveThumbnail(imported.thumbnail)
+                modelContext.insert(PhotoRecord(assetIdentifier: imported.assetIdentifier, thumbnailFileName: thumbnailFileName, spot: spot))
                 try? modelContext.save()
             },
             onDelete: { photo in
-                PhotoStore.delete(photo.fileName)
+                PhotoStore.delete(photo.thumbnailFileName)
                 modelContext.delete(photo)
                 try? modelContext.save()
             }
@@ -148,36 +165,62 @@ struct SpotPhotosSection: View {
     }
 }
 
-/// A square thumbnail loaded from `PhotoStore`.
+/// A square thumbnail: the cached thumbnail when present, else loaded from the
+/// Photos library, else a placeholder (asset removed / access denied).
 struct PhotoThumbnail: View {
-    let fileName: String
+    let photo: PhotoRecord
+    @State private var image: UIImage?
 
     var body: some View {
         Group {
-            if let image = PhotoStore.thumbnail(for: fileName) {
+            if let image {
                 Image(uiImage: image).resizable().scaledToFill()
             } else {
-                Color.secondary.opacity(0.2)
+                ZStack {
+                    Color.secondary.opacity(0.2)
+                    Image(systemName: "photo").foregroundStyle(.secondary)
+                }
             }
         }
         .frame(width: 80, height: 80)
         .clipShape(RoundedRectangle(cornerRadius: 8))
+        .task(id: photo.id) { await load() }
+    }
+
+    private func load() async {
+        if let name = photo.thumbnailFileName, let cached = await PhotoStore.thumbnailPrepared(for: name) {
+            image = cached
+            return
+        }
+        // Cache miss: fall back to a library thumbnail (e.g. cache was purged).
+        guard let id = photo.assetIdentifier, await PhotoLibrary.requestAccess(),
+              let asset = PhotoLibrary.asset(for: id) else { return }
+        image = await PhotoLibrary.thumbnail(for: asset)
     }
 }
 
-/// Full-screen photo with Done + delete.
+/// Full-screen photo: loads the original from the Photos library on demand, with a
+/// cached-thumbnail fallback and an "unavailable" state when the asset is gone.
 struct FullScreenPhotoView: View {
-    let fileName: String
+    let photo: PhotoRecord
     let onDelete: () -> Void
     @Environment(\.dismiss) private var dismiss
+    @State private var image: UIImage?
+    @State private var loading = true
 
     var body: some View {
         NavigationStack {
             Group {
-                if let image = PhotoStore.image(for: fileName) {
+                if let image {
                     Image(uiImage: image).resizable().scaledToFit()
+                } else if loading {
+                    ProgressView().tint(.white)
                 } else {
-                    ContentUnavailableView("Image Unavailable", systemImage: "photo")
+                    ContentUnavailableView(
+                        "Photo Unavailable",
+                        systemImage: "photo",
+                        description: Text("This photo is no longer in your Photos library.")
+                    )
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -190,6 +233,20 @@ struct FullScreenPhotoView: View {
                     }
                 }
             }
+            .task { await load() }
+        }
+    }
+
+    private func load() async {
+        defer { loading = false }
+        if let id = photo.assetIdentifier, await PhotoLibrary.requestAccess(),
+           let full = await PhotoLibrary.fullImage(forIdentifier: id) {
+            image = full
+            return
+        }
+        // No original (deleted / no access): show the cached thumbnail if we have one.
+        if let name = photo.thumbnailFileName {
+            image = await PhotoStore.thumbnailPrepared(for: name)
         }
     }
 }

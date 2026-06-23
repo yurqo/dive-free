@@ -1,5 +1,4 @@
 import Foundation
-import os
 import Photos
 import UIKit
 
@@ -20,8 +19,7 @@ enum PhotoMatcher {
 
     /// Requests read access; returns true when we can read (full or limited).
     static func requestReadAccess() async -> Bool {
-        let status = await PHPhotoLibrary.requestAuthorization(for: .readWrite)
-        return status == .authorized || status == .limited
+        await PhotoLibrary.requestAccess()
     }
 
     /// Image assets created within `window`, excluding `excludedIdentifiers`
@@ -51,26 +49,5 @@ enum PhotoMatcher {
         return PHImageManager.default().requestImage(
             for: asset, targetSize: targetSize, contentMode: .aspectFill, options: options
         ) { image, _ in completion(image) }
-    }
-
-    /// Full-resolution image for import. `requestImage` can deliver more than once
-    /// (degraded then full); a lock ensures the continuation resumes exactly once.
-    static func fullImage(for asset: PHAsset) async -> UIImage? {
-        await withCheckedContinuation { (continuation: CheckedContinuation<UIImage?, Never>) in
-            let options = PHImageRequestOptions()
-            options.isNetworkAccessAllowed = true
-            options.deliveryMode = .highQualityFormat
-            let resumed = OSAllocatedUnfairLock(initialState: false)
-            PHImageManager.default().requestImage(
-                for: asset, targetSize: PHImageManagerMaximumSize, contentMode: .default, options: options
-            ) { image, _ in
-                let isFirst = resumed.withLock { done -> Bool in
-                    if done { return false }
-                    done = true
-                    return true
-                }
-                if isFirst { continuation.resume(returning: image) }
-            }
-        }
     }
 }

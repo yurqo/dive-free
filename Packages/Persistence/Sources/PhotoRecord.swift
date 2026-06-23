@@ -1,35 +1,40 @@
 import Foundation
 import SwiftData
 
-/// Metadata for a photo attached to a session (and, later, directly to a spot).
-/// The image bytes live as files in the app container (see the app's `PhotoStore`);
-/// only the `fileName` + links are persisted — no blobs in SwiftData.
+/// Metadata for a photo attached to a session (and/or a spot).
+///
+/// Media is **referenced**, not copied (#141): the original lives in the user's
+/// Photos library, identified by `assetIdentifier` (`PHAsset.localIdentifier`).
+/// We keep only a small `thumbnailFileName` in the app container for a fast,
+/// offline gallery; the full image is loaded from Photos on demand. This keeps
+/// the app's footprint flat regardless of how much media is attached.
 @Model
 public final class PhotoRecord {
     public var id: UUID
-    /// Base file name of the stored image (the thumbnail is derived from it).
-    public var fileName: String
-    public var createdAt: Date
-    /// `PHAsset.localIdentifier` when imported from the photo library, so the
-    /// timestamp auto-suggest (#126) can skip assets that are already attached.
+    /// `PHAsset.localIdentifier` of the referenced library photo — the source of
+    /// truth for the full image. `nil` only if a reference couldn't be obtained.
     public var assetIdentifier: String?
+    /// File name of the cached thumbnail in the app container (see `PhotoStore`),
+    /// shown in the gallery without needing Photos access. `nil` if not cached.
+    public var thumbnailFileName: String?
+    public var createdAt: Date
     /// The session this photo belongs to, if attached via a session.
     public var session: SessionRecord?
-    /// The spot this photo is attached to directly (forward-compatible with #107).
+    /// The spot this photo is attached to directly.
     public var spot: Spot?
 
     public init(
         id: UUID = UUID(),
-        fileName: String,
-        createdAt: Date = Date(),
         assetIdentifier: String? = nil,
+        thumbnailFileName: String? = nil,
+        createdAt: Date = Date(),
         session: SessionRecord? = nil,
         spot: Spot? = nil
     ) {
         self.id = id
-        self.fileName = fileName
-        self.createdAt = createdAt
         self.assetIdentifier = assetIdentifier
+        self.thumbnailFileName = thumbnailFileName
+        self.createdAt = createdAt
         self.session = session
         self.spot = spot
     }

@@ -12,8 +12,8 @@ struct PhotoRecordTests {
         let ctx = store.container.mainContext
         let session = SessionRecord(startTime: Date(timeIntervalSince1970: 0))
         ctx.insert(session)
-        ctx.insert(PhotoRecord(fileName: "a.jpg", session: session))
-        ctx.insert(PhotoRecord(fileName: "b.jpg", session: session))
+        ctx.insert(PhotoRecord(assetIdentifier: "a", session: session))
+        ctx.insert(PhotoRecord(assetIdentifier: "b", session: session))
         try ctx.save()
         #expect(session.photos.count == 2)
         #expect(try ctx.fetch(FetchDescriptor<PhotoRecord>()).count == 2)
@@ -29,7 +29,7 @@ struct PhotoRecordTests {
         let ctx = store.container.mainContext
         let spot = Spot(name: "Reef", centerLatitude: 0, centerLongitude: 0)
         ctx.insert(spot)
-        let photo = PhotoRecord(fileName: "c.jpg", spot: spot)
+        let photo = PhotoRecord(assetIdentifier: "c", spot: spot)
         ctx.insert(photo)
         try ctx.save()
         #expect(spot.photos.count == 1)

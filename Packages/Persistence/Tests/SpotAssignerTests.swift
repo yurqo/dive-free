@@ -73,7 +73,7 @@ struct SpotAssignerTests {
         ctx.insert(source)
         let moved = session(ctx, lat: 1, lon: 1)
         moved.spot = source
-        let photo = PhotoRecord(fileName: "x.jpg", spot: source)
+        let photo = PhotoRecord(assetIdentifier: "x", spot: source)
         ctx.insert(photo)
         try ctx.save()
 
