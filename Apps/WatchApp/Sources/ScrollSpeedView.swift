@@ -62,8 +62,12 @@ struct ScrollSpeedView: View {
             let index = Int((newValue / Double(crownStepsPerItem)).rounded())
             if index != lastFocusedIndex {
                 lastFocusedIndex = index
-                // Same per-item buzz as the live session, so the cadence matches.
-                WKInterfaceDevice.current().play(.notification)
+                // Same cadence as the live session: tick per item, chime at the ends (#149).
+                if index <= 0 || index >= max(items.count - 1, 0) {
+                    CrownHaptics.end()
+                } else {
+                    CrownHaptics.tick()
+                }
             }
             focusedIndex = max(0, min(index, max(items.count - 1, 0)))
         }
