@@ -30,8 +30,13 @@ struct WatchUserGuideView: View {
                         systemImage: "mic.fill"
                     )
                     item(
+                        "Manual dive",
+                        "Press the Action + side button together to start a dive the instant you descend, and again to end it — before depth even registers. Auto-detection handles dives otherwise.",
+                        systemImage: "hand.tap"
+                    )
+                    item(
                         "Ending",
-                        "On the surface, scroll to End and confirm. Underwater, press the Action + side button together twice.",
+                        "Scroll the Crown to End and press the Action button. In the confirm dialog, Action + side ends and the Action button cancels.",
                         systemImage: "stop.circle"
                     )
                     item(

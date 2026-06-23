@@ -96,10 +96,10 @@ struct SessionRootView: View {
                 Button("Cancel", role: .cancel) {}
             } message: {
                 // Underwater the screen is water-locked, so the buttons can't be
-                // tapped — on Ultra use the Action + side combo; otherwise unlock
+                // tapped — on Ultra map it to the hardware buttons; otherwise unlock
                 // with the Crown, then tap.
                 Text(session.hasActionButton
-                     ? "On Ultra, press the Action + side button together again to end."
+                     ? "Action + side to end · Action button to cancel."
                      : "Turn the Crown to unlock, then tap to end.")
             }
             .focusable()

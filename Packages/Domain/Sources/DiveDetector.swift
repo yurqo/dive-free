@@ -73,4 +73,28 @@ public struct DiveDetector: Sendable {
         finalizeCurrent()
         return dives
     }
+
+    /// Detects dives, honoring explicit **manual** dive segments (Action + side on
+    /// the watch). A manual segment defines a dive directly from the samples in its
+    /// window — even if depth never crossed the threshold — and **pre-empts**
+    /// auto-detection: any auto dive overlapping a manual segment is dropped so a
+    /// dive isn't counted twice. Manual + surviving auto dives come back time-ordered.
+    public func detectDives(from samples: [DepthSample], manualSegments: [DateInterval]) -> [Dive] {
+        guard !manualSegments.isEmpty else { return detectDives(from: samples) }
+        let ordered = samples.sorted { $0.timestamp < $1.timestamp }
+        let auto = detectDives(from: ordered).filter { dive in
+            let window = DateInterval(start: dive.startTime, end: dive.endTime)
+            return !manualSegments.contains { $0.intersects(window) }
+        }
+        let manual = manualSegments.map { segment -> Dive in
+            let inSegment = ordered.filter { segment.contains($0.timestamp) }
+            return Dive(
+                startTime: segment.start,
+                endTime: segment.end,
+                maxDepthMeters: inSegment.map(\.depthMeters).max() ?? 0,
+                samples: inSegment
+            )
+        }
+        return (auto + manual).sorted { $0.startTime < $1.startTime }
+    }
 }
