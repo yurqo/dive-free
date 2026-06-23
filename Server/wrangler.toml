@@ -4,11 +4,11 @@ name = "dive-free"
 main = "src/index.ts"
 compatibility_date = "2026-06-01"
 
-# Public, non-secret Worker host. Must match StravaConfig.proxyBaseURL in the app.
-# The zone (your-domain) must live on this Cloudflare account. Replace the
-# placeholder host below with your real domain, e.g. "strava.divefree.app/*".
+# Public, non-secret Worker host (must match StravaConfig.proxyBaseURL in the
+# app). A custom_domain route is a bare hostname — no path or `/*`. The zone
+# must live on this Cloudflare account.
 [[routes]]
-pattern = "strava.your-domain/*"
+pattern = "strava.divefree.software-engineer.ing"
 custom_domain = true
 
 [vars]

@@ -12,5 +12,5 @@ public enum StravaConfig {
     /// Strava directly, so the `client_secret` never ships in the binary. This is
     /// a public, non-secret host — safe to hardcode. Point it at your deployed
     /// Worker's custom domain.
-    public static let proxyBaseURL = URL(string: "https://strava.your-domain")!
+    public static let proxyBaseURL = URL(string: "https://strava.divefree.software-engineer.ing")!
 }
