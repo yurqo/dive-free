@@ -47,6 +47,8 @@ struct SessionDetailView: View {
                 }
             }
 
+            conditionsSection(domain)
+
             chartsSection(domain)
 
             segmentsSection(domain)
@@ -65,6 +67,27 @@ struct SessionDetailView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button("Edit") { showEdit = true }
+            }
+        }
+    }
+
+    // MARK: - Conditions
+
+    @ViewBuilder
+    private func conditionsSection(_ domain: DiveSession) -> some View {
+        let c = domain.conditions
+        if !c.isEmpty {
+            Section("Conditions") {
+                if let v = c.visibility { LabeledContent("Visibility", value: v.label) }
+                if let current = c.current { LabeledContent("Current", value: current.label) }
+                if let s = c.surface { LabeledContent("Surface", value: s.label) }
+                if let t = c.tide { LabeledContent("Tide", value: t.label) }
+                if let wt = c.waterTemperatureCelsius {
+                    LabeledContent("Water temp", value: TemperatureFormat.string(wt))
+                }
+                if let at = c.airTemperatureCelsius {
+                    LabeledContent("Air temp", value: TemperatureFormat.string(at))
+                }
             }
         }
     }

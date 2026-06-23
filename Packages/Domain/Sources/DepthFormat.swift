@@ -97,6 +97,11 @@ public enum TemperatureFormat {
         units.temperature == .celsius ? celsius : celsius * 9 / 5 + 32
     }
 
+    /// Converts a value entered in the display unit back to °C for storage.
+    public static func celsius(fromDisplay value: Double, units: UnitPreference = .current) -> Double {
+        units.temperature == .celsius ? value : (value - 32) * 5 / 9
+    }
+
     /// The temperature unit symbol for the current preference (`"°C"` / `"°F"`).
     public static func unitLabel(_ units: UnitPreference = .current) -> String {
         units.temperature == .celsius ? "°C" : "°F"

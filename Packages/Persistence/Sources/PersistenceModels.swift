@@ -26,6 +26,39 @@ public final class SessionRecord {
     public var title: String?
     public var notes: String?
     public var rating: Int?
+    // Manually-entered dive conditions, stored as primitive columns — a Codable
+    // composite attribute crashes on read in SwiftData ("Could not cast
+    // Optional<Any> to DiveConditions"). The `conditions` computed facade below
+    // packs/unpacks these. All optional → lightweight migration.
+    public var visibilityRaw: String?
+    public var currentRaw: String?
+    public var surfaceRaw: String?
+    public var tideRaw: String?
+    public var waterTemperatureCelsius: Double?
+    public var airTemperatureCelsius: Double?
+
+    /// Typed view over the stored condition columns (not itself persisted).
+    public var conditions: DiveConditions {
+        get {
+            DiveConditions(
+                visibility: visibilityRaw.flatMap(WaterVisibility.init(rawValue:)),
+                current: currentRaw.flatMap(WaterCurrent.init(rawValue:)),
+                surface: surfaceRaw.flatMap(SurfaceCondition.init(rawValue:)),
+                tide: tideRaw.flatMap(TideStage.init(rawValue:)),
+                waterTemperatureCelsius: waterTemperatureCelsius,
+                airTemperatureCelsius: airTemperatureCelsius
+            )
+        }
+        set {
+            visibilityRaw = newValue.visibility?.rawValue
+            currentRaw = newValue.current?.rawValue
+            surfaceRaw = newValue.surface?.rawValue
+            tideRaw = newValue.tide?.rawValue
+            waterTemperatureCelsius = newValue.waterTemperatureCelsius
+            airTemperatureCelsius = newValue.airTemperatureCelsius
+        }
+    }
+
     // Whether distance/maps use the cleaned (outlier-rejected + smoothed) track.
     // Defaulted true for lightweight migration of rows created before the toggle.
     public var smoothTrack: Bool = true
@@ -50,6 +83,7 @@ public final class SessionRecord {
         title: String? = nil,
         notes: String? = nil,
         rating: Int? = nil,
+        conditions: DiveConditions = DiveConditions(),
         smoothTrack: Bool = true,
         dives: [DiveRecord] = [],
         markers: [MarkerRecord] = []
@@ -67,6 +101,12 @@ public final class SessionRecord {
         self.title = title
         self.notes = notes
         self.rating = rating
+        self.visibilityRaw = conditions.visibility?.rawValue
+        self.currentRaw = conditions.current?.rawValue
+        self.surfaceRaw = conditions.surface?.rawValue
+        self.tideRaw = conditions.tide?.rawValue
+        self.waterTemperatureCelsius = conditions.waterTemperatureCelsius
+        self.airTemperatureCelsius = conditions.airTemperatureCelsius
         self.smoothTrack = smoothTrack
         self.dives = dives
         self.markers = markers
@@ -202,6 +242,7 @@ public extension SessionRecord {
             title: title,
             notes: notes,
             rating: rating,
+            conditions: conditions,
             smoothTrack: smoothTrack
         )
     }
@@ -253,6 +294,7 @@ public extension SessionRecord {
             title: session.title,
             notes: session.notes,
             rating: session.rating,
+            conditions: session.conditions,
             smoothTrack: session.smoothTrack,
             dives: session.dives.map { DiveRecord(from: $0) },
             markers: session.markers.map { MarkerRecord(from: $0) }
