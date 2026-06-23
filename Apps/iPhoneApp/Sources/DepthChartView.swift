@@ -52,7 +52,7 @@ struct DepthChartView: View {
             ForEach(points) { point in
                 LineMark(
                     x: .value("Elapsed", point.secondsFromStart),
-                    y: .value("Depth", point.depthMeters)
+                    y: .value("Depth", DepthFormat.displayDepth(point.depthMeters))
                 )
                 .interpolationMethod(.monotone)
                 .foregroundStyle(.teal)
@@ -61,7 +61,7 @@ struct DepthChartView: View {
             ForEach(placedMarkers) { marker in
                 PointMark(
                     x: .value("Elapsed", marker.secondsFromStart),
-                    y: .value("Depth", marker.depthMeters)
+                    y: .value("Depth", DepthFormat.displayDepth(marker.depthMeters))
                 )
                 .symbolSize(0)
                 .annotation(position: .overlay, spacing: 0) {
@@ -82,7 +82,7 @@ struct DepthChartView: View {
                     }
                 PointMark(
                     x: .value("Elapsed", selectedPoint.secondsFromStart),
-                    y: .value("Depth", selectedPoint.depthMeters)
+                    y: .value("Depth", DepthFormat.displayDepth(selectedPoint.depthMeters))
                 )
                 .foregroundStyle(.teal)
             }
@@ -90,7 +90,7 @@ struct DepthChartView: View {
         // Depth increases downward: reverse the Y domain and keep the surface (0) in view.
         .chartYScale(domain: .automatic(includesZero: true, reversed: true))
         .chartXAxisLabel("Elapsed (s)")
-        .chartYAxisLabel("Depth (m)")
+        .chartYAxisLabel(DepthFormat.axisLabel())
         .chartXSelection(value: $selectedSecond)
         .frame(height: 220)
     }
@@ -145,11 +145,11 @@ extension MetricChartView {
         )
     }
 
-    /// Water-temperature chart (°C), optionally limited to a time window.
+    /// Water-temperature chart (°C/°F), optionally limited to a time window.
     init(temperature samples: [TemperatureSample], in range: ClosedRange<Date>? = nil) {
         self.init(
-            title: "Temperature", unit: "°C", tint: .green,
-            points: Self.points(samples.map { ($0.timestamp, $0.celsius) }, in: range)
+            title: "Temperature", unit: TemperatureFormat.unitLabel(), tint: .green,
+            points: Self.points(samples.map { ($0.timestamp, TemperatureFormat.displayValue($0.celsius)) }, in: range)
         )
     }
 

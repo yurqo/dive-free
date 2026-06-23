@@ -59,6 +59,11 @@ struct WatchUserGuideView: View {
                         "The arrow top-left shows GPS: a spinner while acquiring, then accuracy. Let it fix before you dive to tag your spot — GPS can't track underwater.",
                         systemImage: "location.fill"
                     )
+                    item(
+                        "Units",
+                        "Pick metric, imperial, or a custom mix in Settings — depth, distance, and temperature follow your choice here and on iPhone. Set it on the phone and it syncs to the watch.",
+                        systemImage: "ruler"
+                    )
                 }
                 .padding()
             }

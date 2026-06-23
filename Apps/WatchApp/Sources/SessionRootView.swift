@@ -203,7 +203,7 @@ struct SessionRootView: View {
     /// the spinner stands in for the missing label.
     private var gpsAccuracyText: String? {
         if let accuracy = session.lastLocationAccuracy {
-            return "±\(Int(accuracy.rounded())) m"
+            return "±\(DistanceFormat.compact(accuracy))"
         }
         return session.lastLocationFixAt == nil ? nil : "GPS"
     }
@@ -303,7 +303,7 @@ struct SessionRootView: View {
         // seen a value we retain it (shown dimmed when not live; see
         // temperatureLive). Stays nil — and the slot blank — on a watch without
         // the sensor, which never produces a reading.
-        session.currentTemperatureCelsius.map { "\(Int($0.rounded()))°" }
+        session.currentTemperatureCelsius.map { "\(TemperatureFormat.value($0))°" }
     }
 
     /// Whether the temperature readout is live (submerged, so the sensor is
@@ -464,7 +464,7 @@ struct SessionRootView: View {
         if session.hasDepthSensor {
             parts.append("↓\(session.diveCount)")
             if let duration = session.lastDiveDuration, let depth = session.lastDiveMaxDepth {
-                parts.append("⏱\(Duration.seconds(duration).formatted(.time(pattern: .minuteSecond))) · \(DepthFormat.value(depth)) m")
+                parts.append("⏱\(Duration.seconds(duration).formatted(.time(pattern: .minuteSecond))) · \(DepthFormat.string(depth))")
             }
         }
         parts.append("📍\(session.markerCount)")

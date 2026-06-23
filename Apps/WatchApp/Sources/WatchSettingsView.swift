@@ -15,6 +15,13 @@ struct WatchSettingsView: View {
     @AppStorage("defaultMarkerKindID") private var defaultMarkerKindID = EventKind.note.rawValue
     @AppStorage(GPSPrecision.highPrecisionKey) private var highPrecisionGPS = false
 
+    // Units — synced from the iPhone, but also adjustable here. Each dimension is
+    // stored independently so the Custom pickers bind directly.
+    @AppStorage(UnitPreference.Key.mode) private var unitModeRaw = UnitPreference.regionDefault.mode.rawValue
+    @AppStorage(UnitPreference.Key.depth) private var depthRaw = UnitPreference.regionDefault.customDepth.rawValue
+    @AppStorage(UnitPreference.Key.distance) private var distanceRaw = UnitPreference.regionDefault.customDistance.rawValue
+    @AppStorage(UnitPreference.Key.temperature) private var temperatureRaw = UnitPreference.regionDefault.customTemperature.rawValue
+
     #if targetEnvironment(simulator)
     // Debug overrides to fake device capabilities in the Simulator (which has no
     // real sensors). Simulator builds only.
@@ -63,6 +70,32 @@ struct WatchSettingsView: View {
                     Text("GPS")
                 } footer: {
                     Text("More accurate dive-spot location and surface track. Drains the battery faster. Applies to your next session.")
+                }
+
+                Section {
+                    Picker("Units", selection: $unitModeRaw) {
+                        Text("Metric").tag(UnitMode.metric.rawValue)
+                        Text("Imperial").tag(UnitMode.imperial.rawValue)
+                        Text("Custom").tag(UnitMode.custom.rawValue)
+                    }
+                    if unitModeRaw == UnitMode.custom.rawValue {
+                        Picker("Depth", selection: $depthRaw) {
+                            Text("Meters").tag(DepthUnit.meters.rawValue)
+                            Text("Feet").tag(DepthUnit.feet.rawValue)
+                        }
+                        Picker("Distance", selection: $distanceRaw) {
+                            Text("Metric").tag(DistanceUnit.metric.rawValue)
+                            Text("Imperial").tag(DistanceUnit.imperial.rawValue)
+                        }
+                        Picker("Temperature", selection: $temperatureRaw) {
+                            Text("Celsius").tag(TemperatureUnit.celsius.rawValue)
+                            Text("Fahrenheit").tag(TemperatureUnit.fahrenheit.rawValue)
+                        }
+                    }
+                } header: {
+                    Text("Units")
+                } footer: {
+                    Text("Syncs from your iPhone. Change it here to override on the watch.")
                 }
 
                 #if targetEnvironment(simulator)

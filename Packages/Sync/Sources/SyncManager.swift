@@ -32,6 +32,9 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     /// Called on the watch when the iPhone's custom-marker definitions change.
     public var onReceiveCustomMarkers: (@Sendable ([MarkerKind]) -> Void)?
 
+    /// Called on the watch when the iPhone's units preference changes.
+    public var onReceiveUnitPreference: (@Sendable (UnitPreference) -> Void)?
+
     /// Notified with the new pending count whenever transfer status changes.
     /// Fires on an arbitrary thread; hop to the main actor before touching UI.
     public var onPendingCountChange: (@Sendable (Int) -> Void)?
@@ -41,6 +44,7 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     static let payloadKey = "session"
     static let idKey = "id"
     static let markersKey = "customMarkers"
+    static let unitsKey = "unitPreference"
     static let fileNameKey = "fileName"
 
     private let lock = NSLock()
@@ -48,8 +52,10 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     private var pending: [String: Data] = [:]
     /// Immediate re-send attempts per payload, to bound retry storms.
     private var attempts: [String: Int] = [:]
-    /// Last custom-marker context we tried to send, re-applied on activation.
-    private var outgoingContext: [String: Any]?
+    /// Latest application-context entries we tried to send (markers and/or units),
+    /// re-applied on activation. `updateApplicationContext` replaces the whole
+    /// dictionary, so both kinds of state must travel together.
+    private var outgoingContext: [String: Any] = [:]
     /// After this many back-to-back failures a payload stops auto-retrying and
     /// waits for the next reachability-driven `retryPending`, rather than looping.
     private static let maxImmediateRetries = 5
@@ -85,7 +91,7 @@ public final class SyncManager: NSObject, @unchecked Sendable {
         super.init()
     }
 
-    // MARK: - Custom marker definitions (phone → watch)
+    // MARK: - Preferences (phone → watch)
 
     /// Pushes the current custom-marker definitions to the counterpart device.
     /// Uses the application context (latest-wins), delivered in the background.
@@ -93,17 +99,39 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     /// since a call made before activation (e.g. right at launch) is dropped.
     public func sendCustomMarkers(_ kinds: [MarkerKind]) {
         guard let data = try? encoder.encode(kinds) else { return }
-        let context = [Self.markersKey: data]
-        lock.lock(); outgoingContext = context; lock.unlock()
-        applyContext(context)
+        mergeAndApplyContext([Self.markersKey: data])
     }
 
-    /// Decodes custom-marker definitions from an application context and forwards
-    /// them to `onReceiveCustomMarkers`.
+    /// Pushes the current units preference to the counterpart device (same
+    /// latest-wins application-context channel as the custom markers).
+    public func sendUnitPreference(_ preference: UnitPreference) {
+        guard let data = try? encoder.encode(preference) else { return }
+        mergeAndApplyContext([Self.unitsKey: data])
+    }
+
+    /// Merges `entries` into the outgoing application context and re-applies the
+    /// whole thing. `updateApplicationContext` is latest-wins over the *entire*
+    /// dictionary, so markers and units must be sent together — applying one key
+    /// alone would clobber the other.
+    private func mergeAndApplyContext(_ entries: [String: Any]) {
+        lock.lock()
+        outgoingContext.merge(entries) { _, new in new }
+        let merged = outgoingContext
+        lock.unlock()
+        applyContext(merged)
+    }
+
+    /// Decodes the marker definitions and units preference from an application
+    /// context, forwarding each present key to its callback.
     func handleApplicationContext(_ context: [String: Any]) {
-        guard let data = context[Self.markersKey] as? Data,
-              let kinds = try? decoder.decode([MarkerKind].self, from: data) else { return }
-        onReceiveCustomMarkers?(kinds)
+        if let data = context[Self.markersKey] as? Data,
+           let kinds = try? decoder.decode([MarkerKind].self, from: data) {
+            onReceiveCustomMarkers?(kinds)
+        }
+        if let data = context[Self.unitsKey] as? Data,
+           let preference = try? decoder.decode(UnitPreference.self, from: data) {
+            onReceiveUnitPreference?(preference)
+        }
     }
 
     /// Activates the underlying session if WatchConnectivity is supported.
@@ -186,7 +214,7 @@ extension SyncManager: WCSessionDelegate {
             handleApplicationContext(session.receivedApplicationContext)
             // Re-apply any context we tried to send before activation completed.
             lock.lock(); let outgoing = outgoingContext; lock.unlock()
-            if let outgoing { applyContext(outgoing) }
+            if !outgoing.isEmpty { applyContext(outgoing) }
         }
     }
 

@@ -29,6 +29,7 @@ struct DiveFreeApp: App {
             SessionListView()
                 .environment(strava)
                 .environment(\.syncManager, sync)
+                .unitsAware()
                 .onAppear {
                     let container = container
                     // Persist sessions arriving from the watch into the shared
@@ -54,6 +55,8 @@ struct DiveFreeApp: App {
                     let descriptor = FetchDescriptor<CustomMarkerRecord>(sortBy: [SortDescriptor(\.createdAt)])
                     let markers = (try? container.mainContext.fetch(descriptor)) ?? []
                     sync.sendCustomMarkers(markers.map { $0.toMarkerKind() })
+                    // Push the current units preference so the watch matches the phone.
+                    sync.sendUnitPreference(.current)
                 }
         }
         .modelContainer(container)
