@@ -49,42 +49,29 @@ public enum StravaOAuth {
         return code
     }
 
-    /// POST request that exchanges an authorization code for tokens.
+    /// POST request that exchanges an authorization code for tokens via the
+    /// DiveFree token proxy (which adds the `client_id` + `client_secret`).
     public static func tokenExchangeRequest(
         code: String,
-        clientID: String = StravaConfig.clientID,
-        clientSecret: String,
-        tokenURL: URL = StravaConfig.tokenURL
+        proxyBaseURL: URL = StravaConfig.proxyBaseURL
     ) -> URLRequest {
-        formRequest(url: tokenURL, fields: [
-            "client_id": clientID,
-            "client_secret": clientSecret,
-            "code": code,
-            "grant_type": "authorization_code",
-        ])
+        jsonRequest(url: proxyBaseURL.appendingPathComponent("token"), fields: ["code": code])
     }
 
-    /// POST request that refreshes an expired access token.
+    /// POST request that refreshes an expired access token via the token proxy.
     public static func refreshRequest(
         refreshToken: String,
-        clientID: String = StravaConfig.clientID,
-        clientSecret: String,
-        tokenURL: URL = StravaConfig.tokenURL
+        proxyBaseURL: URL = StravaConfig.proxyBaseURL
     ) -> URLRequest {
-        formRequest(url: tokenURL, fields: [
-            "client_id": clientID,
-            "client_secret": clientSecret,
-            "refresh_token": refreshToken,
-            "grant_type": "refresh_token",
-        ])
+        jsonRequest(url: proxyBaseURL.appendingPathComponent("refresh"), fields: ["refresh_token": refreshToken])
     }
 
-    /// Builds an `application/x-www-form-urlencoded` POST request.
-    private static func formRequest(url: URL, fields: [String: String]) -> URLRequest {
+    /// Builds an `application/json` POST request with the given fields.
+    private static func jsonRequest(url: URL, fields: [String: String]) -> URLRequest {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-        request.httpBody = FormEncoding.body(fields)
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: fields)
         return request
     }
 }

@@ -1,0 +1,20 @@
+# Cloudflare Worker that proxies Strava token exchange/refresh for DiveFree.
+# Deploy with `npm run deploy` (or via Workers Builds / GitHub Actions).
+name = "dive-free"
+main = "src/index.ts"
+compatibility_date = "2026-06-01"
+
+# Public, non-secret Worker host. Must match StravaConfig.proxyBaseURL in the app.
+# The zone (your-domain) must live on this Cloudflare account. Replace the
+# placeholder host below with your real domain, e.g. "strava.divefree.app/*".
+[[routes]]
+pattern = "strava.your-domain/*"
+custom_domain = true
+
+[vars]
+# Optional override of Strava's token endpoint (handy for testing).
+STRAVA_TOKEN_URL = "https://www.strava.com/oauth/token"
+
+# Secrets are NOT stored here. Set them once and they persist across deploys:
+#   npx wrangler secret put STRAVA_CLIENT_ID
+#   npx wrangler secret put STRAVA_CLIENT_SECRET
