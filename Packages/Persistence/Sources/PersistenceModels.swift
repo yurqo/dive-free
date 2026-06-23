@@ -205,6 +205,11 @@ public final class MarkerRecord {
     public var text: String?
     public var session: SessionRecord?
 
+    /// Photos the user linked to this marker (#143). Nullify so deleting the
+    /// marker just unlinks the photos (they remain on the session/spot).
+    @Relationship(deleteRule: .nullify, inverse: \PhotoRecord.marker)
+    public var photos: [PhotoRecord] = []
+
     public init(
         id: UUID = UUID(),
         timestamp: Date,

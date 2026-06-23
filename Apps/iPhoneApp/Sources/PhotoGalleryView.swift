@@ -2,6 +2,7 @@ import SwiftUI
 import PhotosUI
 import Photos
 import UIKit
+import Domain
 import Persistence
 
 /// A photo as handed to the owner to persist: a library reference (when one was
@@ -72,7 +73,7 @@ struct PhotoGallerySection<Extra: View>: View {
             .ignoresSafeArea()
         }
         .fullScreenCover(item: $fullScreen) { photo in
-            FullScreenPhotoView(photo: photo) { onDelete(photo) }
+            PhotoPagerView(photos: photos, initialID: photo.id, onDelete: onDelete)
         }
     }
 }
@@ -226,17 +227,57 @@ struct PhotoThumbnail: View {
     }
 }
 
-/// Full-screen photo: loads the original from the Photos library on demand, with a
-/// cached-thumbnail fallback and an "unavailable" state when the asset is gone.
-struct FullScreenPhotoView: View {
-    let photo: PhotoRecord
-    let onDelete: () -> Void
+/// Full-screen, swipeable gallery across a set of photos (#144). Each page loads
+/// the original on demand and overlays the linked marker's info when present.
+struct PhotoPagerView: View {
+    let photos: [PhotoRecord]
+    @State private var selection: PhotoRecord.ID
+    let onDelete: (PhotoRecord) -> Void
     @Environment(\.dismiss) private var dismiss
+
+    init(photos: [PhotoRecord], initialID: PhotoRecord.ID, onDelete: @escaping (PhotoRecord) -> Void) {
+        self.photos = photos
+        self._selection = State(initialValue: initialID)
+        self.onDelete = onDelete
+    }
+
+    private var current: PhotoRecord? { photos.first { $0.id == selection } }
+
+    var body: some View {
+        NavigationStack {
+            TabView(selection: $selection) {
+                ForEach(photos) { photo in
+                    PhotoPage(photo: photo).tag(photo.id)
+                }
+            }
+            .tabViewStyle(.page(indexDisplayMode: photos.count > 1 ? .automatic : .never))
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color.black)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) { Button("Done") { dismiss() } }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(role: .destructive) {
+                        if let current { onDelete(current) }
+                        dismiss()
+                    } label: {
+                        Image(systemName: "trash")
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// One page of `PhotoPagerView`: the original (cached-thumbnail / placeholder
+/// fallback) plus a linked-marker banner when the photo belongs to a marker.
+private struct PhotoPage: View {
+    let photo: PhotoRecord
     @State private var image: UIImage?
     @State private var loading = true
 
     var body: some View {
-        NavigationStack {
+        ZStack(alignment: .bottom) {
+            Color.black
             Group {
                 if let image {
                     Image(uiImage: image).resizable().scaledToFit()
@@ -251,17 +292,28 @@ struct FullScreenPhotoView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color.black)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) { Button("Done") { dismiss() } }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(role: .destructive) { onDelete(); dismiss() } label: {
-                        Image(systemName: "trash")
-                    }
+            if let marker = photo.marker {
+                markerBanner(marker)
+            }
+        }
+        .task { await load() }
+    }
+
+    private func markerBanner(_ marker: MarkerRecord) -> some View {
+        let kind = marker.toDomain().kind
+        return HStack(spacing: 10) {
+            Text(kind.emoji).font(.title3)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(kind.label).font(.subheadline.weight(.semibold))
+                if let text = marker.text, !text.isEmpty {
+                    Text(text).font(.caption).foregroundStyle(.secondary)
                 }
             }
-            .task { await load() }
+            Spacer(minLength: 0)
         }
+        .padding(12)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .padding()
     }
 
     private func load() async {
