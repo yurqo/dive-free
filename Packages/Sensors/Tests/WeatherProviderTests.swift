@@ -20,6 +20,7 @@ struct WeatherProviderTests {
         #expect(weather.contains("latitude=12.5"))
         #expect(weather.contains("start_date=2024-06-20"))
         #expect(weather.contains("temperature_2m"))
+        #expect(weather.contains("winddirection_10m"))
 
         let marine = WeatherProvider.marineURL(latitude: 12.5, longitude: -70.0, date: date)?.absoluteString ?? ""
         #expect(marine.contains("marine-api.open-meteo.com/v1/marine"))
@@ -40,7 +41,8 @@ struct WeatherProviderTests {
     func snapshot() throws {
         let weatherJSON = """
         {"hourly":{"time":["2024-06-20T10:00","2024-06-20T11:00","2024-06-20T12:00"],
-        "temperature_2m":[20.0,21.5,23.0],"weathercode":[1,2,3],"windspeed_10m":[5.0,8.0,10.0]}}
+        "temperature_2m":[20.0,21.5,23.0],"weathercode":[1,2,3],"windspeed_10m":[5.0,8.0,10.0],
+        "winddirection_10m":[100.0,200.0,300.0]}}
         """
         let marineJSON = """
         {"hourly":{"time":["2024-06-20T10:00","2024-06-20T11:00","2024-06-20T12:00"],
@@ -54,6 +56,7 @@ struct WeatherProviderTests {
         #expect(snapshot.airTemperatureCelsius == 21.5)
         #expect(snapshot.weatherCode == 2)
         #expect(snapshot.windSpeedKmh == 8.0)
+        #expect(snapshot.windDirectionDegrees == 200.0)
         #expect(snapshot.seaTemperatureCelsius == 24.5)
         #expect(snapshot.waveHeightMeters == 0.5)
     }

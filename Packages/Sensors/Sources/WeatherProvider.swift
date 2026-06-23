@@ -8,6 +8,7 @@ public struct WeatherSnapshot: Sendable, Equatable {
     public var seaTemperatureCelsius: Double?
     public var weatherCode: Int?
     public var windSpeedKmh: Double?
+    public var windDirectionDegrees: Double?
     public var waveHeightMeters: Double?
 
     public init(
@@ -15,18 +16,25 @@ public struct WeatherSnapshot: Sendable, Equatable {
         seaTemperatureCelsius: Double? = nil,
         weatherCode: Int? = nil,
         windSpeedKmh: Double? = nil,
+        windDirectionDegrees: Double? = nil,
         waveHeightMeters: Double? = nil
     ) {
         self.airTemperatureCelsius = airTemperatureCelsius
         self.seaTemperatureCelsius = seaTemperatureCelsius
         self.weatherCode = weatherCode
         self.windSpeedKmh = windSpeedKmh
+        self.windDirectionDegrees = windDirectionDegrees
         self.waveHeightMeters = waveHeightMeters
     }
 
     /// The persistable weather extras (everything except the temperatures).
     public var weather: DiveWeather {
-        DiveWeather(weatherCode: weatherCode, windSpeedKmh: windSpeedKmh, waveHeightMeters: waveHeightMeters)
+        DiveWeather(
+            weatherCode: weatherCode,
+            windSpeedKmh: windSpeedKmh,
+            windDirectionDegrees: windDirectionDegrees,
+            waveHeightMeters: waveHeightMeters
+        )
     }
 }
 
@@ -69,7 +77,7 @@ public enum WeatherProvider {
         url(
             base: "https://api.open-meteo.com/v1/forecast",
             latitude: latitude, longitude: longitude, date: date,
-            hourly: "temperature_2m,weathercode,windspeed_10m"
+            hourly: "temperature_2m,weathercode,windspeed_10m,winddirection_10m"
         )
     }
 
@@ -108,6 +116,7 @@ public enum WeatherProvider {
             snapshot.airTemperatureCelsius = element(hourly.temperature_2m, at: index)
             snapshot.weatherCode = element(hourly.weathercode, at: index)
             snapshot.windSpeedKmh = element(hourly.windspeed_10m, at: index)
+            snapshot.windDirectionDegrees = element(hourly.winddirection_10m, at: index)
             any = true
         }
 
@@ -168,6 +177,7 @@ private struct WeatherResponse: Decodable {
         let temperature_2m: [Double?]?
         let weathercode: [Int?]?
         let windspeed_10m: [Double?]?
+        let winddirection_10m: [Double?]?
     }
 }
 

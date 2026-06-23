@@ -12,6 +12,7 @@ private struct UnitsAwareModifier: ViewModifier {
     @AppStorage(UnitPreference.Key.depth) private var depth = ""
     @AppStorage(UnitPreference.Key.distance) private var distance = ""
     @AppStorage(UnitPreference.Key.temperature) private var temperature = ""
+    @AppStorage(UnitPreference.Key.windSpeed) private var windSpeed = ""
 
     func body(content: Content) -> some View { content }
 }
