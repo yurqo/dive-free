@@ -37,19 +37,13 @@ status code verbatim.
 
 ## Deploy
 
-Three deploy paths exist — **pick one as primary to avoid double deploys**:
+Deployment is handled by **Cloudflare Workers Builds** (git integration): the
+`yurqo/dive-free` repo is connected with **Root directory = `Server`**,
+production branch `main` → `npx wrangler deploy` (non-production branches use
+`npx wrangler versions upload` for previews). Pushes that touch `Server/**`
+auto-deploy.
 
-1. **Cloudflare Workers Builds** (git integration): connect `yurqo/dive-free`,
-   set **Root directory = `Server`**, deploy command `npx wrangler deploy`.
-   Auto-deploys on push.
-2. **GitHub Actions**: `.github/workflows/deploy-worker.yml` runs
-   `wrangler deploy` on pushes touching `Server/**` (and on manual dispatch).
-   Needs repo secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`.
-3. **Manual**: `cd Server && npm run deploy`.
-
-Recommended: keep Workers Builds for push-to-deploy and use the GitHub Actions
-workflow as a manual (`workflow_dispatch`) fallback — or disable Workers Builds
-auto-deploy if you'd rather GitHub Actions be the single source of truth.
+For a one-off manual deploy: `cd Server && npm run deploy`.
 
 ## Local development
 
