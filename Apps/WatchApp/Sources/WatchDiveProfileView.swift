@@ -297,7 +297,7 @@ struct WatchVoiceNotePlayButton: View {
 /// the whole-session depth chart.
 @MainActor
 @ViewBuilder
-private func chartMarkerGlyph(_ emoji: String, fontSize: CGFloat = 12) -> some View {
+func chartMarkerGlyph(_ emoji: String, fontSize: CGFloat = 12) -> some View {
     if let ink = EmojiInk.image(emoji, fontSize: fontSize) {
         ink
     } else {
@@ -382,32 +382,16 @@ extension WatchMetricChart {
     /// Places each marker on the depth line at its interpolated depth, dropping
     /// any outside `range` or with no samples to land on.
     private static func depthMarkers(_ markers: [EventMarker], on samples: [DepthSample], in range: ClosedRange<Date>?) -> [Marker] {
-        let sorted = samples.sorted { $0.timestamp < $1.timestamp }
-        return markers.compactMap { marker in
+        markers.compactMap { marker in
             guard range?.contains(marker.timestamp) ?? true,
-                  let depth = interpolatedDepth(at: marker.timestamp, in: sorted) else { return nil }
+                  let depth = samples.interpolatedDepth(at: marker.timestamp) else { return nil }
             return Marker(id: marker.id, date: marker.timestamp, value: DepthFormat.displayDepth(depth), emoji: marker.kind.emoji)
         }
-    }
-
-    /// Linear-interpolated depth at `time` along the sorted samples (clamped to
-    /// the ends); `nil` when there are no samples.
-    private static func interpolatedDepth(at time: Date, in sorted: [DepthSample]) -> Double? {
-        guard let first = sorted.first, let last = sorted.last else { return nil }
-        if time <= first.timestamp { return first.depthMeters }
-        if time >= last.timestamp { return last.depthMeters }
-        for i in 1..<sorted.count where time <= sorted[i].timestamp {
-            let a = sorted[i - 1], b = sorted[i]
-            let span = b.timestamp.timeIntervalSince(a.timestamp)
-            guard span > 0 else { return a.depthMeters }
-            let t = time.timeIntervalSince(a.timestamp) / span
-            return a.depthMeters + (b.depthMeters - a.depthMeters) * t
-        }
-        return last.depthMeters
     }
 }
 
 /// Heart-rate + temperature charts for a window, each omitted when it has no data.
+@MainActor
 @ViewBuilder
 func watchMetricCharts(heartRate: [HeartRateSample], temperature: [TemperatureSample], in range: ClosedRange<Date>?) -> some View {
     let hr = WatchMetricChart(heartRate: heartRate, in: range)

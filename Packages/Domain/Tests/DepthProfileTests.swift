@@ -47,11 +47,13 @@ struct DepthProfileTests {
         #expect(d.interpolatedDepth(at: start.addingTimeInterval(10)) == 8)  // exact sample
     }
 
-    @Test("interpolatedDepth returns nil outside the sample range")
+    @Test("interpolatedDepth clamps to the first/last sample outside the range")
     func interpolatesOutOfRange() {
+        // Unified policy (#102): clamp to the ends so a marker inside the dive
+        // window always lands, rather than returning nil just outside the samples.
         let d = dive([(0, 0), (10, 8)])
-        #expect(d.interpolatedDepth(at: start.addingTimeInterval(-1)) == nil)
-        #expect(d.interpolatedDepth(at: start.addingTimeInterval(11)) == nil)
+        #expect(d.interpolatedDepth(at: start.addingTimeInterval(-1)) == 0)
+        #expect(d.interpolatedDepth(at: start.addingTimeInterval(11)) == 8)
     }
 
     @Test("interpolatedDepth on an empty dive is nil")
