@@ -269,6 +269,15 @@ public struct DiveSession: Sendable, Equatable, Codable, Identifiable {
     /// region), resolved after the session is saved. `nil` until resolved, or when
     /// there was no GPS fix / geocoding failed.
     public var locationName: String?
+    /// Whether the user has edited `locationName` by hand. Once set, automatic
+    /// reverse-geocoding must not overwrite the name (even if cleared to nil).
+    public var locationNameEdited: Bool
+    /// User-given session title (optional; UIs fall back to date/area).
+    public var title: String?
+    /// Free-text notes about the session.
+    public var notes: String?
+    /// User rating, 1–5, or `nil` when unrated.
+    public var rating: Int?
     /// Whether the surface track is cleaned (outliers rejected + lightly smoothed)
     /// for distance and maps. On by default; the raw `track` is always retained.
     public var smoothTrack: Bool
@@ -396,6 +405,10 @@ public struct DiveSession: Sendable, Equatable, Codable, Identifiable {
         heartRateSamples: [HeartRateSample] = [],
         temperatureSamples: [TemperatureSample] = [],
         locationName: String? = nil,
+        locationNameEdited: Bool = false,
+        title: String? = nil,
+        notes: String? = nil,
+        rating: Int? = nil,
         smoothTrack: Bool = true
     ) {
         self.id = id
@@ -408,12 +421,17 @@ public struct DiveSession: Sendable, Equatable, Codable, Identifiable {
         self.heartRateSamples = heartRateSamples
         self.temperatureSamples = temperatureSamples
         self.locationName = locationName
+        self.locationNameEdited = locationNameEdited
+        self.title = title
+        self.notes = notes
+        self.rating = rating
         self.smoothTrack = smoothTrack
     }
 
     private enum CodingKeys: String, CodingKey {
         case id, startTime, endTime, dives, markers, location, track
         case heartRateSamples, temperatureSamples, locationName, smoothTrack
+        case locationNameEdited, title, notes, rating
     }
 
     /// Decoded leniently so payloads from an older app version (which had no
@@ -430,6 +448,10 @@ public struct DiveSession: Sendable, Equatable, Codable, Identifiable {
         heartRateSamples = try c.decodeIfPresent([HeartRateSample].self, forKey: .heartRateSamples) ?? []
         temperatureSamples = try c.decodeIfPresent([TemperatureSample].self, forKey: .temperatureSamples) ?? []
         locationName = try c.decodeIfPresent(String.self, forKey: .locationName)
+        locationNameEdited = try c.decodeIfPresent(Bool.self, forKey: .locationNameEdited) ?? false
+        title = try c.decodeIfPresent(String.self, forKey: .title)
+        notes = try c.decodeIfPresent(String.self, forKey: .notes)
+        rating = try c.decodeIfPresent(Int.self, forKey: .rating)
         // Default on for payloads that predate the toggle.
         smoothTrack = try c.decodeIfPresent(Bool.self, forKey: .smoothTrack) ?? true
     }

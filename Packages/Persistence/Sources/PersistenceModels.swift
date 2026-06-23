@@ -20,6 +20,12 @@ public final class SessionRecord {
     // Reverse-geocoded area name, resolved after the session is saved. Optional
     // (like latitude/longitude) so existing rows migrate to nil automatically.
     public var locationName: String?
+    // Whether the user edited the area name by hand (auto-resolve must not clobber).
+    public var locationNameEdited: Bool = false
+    // User annotation — all optional, defaulted for lightweight migration.
+    public var title: String?
+    public var notes: String?
+    public var rating: Int?
     // Whether distance/maps use the cleaned (outlier-rejected + smoothed) track.
     // Defaulted true for lightweight migration of rows created before the toggle.
     public var smoothTrack: Bool = true
@@ -40,6 +46,10 @@ public final class SessionRecord {
         heartRateSamples: [HeartRateSample] = [],
         temperatureSamples: [TemperatureSample] = [],
         locationName: String? = nil,
+        locationNameEdited: Bool = false,
+        title: String? = nil,
+        notes: String? = nil,
+        rating: Int? = nil,
         smoothTrack: Bool = true,
         dives: [DiveRecord] = [],
         markers: [MarkerRecord] = []
@@ -53,6 +63,10 @@ public final class SessionRecord {
         self.heartRateSamples = heartRateSamples
         self.temperatureSamples = temperatureSamples
         self.locationName = locationName
+        self.locationNameEdited = locationNameEdited
+        self.title = title
+        self.notes = notes
+        self.rating = rating
         self.smoothTrack = smoothTrack
         self.dives = dives
         self.markers = markers
@@ -184,6 +198,10 @@ public extension SessionRecord {
             heartRateSamples: heartRateSamples,
             temperatureSamples: temperatureSamples,
             locationName: locationName,
+            locationNameEdited: locationNameEdited,
+            title: title,
+            notes: notes,
+            rating: rating,
             smoothTrack: smoothTrack
         )
     }
@@ -231,6 +249,10 @@ public extension SessionRecord {
             heartRateSamples: session.heartRateSamples,
             temperatureSamples: session.temperatureSamples,
             locationName: session.locationName,
+            locationNameEdited: session.locationNameEdited,
+            title: session.title,
+            notes: session.notes,
+            rating: session.rating,
             smoothTrack: session.smoothTrack,
             dives: session.dives.map { DiveRecord(from: $0) },
             markers: session.markers.map { MarkerRecord(from: $0) }
