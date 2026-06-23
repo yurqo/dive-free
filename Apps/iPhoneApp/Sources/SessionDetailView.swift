@@ -20,6 +20,9 @@ struct SessionDetailView: View {
         List {
             Section {
                 LabeledContent("Date", value: domain.startTime.formatted(date: .abbreviated, time: .shortened))
+                if let name = domain.locationName, !name.isEmpty {
+                    LabeledContent("Area", value: name)
+                }
                 LabeledContent("Total", value: Duration.seconds(domain.totalDuration).formatted(.time(pattern: .hourMinuteSecond)))
                 LabeledContent("Dives", value: "\(domain.diveCount)")
                 LabeledContent("Max depth", value: DepthFormat.string(domain.maxDepthMeters))
