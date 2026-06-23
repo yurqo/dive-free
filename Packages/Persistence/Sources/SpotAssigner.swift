@@ -53,6 +53,29 @@ public struct SpotAssigner {
         return assigned
     }
 
+    /// Merges `source` into `target`: moves its sessions and photos over,
+    /// recomputes the target's center, and deletes the now-empty source spot.
+    public func merge(_ source: Spot, into target: Spot) throws {
+        guard source.persistentModelID != target.persistentModelID else { return }
+        // Snapshot the relationship arrays — reassigning mutates them as we go.
+        for session in Array(source.sessions) { session.spot = target }
+        for photo in Array(source.photos) { photo.spot = target }
+        recenter(target)
+        context.delete(source)
+        try context.save()
+    }
+
+    /// Reassigns `session` to `spot`, recomputing both the new and previous spots'
+    /// centers.
+    public func reassign(_ session: SessionRecord, to spot: Spot) throws {
+        let previous = session.spot
+        guard previous?.persistentModelID != spot.persistentModelID else { return }
+        session.spot = spot
+        recenter(spot)
+        if let previous { recenter(previous) }
+        try context.save()
+    }
+
     /// Recomputes a spot's center as the mean of its sessions' locations.
     private func recenter(_ spot: Spot) {
         let points = spot.sessions.compactMap { session -> GeoPoint? in

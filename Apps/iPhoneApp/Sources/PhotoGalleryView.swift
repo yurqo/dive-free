@@ -3,16 +3,17 @@ import PhotosUI
 import UIKit
 import Persistence
 
-/// A "Photos" section for a session: a thumbnail strip plus add-from-library and
-/// take-photo, with full-screen view + delete.
-struct SessionPhotosSection: View {
-    let session: SessionRecord
-    @Environment(\.modelContext) private var modelContext
+/// A reusable "Photos" section: a thumbnail strip + add-from-library / take-photo,
+/// with full-screen view and delete. The owner supplies the photos and the
+/// add/delete side effects (so it serves both sessions and spots).
+struct PhotoGallerySection: View {
+    let photos: [PhotoRecord]
+    let onAdd: (UIImage) -> Void
+    let onDelete: (PhotoRecord) -> Void
+
     @State private var libraryItem: PhotosPickerItem?
     @State private var showCamera = false
     @State private var fullScreen: PhotoRecord?
-
-    private var photos: [PhotoRecord] { session.photos.sorted { $0.createdAt < $1.createdAt } }
 
     var body: some View {
         Section("Photos") {
@@ -38,35 +39,62 @@ struct SessionPhotosSection: View {
         .onChange(of: libraryItem) { _, item in
             guard let item else { return }
             Task {
-                await addFromLibrary(item)
+                if let data = try? await item.loadTransferable(type: Data.self), let image = UIImage(data: data) {
+                    onAdd(image)
+                }
                 libraryItem = nil
             }
         }
         .sheet(isPresented: $showCamera) {
-            CameraPicker { image in add(image) }
-                .ignoresSafeArea()
+            CameraPicker { onAdd($0) }.ignoresSafeArea()
         }
         .fullScreenCover(item: $fullScreen) { photo in
-            FullScreenPhotoView(fileName: photo.fileName) { delete(photo) }
+            FullScreenPhotoView(fileName: photo.fileName) { onDelete(photo) }
         }
     }
+}
 
-    private func addFromLibrary(_ item: PhotosPickerItem) async {
-        guard let data = try? await item.loadTransferable(type: Data.self),
-              let image = UIImage(data: data) else { return }
-        add(image)
+/// Photos attached to a session.
+struct SessionPhotosSection: View {
+    let session: SessionRecord
+    @Environment(\.modelContext) private var modelContext
+
+    var body: some View {
+        PhotoGallerySection(
+            photos: session.photos.sorted { $0.createdAt < $1.createdAt },
+            onAdd: { image in
+                guard let fileName = PhotoStore.save(image) else { return }
+                modelContext.insert(PhotoRecord(fileName: fileName, session: session))
+                try? modelContext.save()
+            },
+            onDelete: { photo in
+                PhotoStore.delete(photo.fileName)
+                modelContext.delete(photo)
+                try? modelContext.save()
+            }
+        )
     }
+}
 
-    private func add(_ image: UIImage) {
-        guard let fileName = PhotoStore.save(image) else { return }
-        modelContext.insert(PhotoRecord(fileName: fileName, session: session))
-        try? modelContext.save()
-    }
+/// A spot's gallery — the union of its directly-attached photos and its sessions' photos.
+struct SpotPhotosSection: View {
+    let spot: Spot
+    @Environment(\.modelContext) private var modelContext
 
-    private func delete(_ photo: PhotoRecord) {
-        PhotoStore.delete(photo.fileName)
-        modelContext.delete(photo)
-        try? modelContext.save()
+    var body: some View {
+        PhotoGallerySection(
+            photos: (spot.photos + spot.sessions.flatMap { $0.photos }).sorted { $0.createdAt < $1.createdAt },
+            onAdd: { image in
+                guard let fileName = PhotoStore.save(image) else { return }
+                modelContext.insert(PhotoRecord(fileName: fileName, spot: spot))
+                try? modelContext.save()
+            },
+            onDelete: { photo in
+                PhotoStore.delete(photo.fileName)
+                modelContext.delete(photo)
+                try? modelContext.save()
+            }
+        )
     }
 }
 
