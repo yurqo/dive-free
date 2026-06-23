@@ -66,4 +66,11 @@ struct TemperatureFormatTests {
         #expect(TemperatureFormat.string(0, units: .imperial) == "32°F")
         #expect(TemperatureFormat.string(21, units: .imperial) == "70°F") // 21°C = 69.8°F
     }
+
+    @Test("display→celsius reverses the conversion (for manual entry)")
+    func displayToCelsius() {
+        #expect(TemperatureFormat.celsius(fromDisplay: 21, units: .metric) == 21)
+        #expect(abs(TemperatureFormat.celsius(fromDisplay: 32, units: .imperial) - 0) < 0.001)
+        #expect(abs(TemperatureFormat.celsius(fromDisplay: 70, units: .imperial) - 21.111) < 0.01)
+    }
 }
