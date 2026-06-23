@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 import Domain
 import Persistence
+import Sensors
 import Strava
 
 /// Phone home screen: the dive history. Charts, maps, and Strava export
@@ -10,6 +11,9 @@ struct SessionListView: View {
     @Query(sort: \SessionRecord.startTime, order: .reverse)
     private var sessions: [SessionRecord]
     @Environment(\.modelContext) private var modelContext
+    /// Sessions geocoded this launch, so a coordinate that resolves to no name
+    /// (open water, remote spots) isn't retried on every list appearance.
+    @State private var geocodeAttempted: Set<UUID> = []
 
     var body: some View {
         NavigationStack {
@@ -32,6 +36,13 @@ struct SessionListView: View {
                                     Text("\(domain.diveCount) dives · max \(DepthFormat.string(domain.maxDepthMeters))")
                                         .font(.subheadline)
                                         .foregroundStyle(.secondary)
+                                    if let name = domain.locationName, !name.isEmpty {
+                                        Label(name, systemImage: "mappin.and.ellipse")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                            .labelStyle(.titleAndIcon)
+                                            .lineLimit(1)
+                                    }
                                     // Every session on the phone arrived from the
                                     // Watch over WatchConnectivity.
                                     Label("Synced from Apple Watch", systemImage: "checkmark.icloud")
@@ -52,6 +63,7 @@ struct SessionListView: View {
                         }
                         .onDelete(perform: deleteSessions)
                     }
+                    .task { await backfillLocationNames() }
                     .navigationDestination(for: SessionRecord.self) { session in
                         SessionDetailView(session: session)
                     }
@@ -76,6 +88,25 @@ struct SessionListView: View {
             modelContext.delete(sessions[index])
         }
         try? modelContext.save()
+    }
+
+    /// Resolves and persists the area name for any session missing one (e.g. a
+    /// session synced from a watch that never got connectivity to geocode), one at
+    /// a time — CLGeocoder expects serial requests. Mirrors the watch backfill:
+    /// runs on appear, skips a session once attempted this launch, and never
+    /// overwrites an existing (possibly user-edited) name.
+    private func backfillLocationNames() async {
+        for session in sessions {
+            if Task.isCancelled { return }
+            guard session.locationName == nil,
+                  !geocodeAttempted.contains(session.id),
+                  let lat = session.latitude, let lon = session.longitude else { continue }
+            geocodeAttempted.insert(session.id)
+            guard let name = await LocationName.resolve(latitude: lat, longitude: lon),
+                  !name.isEmpty else { continue }
+            session.locationName = name
+            try? modelContext.save()
+        }
     }
 }
 

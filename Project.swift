@@ -145,6 +145,8 @@ let iphoneApp = Target.target(
         .target(name: "Persistence"),
         .target(name: "Sync"),
         .target(name: "Strava"),
+        // For LocationName (reverse-geocoding) used to backfill session area names.
+        .target(name: "Sensors"),
         // Embeds the watchOS app inside the iPhone app (companion pairing).
         .target(name: "DiveFreeWatch"),
     ]
