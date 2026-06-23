@@ -280,6 +280,11 @@ public struct DiveSession: Sendable, Equatable, Codable, Identifiable {
     public var rating: Int?
     /// Manually-entered dive conditions (visibility, current, surface, temps, tide).
     public var conditions: DiveConditions
+    /// Auto-fetched weather/marine extras (Open-Meteo); `nil` until fetched.
+    public var weather: DiveWeather?
+    /// Whether the auto-weather fetch has been attempted+succeeded, so the
+    /// deferred pass doesn't refetch. (A failed fetch leaves this false to retry.)
+    public var weatherFetched: Bool
     /// Whether the surface track is cleaned (outliers rejected + lightly smoothed)
     /// for distance and maps. On by default; the raw `track` is always retained.
     public var smoothTrack: Bool
@@ -412,6 +417,8 @@ public struct DiveSession: Sendable, Equatable, Codable, Identifiable {
         notes: String? = nil,
         rating: Int? = nil,
         conditions: DiveConditions = DiveConditions(),
+        weather: DiveWeather? = nil,
+        weatherFetched: Bool = false,
         smoothTrack: Bool = true
     ) {
         self.id = id
@@ -429,6 +436,8 @@ public struct DiveSession: Sendable, Equatable, Codable, Identifiable {
         self.notes = notes
         self.rating = rating
         self.conditions = conditions
+        self.weather = weather
+        self.weatherFetched = weatherFetched
         self.smoothTrack = smoothTrack
     }
 
@@ -436,6 +445,7 @@ public struct DiveSession: Sendable, Equatable, Codable, Identifiable {
         case id, startTime, endTime, dives, markers, location, track
         case heartRateSamples, temperatureSamples, locationName, smoothTrack
         case locationNameEdited, title, notes, rating, conditions
+        case weather, weatherFetched
     }
 
     /// Decoded leniently so payloads from an older app version (which had no
@@ -457,6 +467,8 @@ public struct DiveSession: Sendable, Equatable, Codable, Identifiable {
         notes = try c.decodeIfPresent(String.self, forKey: .notes)
         rating = try c.decodeIfPresent(Int.self, forKey: .rating)
         conditions = try c.decodeIfPresent(DiveConditions.self, forKey: .conditions) ?? DiveConditions()
+        weather = try c.decodeIfPresent(DiveWeather.self, forKey: .weather)
+        weatherFetched = try c.decodeIfPresent(Bool.self, forKey: .weatherFetched) ?? false
         // Default on for payloads that predate the toggle.
         smoothTrack = try c.decodeIfPresent(Bool.self, forKey: .smoothTrack) ?? true
     }

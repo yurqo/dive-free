@@ -59,6 +59,28 @@ public final class SessionRecord {
         }
     }
 
+    // Auto-fetched weather extras (Open-Meteo), as primitive columns with a
+    // computed facade (same reason as conditions). `weatherFetched` records that
+    // the fetch succeeded so the deferred pass doesn't refetch.
+    public var weatherCode: Int?
+    public var windSpeedKmh: Double?
+    public var waveHeightMeters: Double?
+    public var weatherFetched: Bool = false
+
+    /// Typed view over the stored weather columns (not itself persisted); `nil`
+    /// until a fetch has run.
+    public var weather: DiveWeather? {
+        get {
+            guard weatherFetched else { return nil }
+            return DiveWeather(weatherCode: weatherCode, windSpeedKmh: windSpeedKmh, waveHeightMeters: waveHeightMeters)
+        }
+        set {
+            weatherCode = newValue?.weatherCode
+            windSpeedKmh = newValue?.windSpeedKmh
+            waveHeightMeters = newValue?.waveHeightMeters
+        }
+    }
+
     // Whether distance/maps use the cleaned (outlier-rejected + smoothed) track.
     // Defaulted true for lightweight migration of rows created before the toggle.
     public var smoothTrack: Bool = true
@@ -84,6 +106,8 @@ public final class SessionRecord {
         notes: String? = nil,
         rating: Int? = nil,
         conditions: DiveConditions = DiveConditions(),
+        weather: DiveWeather? = nil,
+        weatherFetched: Bool = false,
         smoothTrack: Bool = true,
         dives: [DiveRecord] = [],
         markers: [MarkerRecord] = []
@@ -107,6 +131,10 @@ public final class SessionRecord {
         self.tideRaw = conditions.tide?.rawValue
         self.waterTemperatureCelsius = conditions.waterTemperatureCelsius
         self.airTemperatureCelsius = conditions.airTemperatureCelsius
+        self.weatherCode = weather?.weatherCode
+        self.windSpeedKmh = weather?.windSpeedKmh
+        self.waveHeightMeters = weather?.waveHeightMeters
+        self.weatherFetched = weatherFetched
         self.smoothTrack = smoothTrack
         self.dives = dives
         self.markers = markers
@@ -243,6 +271,8 @@ public extension SessionRecord {
             notes: notes,
             rating: rating,
             conditions: conditions,
+            weather: weather,
+            weatherFetched: weatherFetched,
             smoothTrack: smoothTrack
         )
     }
@@ -295,6 +325,8 @@ public extension SessionRecord {
             notes: session.notes,
             rating: session.rating,
             conditions: session.conditions,
+            weather: session.weather,
+            weatherFetched: session.weatherFetched,
             smoothTrack: session.smoothTrack,
             dives: session.dives.map { DiveRecord(from: $0) },
             markers: session.markers.map { MarkerRecord(from: $0) }
