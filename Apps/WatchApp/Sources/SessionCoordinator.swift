@@ -314,6 +314,11 @@ final class SessionCoordinator {
         sync.onReceiveCustomMarkers = { [weak self] kinds in
             Task { @MainActor in self?.customKinds = kinds }
         }
+        // Mirror the iPhone's units choice into local UserDefaults so the watch's
+        // formatters (and Settings pickers) reflect it.
+        sync.onReceiveUnitPreference = { preference in
+            Task { @MainActor in preference.store() }
+        }
         sync.activate()
         // Let the Action-button intent route into this live coordinator.
         LiveSessionRegistry.shared.coordinator = self

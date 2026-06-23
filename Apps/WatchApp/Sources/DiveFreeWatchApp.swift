@@ -20,6 +20,7 @@ struct DiveFreeWatchApp: App {
         WindowGroup {
             WatchRootView()
                 .environment(session)
+                .unitsAware()
         }
         .modelContainer(store.container)
     }

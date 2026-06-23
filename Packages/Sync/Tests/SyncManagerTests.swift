@@ -179,6 +179,36 @@ struct SyncManagerTests {
         manager.handleApplicationContext(context ?? [:])
         #expect(received.withLock { $0 } == kinds)
     }
+
+    @Test("units preference round-trips through the application context")
+    func unitPreferenceSync() {
+        let captured = Mutex<[String: Any]?>(nil)
+        let manager = SyncManager(applyContext: { ctx in captured.withLock { $0 = ctx } })
+        let pref = UnitPreference(mode: .custom, customDepth: .meters, customDistance: .imperial, customTemperature: .fahrenheit)
+
+        manager.sendUnitPreference(pref)
+        let context = captured.withLock { $0 }
+        #expect(context?[SyncManager.unitsKey] != nil)
+
+        let received = Mutex<UnitPreference?>(nil)
+        manager.onReceiveUnitPreference = { pref in received.withLock { $0 = pref } }
+        manager.handleApplicationContext(context ?? [:])
+        #expect(received.withLock { $0 } == pref)
+    }
+
+    @Test("markers and units share the context without clobbering each other")
+    func markersAndUnitsCoexist() {
+        let captured = Mutex<[String: Any]?>(nil)
+        let manager = SyncManager(applyContext: { ctx in captured.withLock { $0 = ctx } })
+
+        manager.sendCustomMarkers([MarkerKind(.wildlife)])
+        manager.sendUnitPreference(.imperial)
+
+        // The second send must not drop the first key — both live in one context.
+        let context = captured.withLock { $0 }
+        #expect(context?[SyncManager.markersKey] != nil)
+        #expect(context?[SyncManager.unitsKey] != nil)
+    }
 }
 
 /// Minimal lock-guarded box so test observers can capture values from the

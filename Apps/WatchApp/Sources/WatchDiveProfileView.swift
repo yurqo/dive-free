@@ -356,9 +356,9 @@ struct WatchMetricChart: View {
 extension WatchMetricChart {
     init(depth samples: [DepthSample], markers: [EventMarker] = [], in range: ClosedRange<Date>? = nil) {
         self.init(
-            title: "Depth (m)",
+            title: DepthFormat.axisLabel(),
             tint: .teal,
-            points: Self.points(samples.map { ($0.timestamp, $0.depthMeters) }, in: range),
+            points: Self.points(samples.map { ($0.timestamp, DepthFormat.displayDepth($0.depthMeters)) }, in: range),
             markers: Self.depthMarkers(markers, on: samples, in: range),
             reversedY: true
         )
@@ -369,7 +369,7 @@ extension WatchMetricChart {
     }
 
     init(temperature samples: [TemperatureSample], in range: ClosedRange<Date>? = nil) {
-        self.init(title: "Temp (°C)", tint: .green, points: Self.points(samples.map { ($0.timestamp, $0.celsius) }, in: range))
+        self.init(title: "Temp (\(TemperatureFormat.unitLabel()))", tint: .green, points: Self.points(samples.map { ($0.timestamp, TemperatureFormat.displayValue($0.celsius)) }, in: range))
     }
 
     private static func points(_ raw: [(Date, Double)], in range: ClosedRange<Date>?) -> [Point] {
@@ -386,7 +386,7 @@ extension WatchMetricChart {
         return markers.compactMap { marker in
             guard range?.contains(marker.timestamp) ?? true,
                   let depth = interpolatedDepth(at: marker.timestamp, in: sorted) else { return nil }
-            return Marker(id: marker.id, date: marker.timestamp, value: depth, emoji: marker.kind.emoji)
+            return Marker(id: marker.id, date: marker.timestamp, value: DepthFormat.displayDepth(depth), emoji: marker.kind.emoji)
         }
     }
 
