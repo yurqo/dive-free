@@ -110,7 +110,7 @@ struct SessionListView: View {
         for index in offsets {
             let session = sessions[index]
             // SwiftData cascade-deletes the PhotoRecords; remove their files too.
-            for photo in session.photos { PhotoStore.delete(photo.fileName) }
+            for photo in session.photos { PhotoStore.delete(photo.thumbnailFileName) }
             modelContext.delete(session)
         }
         try? modelContext.save()

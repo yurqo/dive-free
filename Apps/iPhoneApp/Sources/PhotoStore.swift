@@ -1,53 +1,64 @@
 import Foundation
 import UIKit
 
-/// On-disk storage for session/spot photos — full JPEGs plus generated thumbnails
-/// in the app container. Only file names are persisted (`PhotoRecord`); the bytes
-/// live here, so no image blobs go into SwiftData.
+/// On-disk cache of small photo **thumbnails** in the app container. Full images
+/// are never copied here — they're referenced in the Photos library and loaded on
+/// demand (`PhotoLibrary`); this cache just backs a fast, offline gallery (#141).
+/// Only the thumbnail file name is persisted (`PhotoRecord.thumbnailFileName`).
 enum PhotoStore {
+    /// Longest edge of a cached thumbnail, in points.
+    static let maxThumbnailDimension: CGFloat = 400
+
     static var directory: URL {
         let base = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        let dir = base.appendingPathComponent("Photos", isDirectory: true)
+        let dir = base.appendingPathComponent("Thumbnails", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
     }
 
     static func url(for fileName: String) -> URL { directory.appendingPathComponent(fileName) }
-    static func thumbnailURL(for fileName: String) -> URL { directory.appendingPathComponent("thumb_" + fileName) }
 
-    /// Writes the full image and a thumbnail; returns the base file name, or `nil`
-    /// if encoding/writing fails.
-    static func save(_ image: UIImage) -> String? {
+    /// Downscales `image` to a thumbnail and writes it; returns the file name, or
+    /// `nil` if encoding/writing fails.
+    static func saveThumbnail(_ image: UIImage) -> String? {
         let fileName = "\(UUID().uuidString).jpg"
-        guard let data = image.jpegData(compressionQuality: 0.85) else { return nil }
+        guard let data = downscaled(image).jpegData(compressionQuality: 0.8) else { return nil }
         do {
             try data.write(to: url(for: fileName))
         } catch {
             return nil
         }
-        if let thumbnail = image.preparingThumbnail(of: thumbnailSize(for: image.size))?.jpegData(compressionQuality: 0.8) {
-            try? thumbnail.write(to: thumbnailURL(for: fileName))
-        }
         return fileName
     }
 
-    static func delete(_ fileName: String) {
+    static func delete(_ fileName: String?) {
+        guard let fileName else { return }
         try? FileManager.default.removeItem(at: url(for: fileName))
-        try? FileManager.default.removeItem(at: thumbnailURL(for: fileName))
     }
 
-    static func image(for fileName: String) -> UIImage? {
-        UIImage(contentsOfFile: url(for: fileName).path)
+    /// Reads and decodes a cached thumbnail off the main thread (keeps gallery
+    /// scrolling smooth — the decode would otherwise run on the main actor).
+    static func thumbnailPrepared(for fileName: String) async -> UIImage? {
+        let path = url(for: fileName).path
+        guard let image = await Task.detached(priority: .userInitiated, operation: {
+            UIImage(contentsOfFile: path)
+        }).value else { return nil }
+        return await image.byPreparingForDisplay()
     }
 
-    /// The thumbnail, falling back to the full image if no thumbnail was written.
-    static func thumbnail(for fileName: String) -> UIImage? {
-        UIImage(contentsOfFile: thumbnailURL(for: fileName).path) ?? image(for: fileName)
+    /// A downscaled copy bounded by `maxThumbnailDimension`. Never returns the
+    /// original at full size — that would bloat the cache, defeating the
+    /// reference-based storage model (#141).
+    private static func downscaled(_ image: UIImage) -> UIImage {
+        let targetSize = thumbnailSize(for: image.size)
+        if let prepared = image.preparingThumbnail(of: targetSize) { return prepared }
+        return UIGraphicsImageRenderer(size: targetSize).image { _ in
+            image.draw(in: CGRect(origin: .zero, size: targetSize))
+        }
     }
 
     private static func thumbnailSize(for size: CGSize) -> CGSize {
-        let maxDimension: CGFloat = 400
-        let scale = min(maxDimension / max(size.width, 1), maxDimension / max(size.height, 1), 1)
+        let scale = min(maxThumbnailDimension / max(size.width, 1), maxThumbnailDimension / max(size.height, 1), 1)
         return CGSize(width: size.width * scale, height: size.height * scale)
     }
 }
