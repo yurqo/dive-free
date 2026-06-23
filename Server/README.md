@@ -21,9 +21,10 @@ status code verbatim.
 ## Configuration
 
 - **`name`** in `wrangler.toml` is `dive-free`.
-- **Custom domain:** edit the `[[routes]]` `pattern` in `wrangler.toml` to your
-  host (e.g. `strava.divefree.app/*`). The zone must be on this Cloudflare
-  account. This host must match `StravaConfig.proxyBaseURL` in the app.
+- **Custom domain:** the `[[routes]]` `pattern` in `wrangler.toml` is set to
+  `strava.divefree.software-engineer.ing` (a bare hostname — `custom_domain`
+  routes take no path/`/*`). The zone must be on this Cloudflare account, and
+  this host must match `StravaConfig.proxyBaseURL` in the app.
 - **Secrets** (set once; they persist across deploys and are *not* needed at
   build time):
 
