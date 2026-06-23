@@ -9,6 +9,7 @@ public enum DiveSchema {
         DiveRecord.self,
         MarkerRecord.self,
         CustomMarkerRecord.self,
+        Spot.self,
     ]
 }
 

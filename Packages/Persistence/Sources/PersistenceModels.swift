@@ -85,6 +85,10 @@ public final class SessionRecord {
     // Defaulted true for lightweight migration of rows created before the toggle.
     public var smoothTrack: Bool = true
 
+    /// The dive spot this session belongs to (assigned on import). Optional so
+    /// existing rows migrate to nil and get backfilled by the spot assigner.
+    public var spot: Spot?
+
     @Relationship(deleteRule: .cascade, inverse: \DiveRecord.session)
     public var dives: [DiveRecord]
 

@@ -78,7 +78,7 @@ struct SessionListView: View {
                         }
                         .onDelete(perform: deleteSessions)
                     }
-                    .task { await backfillLocationNames() }
+                    .task { await backfillLocationNames(); assignSpots() }
                     .task { await backfillWeather() }
                     .navigationDestination(for: SessionRecord.self) { session in
                         SessionDetailView(session: session)
@@ -124,6 +124,14 @@ struct SessionListView: View {
             session.locationName = name
             try? modelContext.save()
         }
+    }
+
+    /// Assigns any located, spot-less session to a dive spot (nearest within
+    /// radius, else a new one named from its area). Runs after geocoding so a new
+    /// spot gets the resolved area name; idempotent, so it also backfills existing
+    /// sessions on first launch.
+    private func assignSpots() {
+        try? SpotAssigner(context: modelContext).assignUnassignedSessions()
     }
 
     /// Fetches weather + marine data for any session missing it, one at a time,
