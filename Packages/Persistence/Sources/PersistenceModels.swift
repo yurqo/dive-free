@@ -95,6 +95,9 @@ public final class SessionRecord {
     @Relationship(deleteRule: .cascade, inverse: \MarkerRecord.session)
     public var markers: [MarkerRecord]
 
+    @Relationship(deleteRule: .cascade, inverse: \PhotoRecord.session)
+    public var photos: [PhotoRecord] = []
+
     public init(
         id: UUID = UUID(),
         startTime: Date,

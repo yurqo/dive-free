@@ -51,6 +51,8 @@ struct SessionDetailView: View {
 
             weatherSection(domain)
 
+            SessionPhotosSection(session: session)
+
             chartsSection(domain)
 
             segmentsSection(domain)
