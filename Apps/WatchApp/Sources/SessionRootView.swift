@@ -339,7 +339,10 @@ struct SessionRootView: View {
         let bpm: Int?
         @Environment(\.accessibilityReduceMotion) private var reduceMotion
         @State private var scale = 1.0
-        @State private var hasSettled = false
+        @State private var beatOpacity = 1.0
+        /// Latest rate mirrored into @State so the long-running beat task can pick
+        /// up a new reading at a cycle boundary instead of restarting mid-thump.
+        @State private var liveBPM: Int?
 
         private static let activeTint = Color(red: 0.7, green: 0, blue: 0)
 
@@ -349,39 +352,56 @@ struct SessionRootView: View {
             VStack(alignment: .trailing, spacing: 1) {
                 Image(systemName: "heart.fill")
                     .foregroundStyle(Self.activeTint)
-                    .opacity(bpm == nil ? 0.35 : 1)
+                    .opacity((bpm == nil ? 0.35 : 1) * beatOpacity)
                     .scaleEffect(scale)
                     .animation(.easeOut(duration: 0.14), value: scale)
+                    .animation(.easeInOut(duration: 0.18), value: beatOpacity)
                 Text(bpm.map { "\($0)" } ?? "--")
                     .foregroundStyle(.secondary)
             }
             .font(.caption2)
             .monospacedDigit()
-            .task(id: bpm) { await pump() }
+            // Keyed on reduceMotion (not bpm): restarts only on the rare
+            // accessibility toggle so the beat-vs-pulse mode stays correct, while a
+            // new bpm reading (via liveBPM) never cancels/restarts the beat mid-cycle.
+            .task(id: reduceMotion) { await pump() }
+            .onChange(of: bpm) { _, newValue in liveBPM = newValue }
         }
 
-        /// Beats a lub-dub double thump once per cardiac cycle at the live rate;
-        /// stays static when there's no reading or Reduce Motion is on.
-        /// `.task(id: bpm)` restarts this whenever the rate changes, re-syncing.
+        /// Beats once per cardiac cycle at the live rate, for the view's lifetime.
+        /// A new bpm is applied at the next cycle boundary (read from `liveBPM`),
+        /// never interrupting the current thump. Reduce Motion swaps the scaling
+        /// lub-dub for a gentle opacity pulse.
         private func pump() async {
+            // Seed only if not already set (e.g. by an onChange that landed before
+            // this task ran, or before a reduceMotion-triggered restart).
+            if liveBPM == nil { liveBPM = bpm }
             scale = 1.0
-            guard let bpm, bpm > 0, !reduceMotion else { return }
-            // On first run, let the screen-entry layout settle before animating —
-            // otherwise the very first beat coincides with the initial layout and
-            // the scale animation drags the heart in from its pre-layout origin
-            // ("flying" across the screen). Once settled, beats are pure scale.
-            if !hasSettled {
-                try? await Task.sleep(for: .seconds(0.35))
-                hasSettled = true
-            }
-            let interval = 60.0 / Double(bpm)
-            let cycle = 0.41 // total of the four phases below
+            beatOpacity = 1.0
+            // Let the screen-entry layout settle before the first beat, so the
+            // animation doesn't drag the heart in from its pre-layout origin.
+            try? await Task.sleep(for: .seconds(0.35))
             while !Task.isCancelled {
-                await hold(1.3, for: 0.10)  // lub — strong first beat
-                await hold(1.08, for: 0.09) // partial relaxation between the two
-                await hold(1.22, for: 0.10) // dub — softer second beat
-                await hold(1.0, for: 0.12)  // settle to rest
-                try? await Task.sleep(for: .seconds(max(0.05, interval - cycle)))
+                guard let bpm = liveBPM, bpm > 0 else {
+                    scale = 1.0
+                    beatOpacity = 1.0
+                    try? await Task.sleep(for: .seconds(0.5))
+                    continue
+                }
+                let interval = 60.0 / Double(bpm)
+                if reduceMotion {
+                    // Non-moving liveness cue: fade down and back once per cycle.
+                    await holdOpacity(0.5, for: 0.18)
+                    await holdOpacity(1.0, for: 0.18)
+                    try? await Task.sleep(for: .seconds(max(0.05, interval - 0.36)))
+                } else {
+                    let cycle = 0.41 // total of the four phases below
+                    await hold(1.3, for: 0.10)  // lub — strong first beat
+                    await hold(1.08, for: 0.09) // partial relaxation between the two
+                    await hold(1.22, for: 0.10) // dub — softer second beat
+                    await hold(1.0, for: 0.12)  // settle to rest
+                    try? await Task.sleep(for: .seconds(max(0.05, interval - cycle)))
+                }
             }
         }
 
@@ -389,6 +409,12 @@ struct SessionRootView: View {
         /// it for the phase's duration before the next phase begins.
         private func hold(_ value: Double, for seconds: Double) async {
             scale = value
+            try? await Task.sleep(for: .seconds(seconds))
+        }
+
+        /// Opacity-pulse equivalent of `hold`, for the Reduce Motion path.
+        private func holdOpacity(_ value: Double, for seconds: Double) async {
+            beatOpacity = value
             try? await Task.sleep(for: .seconds(seconds))
         }
     }
