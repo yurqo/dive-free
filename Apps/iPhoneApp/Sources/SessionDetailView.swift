@@ -49,6 +49,8 @@ struct SessionDetailView: View {
 
             conditionsSection(domain)
 
+            weatherSection(domain)
+
             chartsSection(domain)
 
             segmentsSection(domain)
@@ -67,6 +69,25 @@ struct SessionDetailView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button("Edit") { showEdit = true }
+            }
+        }
+    }
+
+    // MARK: - Weather
+
+    @ViewBuilder
+    private func weatherSection(_ domain: DiveSession) -> some View {
+        if let weather = domain.weather, !weather.isEmpty {
+            Section("Weather") {
+                if let condition = weather.conditionDescription {
+                    LabeledContent("Conditions", value: condition)
+                }
+                if let wind = weather.windSpeedKmh {
+                    LabeledContent("Wind", value: "\(Int(wind.rounded())) km/h")
+                }
+                if let wave = weather.waveHeightMeters {
+                    LabeledContent("Waves", value: String(format: "%.1f m", wave))
+                }
             }
         }
     }

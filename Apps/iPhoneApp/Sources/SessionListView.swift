@@ -14,6 +14,9 @@ struct SessionListView: View {
     /// Sessions geocoded this launch, so a coordinate that resolves to no name
     /// (open water, remote spots) isn't retried on every list appearance.
     @State private var geocodeAttempted: Set<UUID> = []
+    /// Sessions whose weather fetch was attempted this launch (a failed fetch
+    /// isn't persisted, so it retries on a later launch when back online).
+    @State private var weatherAttempted: Set<UUID> = []
 
     var body: some View {
         NavigationStack {
@@ -76,6 +79,7 @@ struct SessionListView: View {
                         .onDelete(perform: deleteSessions)
                     }
                     .task { await backfillLocationNames() }
+                    .task { await backfillWeather() }
                     .navigationDestination(for: SessionRecord.self) { session in
                         SessionDetailView(session: session)
                     }
@@ -118,6 +122,28 @@ struct SessionListView: View {
             guard let name = await LocationName.resolve(latitude: lat, longitude: lon),
                   !name.isEmpty else { continue }
             session.locationName = name
+            try? modelContext.save()
+        }
+    }
+
+    /// Fetches weather + marine data for any session missing it, one at a time,
+    /// time-boxed. A success persists (`weatherFetched`) so it never refetches; a
+    /// failure (offline) isn't persisted, so a later online launch retries — the
+    /// historical/forecast endpoint keeps a late fetch accurate for the dive time.
+    /// Fetched air/sea temperatures pre-fill the manual conditions where unset.
+    private func backfillWeather() async {
+        for session in sessions {
+            if Task.isCancelled { return }
+            guard !session.weatherFetched,
+                  !weatherAttempted.contains(session.id),
+                  let lat = session.latitude, let lon = session.longitude else { continue }
+            weatherAttempted.insert(session.id)
+            guard let snapshot = await WeatherProvider.fetch(latitude: lat, longitude: lon, date: session.startTime) else { continue }
+            session.weather = snapshot.weather
+            session.weatherFetched = true
+            // Pre-fill manual conditions where the user hasn't entered a value.
+            if session.airTemperatureCelsius == nil { session.airTemperatureCelsius = snapshot.airTemperatureCelsius }
+            if session.waterTemperatureCelsius == nil { session.waterTemperatureCelsius = snapshot.seaTemperatureCelsius }
             try? modelContext.save()
         }
     }
