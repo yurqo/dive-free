@@ -20,8 +20,7 @@ struct WatchSessionMapView: View {
         self.interactive = interactive
         func inRange(_ time: Date) -> Bool { range.map { $0.contains(time) } ?? true }
 
-        let path = session.track
-            .sorted { $0.timestamp < $1.timestamp }
+        let path = session.effectiveTrack
             .filter { inRange($0.timestamp) }
             .map { $0.location.coordinate }
         self.surfacePath = path

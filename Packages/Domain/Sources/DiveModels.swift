@@ -269,18 +269,29 @@ public struct DiveSession: Sendable, Equatable, Codable, Identifiable {
     /// region), resolved after the session is saved. `nil` until resolved, or when
     /// there was no GPS fix / geocoding failed.
     public var locationName: String?
+    /// Whether the surface track is cleaned (outliers rejected + lightly smoothed)
+    /// for distance and maps. On by default; the raw `track` is always retained.
+    public var smoothTrack: Bool
 
     public var maxDepthMeters: Double { dives.map(\.maxDepthMeters).max() ?? 0 }
     public var diveCount: Int { dives.count }
 
-    /// Total surface distance traveled during the session (meters), from the track.
-    public var surfaceDistanceMeters: Double { track.surfaceDistanceMeters }
+    /// The track used for distance and maps: cleaned (outliers rejected + lightly
+    /// smoothed) when `smoothTrack` is on, otherwise the raw captured track —
+    /// always time-ordered. The raw `track` is preserved either way.
+    public var effectiveTrack: [TrackPoint] {
+        smoothTrack ? TrackCleaner.clean(track) : track.sorted { $0.timestamp < $1.timestamp }
+    }
+
+    /// Total surface distance traveled during the session (meters), from the
+    /// effective (cleaned-when-enabled) track.
+    public var surfaceDistanceMeters: Double { effectiveTrack.surfaceDistanceMeters }
 
     /// Linearly-interpolated surface position at the given instant, clamped to
     /// the track's endpoints. `nil` only when there is no track at all. Used to
     /// place dive events and surface markers along the path by timestamp.
     public func surfaceLocation(at time: Date) -> GeoPoint? {
-        let ordered = track.sorted { $0.timestamp < $1.timestamp }
+        let ordered = effectiveTrack
         guard let first = ordered.first, let last = ordered.last else { return nil }
         if time <= first.timestamp { return first.location }
         if time >= last.timestamp { return last.location }
@@ -343,6 +354,8 @@ public struct DiveSession: Sendable, Equatable, Codable, Identifiable {
     /// Surface gaps shorter than a second are dropped as noise.
     public var segments: [SessionSegment] {
         let ordered = dives.sorted { $0.startTime < $1.startTime }
+        // Compute the cleaned track once; the per-interval distances reuse it.
+        let cleanTrack = effectiveTrack
         var result: [SessionSegment] = []
         var cursor = startTime
         func markersIn(_ from: Date, _ to: Date) -> Int {
@@ -352,7 +365,7 @@ public struct DiveSession: Sendable, Equatable, Codable, Identifiable {
             guard end.timeIntervalSince(cursor) >= 1 else { return }
             // Surface distance traveled during just this interval (track hops
             // between the cursor and the next dive / session end).
-            let distance = track
+            let distance = cleanTrack
                 .filter { $0.timestamp >= cursor && $0.timestamp <= end }
                 .surfaceDistanceMeters
             result.append(SessionSegment(
@@ -382,7 +395,8 @@ public struct DiveSession: Sendable, Equatable, Codable, Identifiable {
         track: [TrackPoint] = [],
         heartRateSamples: [HeartRateSample] = [],
         temperatureSamples: [TemperatureSample] = [],
-        locationName: String? = nil
+        locationName: String? = nil,
+        smoothTrack: Bool = true
     ) {
         self.id = id
         self.startTime = startTime
@@ -394,11 +408,12 @@ public struct DiveSession: Sendable, Equatable, Codable, Identifiable {
         self.heartRateSamples = heartRateSamples
         self.temperatureSamples = temperatureSamples
         self.locationName = locationName
+        self.smoothTrack = smoothTrack
     }
 
     private enum CodingKeys: String, CodingKey {
         case id, startTime, endTime, dives, markers, location, track
-        case heartRateSamples, temperatureSamples, locationName
+        case heartRateSamples, temperatureSamples, locationName, smoothTrack
     }
 
     /// Decoded leniently so payloads from an older app version (which had no
@@ -415,6 +430,8 @@ public struct DiveSession: Sendable, Equatable, Codable, Identifiable {
         heartRateSamples = try c.decodeIfPresent([HeartRateSample].self, forKey: .heartRateSamples) ?? []
         temperatureSamples = try c.decodeIfPresent([TemperatureSample].self, forKey: .temperatureSamples) ?? []
         locationName = try c.decodeIfPresent(String.self, forKey: .locationName)
+        // Default on for payloads that predate the toggle.
+        smoothTrack = try c.decodeIfPresent(Bool.self, forKey: .smoothTrack) ?? true
     }
 }
 

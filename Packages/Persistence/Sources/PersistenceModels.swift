@@ -20,6 +20,9 @@ public final class SessionRecord {
     // Reverse-geocoded area name, resolved after the session is saved. Optional
     // (like latitude/longitude) so existing rows migrate to nil automatically.
     public var locationName: String?
+    // Whether distance/maps use the cleaned (outlier-rejected + smoothed) track.
+    // Defaulted true for lightweight migration of rows created before the toggle.
+    public var smoothTrack: Bool = true
 
     @Relationship(deleteRule: .cascade, inverse: \DiveRecord.session)
     public var dives: [DiveRecord]
@@ -37,6 +40,7 @@ public final class SessionRecord {
         heartRateSamples: [HeartRateSample] = [],
         temperatureSamples: [TemperatureSample] = [],
         locationName: String? = nil,
+        smoothTrack: Bool = true,
         dives: [DiveRecord] = [],
         markers: [MarkerRecord] = []
     ) {
@@ -49,6 +53,7 @@ public final class SessionRecord {
         self.heartRateSamples = heartRateSamples
         self.temperatureSamples = temperatureSamples
         self.locationName = locationName
+        self.smoothTrack = smoothTrack
         self.dives = dives
         self.markers = markers
     }
@@ -178,7 +183,8 @@ public extension SessionRecord {
             track: track,
             heartRateSamples: heartRateSamples,
             temperatureSamples: temperatureSamples,
-            locationName: locationName
+            locationName: locationName,
+            smoothTrack: smoothTrack
         )
     }
 }
@@ -225,6 +231,7 @@ public extension SessionRecord {
             heartRateSamples: session.heartRateSamples,
             temperatureSamples: session.temperatureSamples,
             locationName: session.locationName,
+            smoothTrack: session.smoothTrack,
             dives: session.dives.map { DiveRecord(from: $0) },
             markers: session.markers.map { MarkerRecord(from: $0) }
         )

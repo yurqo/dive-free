@@ -60,6 +60,10 @@ struct SessionDetailView: View {
         Section("Location") {
             if !domain.track.isEmpty {
                 mapPreview { SessionTrackMapView(session: domain, interactive: false) }
+                Toggle("Smooth GPS track", isOn: Binding(
+                    get: { session.smoothTrack },
+                    set: { session.smoothTrack = $0 }
+                ))
             } else if let location = domain.location {
                 mapPreview { SessionMapView(location: location, interactive: false) }
             } else {

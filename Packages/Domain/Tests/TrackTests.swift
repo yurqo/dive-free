@@ -6,12 +6,16 @@ import Testing
 struct TrackTests {
     private let start = Date(timeIntervalSince1970: 1_000)
 
+    // These exercise the raw track geometry (interpolation, clamping, distance
+    // summing), so smoothing is off; the cleaning path is covered by
+    // TrackCleanerTests / DiveSession.smoothTrack.
     private func session(_ points: [(TimeInterval, Double, Double)]) -> DiveSession {
         DiveSession(
             startTime: start,
             track: points.map { offset, lat, lon in
                 TrackPoint(timestamp: start.addingTimeInterval(offset), location: GeoPoint(latitude: lat, longitude: lon))
-            }
+            },
+            smoothTrack: false
         )
     }
 
