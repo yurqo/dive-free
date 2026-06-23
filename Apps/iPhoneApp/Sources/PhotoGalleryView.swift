@@ -9,7 +9,7 @@ import Persistence
 /// not copied — they stay in the Photos library.
 struct ImportedPhoto {
     let assetIdentifier: String?
-    let thumbnail: UIImage
+    let thumbnail: UIImage?
 }
 
 /// A reusable "Photos" section: a thumbnail strip + add-from-library / take-photo
@@ -17,11 +17,11 @@ struct ImportedPhoto {
 /// owner supplies the photos and the add/delete side effects.
 struct PhotoGallerySection<Extra: View>: View {
     let photos: [PhotoRecord]
-    let onAdd: (ImportedPhoto) -> Void
+    let onAdd: ([ImportedPhoto]) -> Void
     let onDelete: (PhotoRecord) -> Void
     @ViewBuilder var extraActions: Extra
 
-    @State private var libraryItem: PhotosPickerItem?
+    @State private var libraryItems: [PhotosPickerItem] = []
     @State private var showCamera = false
     @State private var fullScreen: PhotoRecord?
 
@@ -39,9 +39,10 @@ struct PhotoGallerySection<Extra: View>: View {
                 }
                 .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
             }
-            // .shared() makes the picked item's `itemIdentifier` a library asset id
-            // we can reference later, instead of an opaque copy.
-            PhotosPicker(selection: $libraryItem, matching: .images, photoLibrary: .shared()) {
+            // .shared() makes each picked item's `itemIdentifier` a library asset id
+            // we can reference later, instead of an opaque copy. Multi-select +
+            // the picker's own Add button = "multi-select + confirm" (#142).
+            PhotosPicker(selection: $libraryItems, matching: .images, photoLibrary: .shared()) {
                 Label("Add from Library", systemImage: "photo.on.rectangle")
             }
             if UIImagePickerController.isSourceTypeAvailable(.camera) {
@@ -49,20 +50,24 @@ struct PhotoGallerySection<Extra: View>: View {
             }
             extraActions
         }
-        .onChange(of: libraryItem) { _, item in
-            guard let item else { return }
+        .onChange(of: libraryItems) { _, items in
+            guard !items.isEmpty else { return }
             Task {
-                if let data = try? await item.loadTransferable(type: Data.self), let image = UIImage(data: data) {
-                    onAdd(ImportedPhoto(assetIdentifier: item.itemIdentifier, thumbnail: image))
+                var imported: [ImportedPhoto] = []
+                for item in items {
+                    if let data = try? await item.loadTransferable(type: Data.self), let image = UIImage(data: data) {
+                        imported.append(ImportedPhoto(assetIdentifier: item.itemIdentifier, thumbnail: image))
+                    }
                 }
-                libraryItem = nil
+                if !imported.isEmpty { onAdd(imported) }
+                libraryItems = []
             }
         }
         .sheet(isPresented: $showCamera) {
             CameraPicker { image in
                 // Save the capture to Photos so it can be referenced like any other
                 // library asset; fall back to a thumbnail-only record if denied.
-                Task { onAdd(ImportedPhoto(assetIdentifier: await PhotoLibrary.save(image), thumbnail: image)) }
+                Task { onAdd([ImportedPhoto(assetIdentifier: await PhotoLibrary.save(image), thumbnail: image)]) }
             }
             .ignoresSafeArea()
         }
@@ -84,7 +89,7 @@ struct SessionPhotosSection: View {
     var body: some View {
         PhotoGallerySection(
             photos: session.photos.sorted { $0.createdAt < $1.createdAt },
-            onAdd: { save(assetIdentifier: $0.assetIdentifier, thumbnail: $0.thumbnail) },
+            onAdd: { saveAll($0) },
             onDelete: { remove($0) }
         ) {
             Button { Task { await suggest() } } label: {
@@ -109,10 +114,28 @@ struct SessionPhotosSection: View {
         }
     }
 
-    private func save(assetIdentifier: String?, thumbnail: UIImage?) {
-        let thumbnailFileName = thumbnail.flatMap { PhotoStore.saveThumbnail($0) }
-        modelContext.insert(PhotoRecord(assetIdentifier: assetIdentifier, thumbnailFileName: thumbnailFileName, session: session))
+    /// Persists imported photos (one store-save) and best-effort mirrors their
+    /// library assets into the DiveFree / per-session Photos albums (#145).
+    private func saveAll(_ imported: [ImportedPhoto]) {
+        for photo in imported {
+            let thumbnailFileName = photo.thumbnail.flatMap { PhotoStore.saveThumbnail($0) }
+            modelContext.insert(PhotoRecord(assetIdentifier: photo.assetIdentifier, thumbnailFileName: thumbnailFileName, session: session))
+        }
         try? modelContext.save()
+        let identifiers = imported.compactMap(\.assetIdentifier)
+        guard !identifiers.isEmpty else { return }
+        let albumTitle = sessionAlbumTitle
+        Task { await PhotoAlbum.mirror(assetIdentifiers: identifiers, sessionAlbumTitle: albumTitle) }
+    }
+
+    /// A recognizable per-session album name for the Strava add-photos flow,
+    /// e.g. "Jun 24 · Blue Hole".
+    private var sessionAlbumTitle: String {
+        let date = session.startTime.formatted(.dateTime.month(.abbreviated).day())
+        if let place = session.spot?.name ?? session.locationName, !place.isEmpty {
+            return "\(date) · \(place)"
+        }
+        return date
     }
 
     private func remove(_ photo: PhotoRecord) {
@@ -132,12 +155,11 @@ struct SessionPhotosSection: View {
     }
 
     private func importAssets(_ assets: [PHAsset]) async {
+        var imported: [ImportedPhoto] = []
         for asset in assets {
-            let thumbnail = await PhotoLibrary.thumbnail(for: asset)
-            let thumbnailFileName = thumbnail.flatMap { PhotoStore.saveThumbnail($0) }
-            modelContext.insert(PhotoRecord(assetIdentifier: asset.localIdentifier, thumbnailFileName: thumbnailFileName, session: session))
+            imported.append(ImportedPhoto(assetIdentifier: asset.localIdentifier, thumbnail: await PhotoLibrary.thumbnail(for: asset)))
         }
-        try? modelContext.save()
+        saveAll(imported)
     }
 }
 
@@ -150,9 +172,14 @@ struct SpotPhotosSection: View {
         PhotoGallerySection(
             photos: (spot.photos + spot.sessions.flatMap { $0.photos }).sorted { $0.createdAt < $1.createdAt },
             onAdd: { imported in
-                let thumbnailFileName = PhotoStore.saveThumbnail(imported.thumbnail)
-                modelContext.insert(PhotoRecord(assetIdentifier: imported.assetIdentifier, thumbnailFileName: thumbnailFileName, spot: spot))
+                for photo in imported {
+                    let thumbnailFileName = photo.thumbnail.flatMap { PhotoStore.saveThumbnail($0) }
+                    modelContext.insert(PhotoRecord(assetIdentifier: photo.assetIdentifier, thumbnailFileName: thumbnailFileName, spot: spot))
+                }
                 try? modelContext.save()
+                // Spot-direct photos mirror into the DiveFree "All" album (#145).
+                let identifiers = imported.compactMap(\.assetIdentifier)
+                Task { await PhotoAlbum.mirror(assetIdentifiers: identifiers, sessionAlbumTitle: nil) }
             },
             onDelete: { photo in
                 PhotoStore.delete(photo.thumbnailFileName)
