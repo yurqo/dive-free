@@ -12,6 +12,10 @@ public final class Spot {
     public var centerLongitude: Double
     public var createdAt: Date
     public var notes: String?
+    /// Reverse-geocoded country name + ISO code (#147), backfilled from the spot
+    /// center. Optional so existing rows migrate to nil and get backfilled.
+    public var country: String?
+    public var countryCode: String?
 
     @Relationship(deleteRule: .nullify, inverse: \SessionRecord.spot)
     public var sessions: [SessionRecord]
@@ -28,6 +32,8 @@ public final class Spot {
         centerLongitude: Double,
         createdAt: Date = Date(),
         notes: String? = nil,
+        country: String? = nil,
+        countryCode: String? = nil,
         sessions: [SessionRecord] = []
     ) {
         self.id = id
@@ -36,6 +42,8 @@ public final class Spot {
         self.centerLongitude = centerLongitude
         self.createdAt = createdAt
         self.notes = notes
+        self.country = country
+        self.countryCode = countryCode
         self.sessions = sessions
     }
 }
