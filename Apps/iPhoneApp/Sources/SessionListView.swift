@@ -48,7 +48,7 @@ struct SessionListView: View {
                                         StarRating(rating: rating)
                                             .font(.caption2)
                                     }
-                                    Text("\(domain.diveCount) dives · max \(DepthFormat.string(domain.maxDepthMeters))")
+                                    Text(statsLine(domain, photoCount: session.photos.count))
                                         .font(.subheadline)
                                         .foregroundStyle(.secondary)
                                     if let name = domain.locationName, !name.isEmpty {
@@ -99,9 +99,19 @@ struct SessionListView: View {
         }
     }
 
+    /// Row subtitle: dive count, max depth, and a photo count when present.
+    private func statsLine(_ domain: DiveSession, photoCount: Int) -> String {
+        var line = "\(domain.diveCount) dives · max \(DepthFormat.string(domain.maxDepthMeters))"
+        if photoCount > 0 { line += " · 📷\(photoCount)" }
+        return line
+    }
+
     private func deleteSessions(at offsets: IndexSet) {
         for index in offsets {
-            modelContext.delete(sessions[index])
+            let session = sessions[index]
+            // SwiftData cascade-deletes the PhotoRecords; remove their files too.
+            for photo in session.photos { PhotoStore.delete(photo.fileName) }
+            modelContext.delete(session)
         }
         try? modelContext.save()
     }
