@@ -124,6 +124,10 @@ struct SessionListView: View {
     private func backfillLocationNames() async {
         for session in sessions {
             if Task.isCancelled { return }
+            // A session can be deleted while we await an earlier one; reading or
+            // writing a deleted SwiftData model crashes (#148). modelContext is
+            // nil once an object has been deleted and saved.
+            guard session.modelContext != nil else { continue }
             guard session.locationName == nil,
                   !session.locationNameEdited,
                   !geocodeAttempted.contains(session.id),
@@ -131,6 +135,8 @@ struct SessionListView: View {
             geocodeAttempted.insert(session.id)
             guard let name = await LocationName.resolve(latitude: lat, longitude: lon),
                   !name.isEmpty else { continue }
+            // Re-check: this session may have been deleted during the await.
+            guard session.modelContext != nil else { continue }
             session.locationName = name
             try? modelContext.save()
         }
@@ -152,11 +158,15 @@ struct SessionListView: View {
     private func backfillWeather() async {
         for session in sessions {
             if Task.isCancelled { return }
+            // Skip a session deleted while we awaited an earlier one (#148).
+            guard session.modelContext != nil else { continue }
             guard !session.weatherFetched,
                   !weatherAttempted.contains(session.id),
                   let lat = session.latitude, let lon = session.longitude else { continue }
             weatherAttempted.insert(session.id)
             guard let snapshot = await WeatherProvider.fetch(latitude: lat, longitude: lon, date: session.startTime) else { continue }
+            // Re-check: this session may have been deleted during the await.
+            guard session.modelContext != nil else { continue }
             session.weather = snapshot.weather
             session.weatherFetched = true
             // Pre-fill manual conditions where the user hasn't entered a value.
