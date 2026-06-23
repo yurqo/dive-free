@@ -22,6 +22,10 @@ jobs:
   deploy:
     name: wrangler deploy
     runs-on: ubuntu-latest
+    # Optional for now: allow the deploy to fail (e.g. before the Cloudflare
+    # secrets — CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID — are configured)
+    # without failing the run. Remove once the Worker deploy is green.
+    continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
