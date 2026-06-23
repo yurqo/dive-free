@@ -10,6 +10,9 @@ public final class PhotoRecord {
     /// Base file name of the stored image (the thumbnail is derived from it).
     public var fileName: String
     public var createdAt: Date
+    /// `PHAsset.localIdentifier` when imported from the photo library, so the
+    /// timestamp auto-suggest (#126) can skip assets that are already attached.
+    public var assetIdentifier: String?
     /// The session this photo belongs to, if attached via a session.
     public var session: SessionRecord?
     /// The spot this photo is attached to directly (forward-compatible with #107).
@@ -19,12 +22,14 @@ public final class PhotoRecord {
         id: UUID = UUID(),
         fileName: String,
         createdAt: Date = Date(),
+        assetIdentifier: String? = nil,
         session: SessionRecord? = nil,
         spot: Spot? = nil
     ) {
         self.id = id
         self.fileName = fileName
         self.createdAt = createdAt
+        self.assetIdentifier = assetIdentifier
         self.session = session
         self.spot = spot
     }
