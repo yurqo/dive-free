@@ -44,14 +44,18 @@ struct StravaTests {
         #expect(fields["start_date_local"] != nil)
     }
 
-    @Test("location is folded into the description")
-    func locationInDescription() {
+    @Test("raw coordinates are not folded into the description")
+    func coordinatesNotInDescription() {
         let session = DiveSession(
             startTime: Date(timeIntervalSince1970: 0),
             endTime: Date(timeIntervalSince1970: 60),
             location: GeoPoint(latitude: 20.5, longitude: -87.0)
         )
-        #expect(StravaActivity(session: session).description?.contains("20.5") == true)
+        let description = StravaActivity(session: session).description
+        // The GPS position rides in the uploaded track now, not the text.
+        #expect(description?.contains("📍") == false)
+        #expect(description?.contains("20.5") == false)
+        #expect(description?.contains("max depth") == true)
     }
 }
 
@@ -128,7 +132,7 @@ private final class Counter: @unchecked Sendable {
 
 @Suite("StravaClient file upload")
 struct StravaClientFileUploadTests {
-    private let upload = StravaUpload(data: Data("<gpx/>".utf8), name: "Freedive Session", externalID: "EID")
+    private let upload = StravaUpload(data: Data("<TrainingCenterDatabase/>".utf8), dataType: "tcx", name: "Freedive Session", externalID: "EID")
 
     @Test("uploads the file as multipart and returns the activity id once ready")
     func uploadsAndReturnsActivityID() async throws {
@@ -150,7 +154,7 @@ struct StravaClientFileUploadTests {
         #expect(request?.value(forHTTPHeaderField: "Content-Type")?.hasPrefix("multipart/form-data; boundary=") == true)
         let body = request?.httpBody.flatMap { String(data: $0, encoding: .utf8) } ?? ""
         #expect(body.contains("name=\"data_type\""))
-        #expect(body.contains("filename=\"dive.gpx\""))
+        #expect(body.contains("filename=\"dive.tcx\""))
     }
 
     @Test("polls the upload until Strava attaches an activity id")
@@ -233,8 +237,8 @@ struct StravaClientFileUploadTests {
     }
 }
 
-@Suite("StravaGPX")
-struct StravaGPXTests {
+@Suite("StravaTCX")
+struct StravaTCXTests {
     private let t0 = Date(timeIntervalSince1970: 1_000)
 
     private func diveWithProfile() -> Dive {
@@ -251,17 +255,17 @@ struct StravaGPXTests {
     @Test("returns nil with no position source")
     func nilWithoutPosition() {
         let session = DiveSession(startTime: t0, dives: [diveWithProfile()])
-        #expect(StravaGPX.build(session) == nil)
+        #expect(StravaTCX.build(session) == nil)
     }
 
     @Test("returns nil with a position but no time-series data")
     func nilWithoutSeries() {
         let session = DiveSession(startTime: t0, location: GeoPoint(latitude: 1, longitude: 2))
-        #expect(StravaGPX.build(session) == nil)
+        #expect(StravaTCX.build(session) == nil)
     }
 
-    @Test("builds a GPX with track, depth, heart-rate, and temperature")
-    func buildsFullGPX() throws {
+    @Test("builds a TCX with track, depth, heart-rate, and calories")
+    func buildsFullTCX() throws {
         let session = DiveSession(
             startTime: t0,
             endTime: t0.addingTimeInterval(100),
@@ -277,21 +281,23 @@ struct StravaGPXTests {
             ],
             temperatureSamples: [
                 TemperatureSample(timestamp: t0.addingTimeInterval(10), celsius: 21),
-                TemperatureSample(timestamp: t0.addingTimeInterval(40), celsius: 19),
-            ]
+            ],
+            activeEnergyKilocalories: 123.4
         )
-        let data = try #require(StravaGPX.build(session))
+        let data = try #require(StravaTCX.build(session))
         #expect(XMLParser(data: data).parse()) // well-formed XML
         let xml = String(decoding: data, as: UTF8.self)
-        #expect(xml.contains("<gpx"))
-        #expect(xml.contains("xmlns:gpxtpx=\"http://www.garmin.com/xmlschemas/TrackPointExtension/v1\""))
-        #expect(xml.contains("<gpxtpx:hr>"))
-        #expect(xml.contains("<gpxtpx:atemp>"))
-        #expect(xml.contains("<ele>-12.0</ele>")) // deepest sample → negative altitude
-        #expect(xml.contains("lat=\"20.500000\""))
+        #expect(xml.contains("<TrainingCenterDatabase"))
+        #expect(xml.contains("<Calories>123</Calories>")) // rounded active energy
+        #expect(xml.contains("<HeartRateBpm><Value>"))
+        #expect(xml.contains("<AltitudeMeters>-12.0</AltitudeMeters>")) // deepest sample → negative altitude
+        #expect(xml.contains("<LatitudeDegrees>20.500000</LatitudeDegrees>"))
+        // TCX carries no water temperature — make sure we didn't leak GPX bits.
+        #expect(!xml.contains("atemp"))
+        #expect(!xml.contains("<gpx"))
     }
 
-    @Test("builds a GPX from a fixed location when there's no track")
+    @Test("builds from a fixed location with zero calories when energy is unknown")
     func buildsFromFixedLocation() throws {
         let session = DiveSession(
             startTime: t0,
@@ -302,26 +308,27 @@ struct StravaGPXTests {
                 HeartRateSample(timestamp: t0.addingTimeInterval(60), bpm: 80),
             ]
         )
-        let data = try #require(StravaGPX.build(session))
+        let data = try #require(StravaTCX.build(session))
         let xml = String(decoding: data, as: UTF8.self)
-        #expect(xml.contains("lat=\"1.000000\""))
-        #expect(xml.contains("<gpxtpx:hr>"))
+        #expect(xml.contains("<LatitudeDegrees>1.000000</LatitudeDegrees>"))
+        #expect(xml.contains("<HeartRateBpm><Value>"))
+        #expect(xml.contains("<Calories>0</Calories>")) // no active energy → 0
     }
 
     @Test("depthMeters is zero at the surface and the sampled depth underwater")
     func depthAtInstant() {
         let session = DiveSession(startTime: t0, dives: [diveWithProfile()])
-        #expect(StravaGPX.depthMeters(in: session, at: t0) == 0)
-        #expect(StravaGPX.depthMeters(in: session, at: t0.addingTimeInterval(25)) == 12)
+        #expect(StravaTCX.depthMeters(in: session, at: t0) == 0)
+        #expect(StravaTCX.depthMeters(in: session, at: t0.addingTimeInterval(25)) == 12)
     }
 
     @Test("interpolate clamps to endpoints and lerps between samples")
     func interpolates() {
-        #expect(StravaGPX.interpolate([], at: t0) == nil)
+        #expect(StravaTCX.interpolate([], at: t0) == nil)
         let samples = [(t0, 10.0), (t0.addingTimeInterval(10), 20.0)]
-        #expect(StravaGPX.interpolate(samples, at: t0.addingTimeInterval(-5)) == 10)
-        #expect(StravaGPX.interpolate(samples, at: t0.addingTimeInterval(5)) == 15)
-        #expect(StravaGPX.interpolate(samples, at: t0.addingTimeInterval(50)) == 20)
+        #expect(StravaTCX.interpolate(samples, at: t0.addingTimeInterval(-5)) == 10)
+        #expect(StravaTCX.interpolate(samples, at: t0.addingTimeInterval(5)) == 15)
+        #expect(StravaTCX.interpolate(samples, at: t0.addingTimeInterval(50)) == 20)
     }
 }
 

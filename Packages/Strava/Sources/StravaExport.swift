@@ -2,8 +2,8 @@ import Foundation
 import Domain
 
 /// Exports a completed session to Strava: fetches a valid access token, then
-/// either uploads a GPX **file** (when the session has a position + time-series
-/// data, so heart rate / temperature / depth / track ride along) or falls back
+/// either uploads a TCX **file** (when the session has a position + time-series
+/// data, so heart rate / depth / track / calories ride along) or falls back
 /// to a manual activity create (just the text summary). On a 401 it forces a
 /// token refresh and retries once. Rate-limit (429) and other failures surface
 /// as `StravaError` for the UI.
@@ -16,9 +16,10 @@ public enum StravaExport {
     ) async throws {
         let token = try await auth.validAccessToken()
         let activity = StravaActivity(session: session)
-        if let gpx = StravaGPX.build(session) {
+        if let tcx = StravaTCX.build(session) {
             let upload = StravaUpload(
-                data: gpx,
+                data: tcx,
+                dataType: "tcx",
                 name: activity.name,
                 description: activity.description,
                 externalID: session.id.uuidString,

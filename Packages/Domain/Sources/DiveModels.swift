@@ -299,6 +299,9 @@ public struct DiveSession: Sendable, Equatable, Codable, Identifiable {
     /// Whether the surface track is cleaned (outliers rejected + lightly smoothed)
     /// for distance and maps. On by default; the raw `track` is always retained.
     public var smoothTrack: Bool
+    /// Total active energy burned over the session (kilocalories), read from the
+    /// workout at session end. `nil` when unavailable (no workout / no Health data).
+    public var activeEnergyKilocalories: Double?
 
     public var maxDepthMeters: Double { dives.map(\.maxDepthMeters).max() ?? 0 }
     public var diveCount: Int { dives.count }
@@ -430,7 +433,8 @@ public struct DiveSession: Sendable, Equatable, Codable, Identifiable {
         conditions: DiveConditions = DiveConditions(),
         weather: DiveWeather? = nil,
         weatherFetched: Bool = false,
-        smoothTrack: Bool = true
+        smoothTrack: Bool = true,
+        activeEnergyKilocalories: Double? = nil
     ) {
         self.id = id
         self.startTime = startTime
@@ -450,13 +454,14 @@ public struct DiveSession: Sendable, Equatable, Codable, Identifiable {
         self.weather = weather
         self.weatherFetched = weatherFetched
         self.smoothTrack = smoothTrack
+        self.activeEnergyKilocalories = activeEnergyKilocalories
     }
 
     private enum CodingKeys: String, CodingKey {
         case id, startTime, endTime, dives, markers, location, track
         case heartRateSamples, temperatureSamples, locationName, smoothTrack
         case locationNameEdited, title, notes, rating, conditions
-        case weather, weatherFetched
+        case weather, weatherFetched, activeEnergyKilocalories
     }
 
     /// Decoded leniently so payloads from an older app version (which had no
@@ -482,6 +487,7 @@ public struct DiveSession: Sendable, Equatable, Codable, Identifiable {
         weatherFetched = try c.decodeIfPresent(Bool.self, forKey: .weatherFetched) ?? false
         // Default on for payloads that predate the toggle.
         smoothTrack = try c.decodeIfPresent(Bool.self, forKey: .smoothTrack) ?? true
+        activeEnergyKilocalories = try c.decodeIfPresent(Double.self, forKey: .activeEnergyKilocalories)
     }
 }
 

@@ -126,9 +126,12 @@ public struct StravaClient: StravaUploading {
         request.httpMethod = "POST"
         request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        // Strava keys off the `data_type` form field, not this content type, but
+        // send an honest one per format anyway.
+        let contentType = upload.dataType == "gpx" ? "application/gpx+xml" : "application/xml"
         request.httpBody = MultipartEncoding.body(
             fields: upload.formFields,
-            file: .init(name: "file", filename: "dive.\(upload.dataType)", contentType: "application/gpx+xml", data: upload.data),
+            file: .init(name: "file", filename: "dive.\(upload.dataType)", contentType: contentType, data: upload.data),
             boundary: boundary
         )
         return request

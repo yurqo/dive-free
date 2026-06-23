@@ -93,7 +93,10 @@ final class WorkoutController: NSObject {
         #endif
     }
 
-    func end() async {
+    /// Ends the workout and returns the session's total active energy burned
+    /// (kilocalories), or `nil` if Health collected none (e.g. the simulator).
+    @discardableResult
+    func end() async -> Double? {
         let end = Date()
         #if targetEnvironment(simulator)
         syntheticHeartRateTask?.cancel()
@@ -101,11 +104,17 @@ final class WorkoutController: NSObject {
         #endif
         session?.end()
         try? await builder?.endCollection(at: end)
+        // Read the cumulative active energy before the builder is torn down.
+        let kilocalories = builder?
+            .statistics(for: HKQuantityType(.activeEnergyBurned))?
+            .sumQuantity()?
+            .doubleValue(for: .kilocalorie())
         _ = try? await builder?.finishWorkout()
         session = nil
         builder = nil
         isRunning = false
         currentHeartRate = nil
+        return kilocalories
     }
 
     #if targetEnvironment(simulator)
