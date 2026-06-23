@@ -24,47 +24,9 @@ final class SessionCoordinator {
         case summary(DiveSession)
     }
 
-    /// A single Crown-menu action. On the surface the diver scrolls to one of
-    /// these and confirms it (Action button, or a tap); underwater the Action
-    /// button drops a `.note` directly and the menu can't be confirmed.
-    enum SessionAction: Equatable, Identifiable {
-        case voiceNote
-        case mark(MarkerKind)
-        case end
-
-        var id: String {
-            switch self {
-            case .voiceNote: "voiceNote"
-            case .mark(let kind): "mark.\(kind.id)"
-            case .end: "end"
-            }
-        }
-
-        var title: String {
-            switch self {
-            case .voiceNote: "Voice Note"
-            case .mark(let kind): kind.label
-            case .end: "End Session"
-            }
-        }
-
-        /// Emoji for marker actions; `nil` for Voice Note / End (which use `systemImage`).
-        var emoji: String? {
-            switch self {
-            case .voiceNote: nil
-            case .mark(let kind): kind.emoji
-            case .end: nil
-            }
-        }
-
-        var systemImage: String {
-            switch self {
-            case .voiceNote: "mic.fill"
-            case .mark: "mappin"
-            case .end: "stop.fill"
-            }
-        }
-    }
+    /// The Crown-menu action type, defined by the pure, testable interaction model
+    /// in the `Session` package.
+    typealias SessionAction = SessionInteraction.Action
 
     private(set) var state: State = .idle
 
@@ -155,18 +117,19 @@ final class SessionCoordinator {
     /// User-defined custom marker kinds, synced from the iPhone.
     private(set) var customKinds: [MarkerKind] = []
 
-    /// Menu the Crown scrolls through, top → bottom: Voice Note, the diver's
-    /// default marker, the remaining kinds (built-in + custom), then End.
-    var menuItems: [SessionAction] {
-        let kinds = EventKind.builtInMarkerKinds + customKinds
-        let defaultID = defaultMarkerKindID
-        let ordered = (kinds.first { $0.id == defaultID }.map { [$0] } ?? [])
-            + kinds.filter { $0.id != defaultID }
-        return [.voiceNote] + ordered.map(SessionAction.mark) + [.end]
-    }
+    /// Pure, testable interaction model (menu, focus, button routing, end arming).
+    /// Initialized with the built-in kinds so the Settings scroll-speed preview has
+    /// a menu while idle; rebuilt with the diver's default focus at session start
+    /// and refreshed when custom markers sync in.
+    private var interaction = SessionInteraction(
+        kinds: EventKind.builtInMarkerKinds, defaultMarkerID: EventKind.note.rawValue
+    )
+
+    /// Menu the Crown scrolls through (Voice Note, the marker kinds, End).
+    var menuItems: [SessionAction] { interaction.menuItems }
 
     /// Index of the currently highlighted menu item (Crown-driven).
-    private(set) var focusedIndex: Int = 0
+    var focusedIndex: Int { interaction.focusedIndex }
 
     /// Id of the diver's preferred default marker (Settings → Default marker).
     /// Pre-selected in the carousel and dropped by the Action button underwater.
@@ -181,19 +144,19 @@ final class SessionCoordinator {
             ?? MarkerKind(.note)
     }
 
-    /// Carousel index of the default marker, so a fresh session starts focused on
-    /// it (falls back to the first item).
-    private var defaultFocusIndex: Int {
-        menuItems.firstIndex {
-            if case .mark(let kind) = $0 { return kind.id == defaultMarkerKindID }
-            return false
-        } ?? 0
+    /// Rebuilds the interaction menu for the current kinds + default (preserving
+    /// focus); call when custom markers change.
+    private func refreshMenu() {
+        interaction.setMenu(kinds: EventKind.builtInMarkerKinds + customKinds, defaultMarkerID: defaultMarkerKindID)
     }
 
-    /// True while the end-session confirmation dialog should be shown. Confirming
-    /// End (Crown + Action button, or a tap) arms this rather than ending
-    /// immediately, so an accidental confirm can't cut a session short.
-    var pendingEndConfirmation = false
+    /// True while the end-session confirmation dialog should be shown (armed via
+    /// Crown → End → Action button). Bound to the dialog's `isPresented`; setting
+    /// it false (dismiss/cancel) clears the arm.
+    var pendingEndConfirmation: Bool {
+        get { interaction.pendingEndConfirmation }
+        set { interaction.setPendingEnd(newValue) }
+    }
 
     /// Number of sessions handed to sync but not yet confirmed delivered to the
     /// iPhone. Drives the post-session pending/synced badge.
@@ -208,56 +171,23 @@ final class SessionCoordinator {
         sessionManager.addMarker(kind: kind)
     }
 
-    /// Highlights a menu item (clamped). The Crown only moves the highlight;
-    /// nothing fires until the Action button confirms it.
+    /// Moves the Crown highlight (clamped). Nothing fires until a button confirms.
     func focus(_ index: Int) {
-        guard case .active = state, !menuItems.isEmpty else { return }
-        focusedIndex = max(0, min(index, menuItems.count - 1))
+        guard case .active = state else { return }
+        interaction.focus(index)
     }
 
-    /// Confirms the focused menu item: place that marker kind, or end the
-    /// session. Invoked by the Action button on the surface.
+    /// Surface confirm — the Action button at the surface, or a screen tap.
     func confirmFocused() {
-        guard case .active = state, menuItems.indices.contains(focusedIndex) else { return }
-        switch menuItems[focusedIndex] {
-        case .voiceNote:
-            Task { await toggleVoiceNote() }
-        case .mark(let kind):
-            addMarker(kind: kind)
-            DiveHapticPlayer.play(.markerPlaced)
-        case .end:
-            pendingEndConfirmation = true
-        }
+        guard case .active = state else { return }
+        execute(interaction.confirmFocused())
     }
 
-    /// Confirms the armed end-session request and tears the session down.
+    /// Confirms the armed end-session request and tears the session down. Called
+    /// by the dialog's on-screen button and by the Action + side confirm.
     func confirmEnd() {
-        pendingEndConfirmation = false
+        interaction.setPendingEnd(false)
         Task { await stop() }
-    }
-
-    /// Invoked by the Apple Watch Ultra Action + side button dual-click (routed
-    /// through the Pause/Resume workout intents). We don't pause; instead this is
-    /// a touch-free way to end while water-locked: the first dual-click arms the
-    /// end confirmation, a second confirms and ends. Haptics stand in for the
-    /// dialog the diver may not be able to see underwater.
-    func handleEndGesture() {
-        switch state {
-        case .active:
-            if pendingEndConfirmation {
-                DiveHapticPlayer.play(.surface)
-                confirmEnd()
-            } else {
-                pendingEndConfirmation = true
-                DiveHapticPlayer.play(.markerPlaced)
-            }
-        case .summary:
-            // After a dive the dual-click is the touch-free "Done" — dismiss the
-            // summary (the Action button alone already starts a new session).
-            dismissSummary()
-        case .idle:
-            break
-        }
     }
 
     /// Dismisses the post-session summary and returns to the start screen.
@@ -266,25 +196,54 @@ final class SessionCoordinator {
         state = .idle
     }
 
-    /// Context-sensitive Action-button handler. Submerged → drop a `.note`
-    /// (screen is water-locked, so the menu can't be confirmed); on the surface
-    /// → confirm the focused menu item.
+    /// Action button (`AddMarkerIntent`). Context-sensitive: cancels the end
+    /// dialog if armed; underwater drops the focused marker (or the default when
+    /// parked on a non-marker); at the surface confirms the focused item.
     func handleActionButton() {
         guard case .active = state else { return }
-        if isSubmerged {
-            // Underwater the screen is water-locked but the Crown still moves the
-            // highlight, so place the focused marker — or the default when the
-            // diver is parked on End (we never end a dive via the Action button
-            // underwater; that's the Action + side dual-click).
-            if menuItems.indices.contains(focusedIndex),
-               case .mark(let kind) = menuItems[focusedIndex] {
-                addMarker(kind: kind)
-            } else {
-                addMarker(kind: defaultMarkerKind)
-            }
+        execute(interaction.actionButton(isSubmerged: isSubmerged, defaultMarker: defaultMarkerKind))
+    }
+
+    /// Action + side dual-click. In a live session it toggles a manual dive — or,
+    /// while the end dialog is armed, confirms the end. On the post-session summary
+    /// it's the touch-free "Done".
+    func handleActionSide() {
+        switch state {
+        case .active:
+            execute(interaction.actionSide())
+        case .summary:
+            dismissSummary()
+        case .idle:
+            break
+        }
+    }
+
+    /// Performs the side effect for an interaction `Effect`.
+    private func execute(_ effect: SessionInteraction.Effect) {
+        switch effect {
+        case .none:
+            break
+        case .placeMarker(let kind):
+            addMarker(kind: kind)
             DiveHapticPlayer.play(.markerPlaced)
+        case .toggleVoiceNote:
+            Task { await toggleVoiceNote() }
+        case .toggleManualDive:
+            toggleManualDive()
+        case .end:
+            confirmEnd()
+        }
+    }
+
+    /// Starts or stops a manual dive (Action + side), with a haptic cue since the
+    /// screen may be water-locked.
+    private func toggleManualDive() {
+        if sessionManager.isManualDiveActive {
+            sessionManager.stopManualDive()
+            DiveHapticPlayer.play(.surface)
         } else {
-            confirmFocused()
+            sessionManager.startManualDive()
+            DiveHapticPlayer.play(.markerPlaced)
         }
     }
 
@@ -312,7 +271,10 @@ final class SessionCoordinator {
             Task { @MainActor in self?.pendingSyncCount = count }
         }
         sync.onReceiveCustomMarkers = { [weak self] kinds in
-            Task { @MainActor in self?.customKinds = kinds }
+            Task { @MainActor in
+                self?.customKinds = kinds
+                self?.refreshMenu()
+            }
         }
         // Mirror the iPhone's units choice into local UserDefaults so the watch's
         // formatters (and Settings pickers) reflect it.
@@ -374,11 +336,12 @@ final class SessionCoordinator {
                 // No markers yet — drop a .note marker to carry the clip.
                 self.sessionManager.attachAudioToLastMarker(fileName)
             }
-            self.focusedIndex = self.lastMarkerFocusIndex
+            self.interaction.focus(self.lastMarkerFocusIndex)
         }
     }
 
-    /// Carousel index of the most-recently-placed marker's kind, or the default.
+    /// Carousel index of the most-recently-placed marker's kind, or the current
+    /// focus when there's no marker to point at.
     private var lastMarkerFocusIndex: Int {
         if let kind = sessionManager.markers.last?.kind,
            let index = menuItems.firstIndex(where: {
@@ -387,7 +350,7 @@ final class SessionCoordinator {
            }) {
             return index
         }
-        return defaultFocusIndex
+        return focusedIndex
     }
 
     func start() async {
@@ -406,8 +369,10 @@ final class SessionCoordinator {
             try await workout.requestAuthorization()
             try await workout.start()
             try await sessionManager.startSession()
-            focusedIndex = defaultFocusIndex
-            pendingEndConfirmation = false
+            // Fresh interaction: menu rebuilt, focused on the default marker, end disarmed.
+            interaction = SessionInteraction(
+                kinds: EventKind.builtInMarkerKinds + customKinds, defaultMarkerID: defaultMarkerKindID
+            )
             state = .active(start: sessionManager.startTime ?? Date())
         } catch {
             // HealthKit unavailable (e.g. simulator), sensor unavailable, or

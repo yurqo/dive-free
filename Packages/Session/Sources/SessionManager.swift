@@ -94,6 +94,47 @@ public final class SessionManager {
         return markers.filter { $0.timestamp >= start }.count
     }
 
+    /// Completed manual dive segments (Action + side). They define dives directly
+    /// and pre-empt overlapping auto-detection.
+    @ObservationIgnored private var manualSegments: [DateInterval] = []
+    /// Start of an in-progress manual dive, or `nil`.
+    @ObservationIgnored private var manualDiveStart: Date?
+    /// After a manual stop while still deep, don't let auto-detection immediately
+    /// re-open a dive — wait until the diver is back at the surface.
+    @ObservationIgnored private var suppressAutoUntilSurface = false
+
+    /// Whether a manual dive (Action + side) is currently in progress.
+    public var isManualDiveActive: Bool { manualDiveStart != nil }
+
+    /// Begins a manual dive immediately — even at the surface, before depth crosses
+    /// the threshold. Suspends auto-detection for this segment; the live UI shows
+    /// "submerged" right away.
+    public func startManualDive() {
+        guard isActive, manualDiveStart == nil else { return }
+        let now = Date()
+        manualDiveStart = now
+        suppressAutoUntilSurface = false
+        currentDiveStart = now
+        currentDiveMaxDepth = sensors.currentDepthMeters
+        lastSurfacedAt = nil
+        onSubmerge?()
+    }
+
+    /// Ends the in-progress manual dive immediately — even before surfacing.
+    /// Records the segment, recounts dives, and starts the surface-interval clock;
+    /// auto re-detection stays suspended until the diver is actually back up.
+    public func stopManualDive() {
+        guard isActive, let start = manualDiveStart else { return }
+        let now = Date()
+        if now > start { manualSegments.append(DateInterval(start: start, end: now)) }
+        manualDiveStart = nil
+        currentDiveStart = nil
+        currentDiveMaxDepth = 0
+        dives = detector.detectDives(from: sensors.samples, manualSegments: manualSegments)
+        lastSurfacedAt = dives.isEmpty ? nil : now
+        suppressAutoUntilSurface = sensors.currentDepthMeters > detector.config.surfaceThresholdMeters
+    }
+
     /// When the diver last returned to the surface after a completed dive. Set
     /// on the surface-crossing going up and cleared on the next descent (and
     /// while idle / before the first dive). `nil` whenever there is no surface
@@ -187,6 +228,9 @@ public final class SessionManager {
         currentDiveMaxDepth = 0
         currentDiveStart = nil
         lastSurfacedAt = nil
+        manualSegments = []
+        manualDiveStart = nil
+        suppressAutoUntilSurface = false
         capturedLocation = nil
         lastLocationFixAt = nil
         lastLocationAccuracy = nil
@@ -226,24 +270,31 @@ public final class SessionManager {
     /// running depth maximum, and fires haptic events for depth transitions.
     /// Called on every ingested sample via `onSamplesChanged`.
     private func refreshDetection() {
-        dives = detector.detectDives(from: sensors.samples)
+        dives = detector.detectDives(from: sensors.samples, manualSegments: manualSegments)
         let depth = sensors.currentDepthMeters
         maxDepthMeters = max(maxDepthMeters, depth)
-        // Edge-track the in-progress dive: start the clock on the way down,
-        // clear it on return to the surface. The surface interval is the mirror
-        // image — it starts when a counted dive ends and resets on the next
-        // descent.
-        if depth > detector.config.surfaceThresholdMeters {
-            if currentDiveStart == nil {
+        let submerged = depth > detector.config.surfaceThresholdMeters
+
+        // Manual (Action + side) owns the in-progress dive when active; otherwise
+        // edge-track it from depth — but don't auto-reopen a dive that was just
+        // ended manually until the diver is back at the surface.
+        if isManualDiveActive {
+            currentDiveMaxDepth = max(currentDiveMaxDepth, depth)
+            lastSurfacedAt = nil
+        } else if submerged {
+            if !suppressAutoUntilSurface, currentDiveStart == nil {
                 currentDiveStart = Date()
                 currentDiveMaxDepth = 0
                 onSubmerge?()
             }
-            currentDiveMaxDepth = max(currentDiveMaxDepth, depth)
-            lastSurfacedAt = nil
+            if currentDiveStart != nil {
+                currentDiveMaxDepth = max(currentDiveMaxDepth, depth)
+                lastSurfacedAt = nil
+            }
         } else {
-            // Surfacing from a dive that actually counted starts the recovery
-            // clock; a brief dip that never qualified leaves it untouched.
+            // Back at the surface: clear suppression; surfacing from a dive that
+            // actually counted starts the recovery clock.
+            suppressAutoUntilSurface = false
             if currentDiveStart != nil, !dives.isEmpty { lastSurfacedAt = Date() }
             currentDiveStart = nil
             currentDiveMaxDepth = 0
@@ -262,7 +313,12 @@ public final class SessionManager {
         sensors.stop()
         locationTask?.cancel()
         locationTask = nil
-        let finalDives = detector.detectDives(from: sensors.samples)
+        // Close an in-progress manual dive at session end, then run final detection.
+        var segments = manualSegments
+        if let manualStart = manualDiveStart, Date() > manualStart {
+            segments.append(DateInterval(start: manualStart, end: Date()))
+        }
+        let finalDives = detector.detectDives(from: sensors.samples, manualSegments: segments)
         let session = DiveSession(
             startTime: start,
             endTime: Date(),
@@ -286,6 +342,9 @@ public final class SessionManager {
         currentDiveMaxDepth = 0
         currentDiveStart = nil
         lastSurfacedAt = nil
+        manualSegments = []
+        manualDiveStart = nil
+        suppressAutoUntilSurface = false
         track = []
         lastLocationFixAt = nil
         lastLocationAccuracy = nil
