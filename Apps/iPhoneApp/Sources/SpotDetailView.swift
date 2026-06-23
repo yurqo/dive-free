@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 import Domain
 import Persistence
 
@@ -38,12 +39,25 @@ struct SpotStats {
     }
 }
 
-/// A spot's detail: aggregate stats, a map, its sessions, and rename.
+/// A spot's detail: aggregate stats, a map, notes, photos, its sessions, and the
+/// rename / merge / reassign actions.
 struct SpotDetailView: View {
     @Bindable var spot: Spot
+    @Query(sort: \Spot.name) private var allSpots: [Spot]
     @Environment(\.modelContext) private var modelContext
     @State private var showRename = false
     @State private var draftName = ""
+
+    private var otherSpots: [Spot] {
+        allSpots.filter { $0.persistentModelID != spot.persistentModelID }
+    }
+
+    private var notesBinding: Binding<String> {
+        Binding(
+            get: { spot.notes ?? "" },
+            set: { spot.notes = $0.isEmpty ? nil : $0 }
+        )
+    }
 
     var body: some View {
         let stats = SpotStats(spot)
@@ -69,6 +83,13 @@ struct SpotDetailView: View {
                 .listRowInsets(EdgeInsets())
             }
 
+            Section("Notes") {
+                TextField("Notes about this spot", text: notesBinding, axis: .vertical)
+                    .lineLimit(2...6)
+            }
+
+            SpotPhotosSection(spot: spot)
+
             Section("Sessions") {
                 ForEach(sessions) { session in
                     NavigationLink(value: session) {
@@ -80,6 +101,7 @@ struct SpotDetailView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
+                    .contextMenu { reassignMenu(for: session) }
                 }
             }
         }
@@ -87,7 +109,18 @@ struct SpotDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button("Rename") { draftName = spot.name; showRename = true }
+                Menu {
+                    Button("Rename") { draftName = spot.name; showRename = true }
+                    if !otherSpots.isEmpty {
+                        Menu("Merge a Spot In…") {
+                            ForEach(otherSpots) { other in
+                                Button(other.name) { absorb(other) }
+                            }
+                        }
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
             }
         }
         .alert("Rename Spot", isPresented: $showRename) {
@@ -103,5 +136,24 @@ struct SpotDetailView: View {
         } message: {
             Text("Choose a name for this dive spot.")
         }
+    }
+
+    @ViewBuilder
+    private func reassignMenu(for session: SessionRecord) -> some View {
+        if !otherSpots.isEmpty {
+            Menu("Move to Spot…") {
+                ForEach(otherSpots) { other in
+                    Button(other.name) {
+                        try? SpotAssigner(context: modelContext).reassign(session, to: other)
+                    }
+                }
+            }
+        }
+    }
+
+    /// Merges `other` into this spot — `other` is deleted and this spot keeps
+    /// everything, so the open detail stays valid (no deleted-object re-render).
+    private func absorb(_ other: Spot) {
+        try? SpotAssigner(context: modelContext).merge(other, into: spot)
     }
 }

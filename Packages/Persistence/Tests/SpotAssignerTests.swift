@@ -63,6 +63,46 @@ struct SpotAssignerTests {
         #expect(try assigner.assignUnassignedSessions() == 0)
     }
 
+    @Test("merge moves sessions + photos into the target and deletes the source")
+    func mergeSpots() throws {
+        let store = try DiveStore(inMemory: true)
+        let ctx = store.container.mainContext
+        let target = Spot(name: "Target", centerLatitude: 0, centerLongitude: 0)
+        let source = Spot(name: "Source", centerLatitude: 1, centerLongitude: 1)
+        ctx.insert(target)
+        ctx.insert(source)
+        let moved = session(ctx, lat: 1, lon: 1)
+        moved.spot = source
+        let photo = PhotoRecord(fileName: "x.jpg", spot: source)
+        ctx.insert(photo)
+        try ctx.save()
+
+        try SpotAssigner(context: ctx).merge(source, into: target)
+        #expect(try ctx.fetch(FetchDescriptor<Spot>()).count == 1)
+        #expect(moved.spot === target)
+        #expect(photo.spot === target)
+        #expect(target.sessions.count == 1)
+        #expect(target.photos.count == 1)
+    }
+
+    @Test("reassign moves a session to another spot, recentering both")
+    func reassignSession() throws {
+        let store = try DiveStore(inMemory: true)
+        let ctx = store.container.mainContext
+        let a = Spot(name: "A", centerLatitude: 0, centerLongitude: 0)
+        let b = Spot(name: "B", centerLatitude: 5, centerLongitude: 5)
+        ctx.insert(a)
+        ctx.insert(b)
+        let moved = session(ctx, lat: 0, lon: 0)
+        moved.spot = a
+        try ctx.save()
+
+        try SpotAssigner(context: ctx).reassign(moved, to: b)
+        #expect(moved.spot === b)
+        #expect(a.sessions.isEmpty)
+        #expect(b.sessions.count == 1)
+    }
+
     @Test("a session without a location is skipped")
     func noLocation() throws {
         let store = try DiveStore(inMemory: true)
