@@ -1,5 +1,6 @@
 import Foundation
 import os
+import AVFoundation
 import Photos
 import UIKit
 
@@ -45,6 +46,41 @@ enum PhotoLibrary {
             return nil
         }
         return identifier
+    }
+
+    /// Saves a captured video file to the Photos library; returns the new asset's
+    /// `localIdentifier` so it can be referenced (#139). Requires add/write access.
+    static func saveVideo(_ url: URL) async -> String? {
+        guard await requestAccess() else { return nil }
+        var identifier: String?
+        do {
+            try await PHPhotoLibrary.shared().performChanges {
+                let request = PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: url)
+                identifier = request?.placeholderForCreatedAsset?.localIdentifier
+            }
+        } catch {
+            return nil
+        }
+        return identifier
+    }
+
+    /// An `AVPlayerItem` for a referenced video (#139), or nil if missing/denied.
+    static func playerItem(forIdentifier identifier: String) async -> AVPlayerItem? {
+        guard let asset = asset(for: identifier) else { return nil }
+        return await withCheckedContinuation { (continuation: CheckedContinuation<AVPlayerItem?, Never>) in
+            let options = PHVideoRequestOptions()
+            options.isNetworkAccessAllowed = true
+            options.deliveryMode = .automatic
+            let resumed = OSAllocatedUnfairLock(initialState: false)
+            PHImageManager.default().requestPlayerItem(forVideo: asset, options: options) { item, _ in
+                let isFirst = resumed.withLock { done -> Bool in
+                    if done { return false }
+                    done = true
+                    return true
+                }
+                if isFirst { continuation.resume(returning: item) }
+            }
+        }
     }
 
     /// Loads an image for `asset`. `requestImage` can deliver more than once

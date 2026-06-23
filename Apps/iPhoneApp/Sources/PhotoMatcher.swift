@@ -24,11 +24,12 @@ enum PhotoMatcher {
 
     /// Image assets created within `window`, excluding `excludedIdentifiers`
     /// (already-attached assets), oldest first.
-    static func imageAssets(in window: DateInterval, excluding excludedIdentifiers: Set<String>) -> [PHAsset] {
+    static func mediaAssets(in window: DateInterval, excluding excludedIdentifiers: Set<String>) -> [PHAsset] {
         let options = PHFetchOptions()
         options.predicate = NSPredicate(
-            format: "mediaType == %d AND creationDate >= %@ AND creationDate <= %@",
-            PHAssetMediaType.image.rawValue, window.start as NSDate, window.end as NSDate
+            format: "(mediaType == %d OR mediaType == %d) AND creationDate >= %@ AND creationDate <= %@",
+            PHAssetMediaType.image.rawValue, PHAssetMediaType.video.rawValue,
+            window.start as NSDate, window.end as NSDate
         )
         options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: true)]
         let result = PHAsset.fetchAssets(with: options)
