@@ -106,7 +106,7 @@ struct MarkerEditView: View {
             if let id = item.itemIdentifier { identifiers.append(id) }
         }
         try? modelContext.save()
-        Task { await PhotoAlbum.mirror(assetIdentifiers: identifiers, sessionAlbumTitle: nil) }
+        Task { await PhotoAlbum.mirror(assetIdentifiers: identifiers) }
     }
 }
 
