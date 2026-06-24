@@ -155,18 +155,7 @@ struct SessionPhotosSection: View {
         try? modelContext.save()
         let identifiers = imported.compactMap(\.assetIdentifier)
         guard !identifiers.isEmpty else { return }
-        let albumTitle = sessionAlbumTitle
-        Task { await PhotoAlbum.mirror(assetIdentifiers: identifiers, sessionAlbumTitle: albumTitle) }
-    }
-
-    /// A recognizable per-session album name for the Strava add-photos flow,
-    /// e.g. "Jun 24 · Blue Hole".
-    private var sessionAlbumTitle: String {
-        let date = session.startTime.formatted(.dateTime.month(.abbreviated).day())
-        if let place = session.spot?.name ?? session.locationName, !place.isEmpty {
-            return "\(date) · \(place)"
-        }
-        return date
+        Task { await PhotoAlbum.mirror(assetIdentifiers: identifiers) }
     }
 
     private func remove(_ photo: PhotoRecord) {
@@ -212,9 +201,9 @@ struct SpotPhotosSection: View {
                     modelContext.insert(PhotoRecord(assetIdentifier: photo.assetIdentifier, thumbnailFileName: thumbnailFileName, isVideo: photo.isVideo, spot: spot))
                 }
                 try? modelContext.save()
-                // Spot-direct photos mirror into the DiveFree "All" album (#145).
+                // Spot-direct photos mirror into the Dive Free album (#145).
                 let identifiers = imported.compactMap(\.assetIdentifier)
-                Task { await PhotoAlbum.mirror(assetIdentifiers: identifiers, sessionAlbumTitle: nil) }
+                Task { await PhotoAlbum.mirror(assetIdentifiers: identifiers) }
             },
             onDelete: { photo in
                 PhotoStore.delete(photo.thumbnailFileName)
