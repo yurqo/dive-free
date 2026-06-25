@@ -45,6 +45,10 @@ struct SessionEditView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") {
                         try? modelContext.save()
+                        // Keep the session's Photos album name in sync with its title (#145).
+                        if let id = session.photosAlbumIdentifier {
+                            Task { await PhotoAlbum.renameAlbum(id: id, to: session.photoAlbumName) }
+                        }
                         dismiss()
                     }
                 }

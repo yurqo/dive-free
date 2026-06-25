@@ -96,6 +96,11 @@ public final class SessionRecord {
     // workout. Optional → lightweight migration of rows created before it.
     public var activeEnergyKilocalories: Double?
 
+    /// The Photos album (PHAssetCollection) holding this session's media (#145),
+    /// nested under Dive Free ▸ Spots ▸ <spot>. Stored so the album is reused and
+    /// renamed (not duplicated) across imports and title edits.
+    public var photosAlbumIdentifier: String?
+
     /// The dive spot this session belongs to (assigned on import). Optional so
     /// existing rows migrate to nil and get backfilled by the spot assigner.
     public var spot: Spot?

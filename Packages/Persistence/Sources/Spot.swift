@@ -16,6 +16,10 @@ public final class Spot {
     /// center. Optional so existing rows migrate to nil and get backfilled.
     public var country: String?
     public var countryCode: String?
+    /// The Photos folder (PHCollectionList) holding this spot's session albums
+    /// (#145), nested under Dive Free ▸ Spots. Stored so the folder is reused and
+    /// renamed (not duplicated) when the spot is renamed in-app.
+    public var photosFolderIdentifier: String?
 
     @Relationship(deleteRule: .nullify, inverse: \SessionRecord.spot)
     public var sessions: [SessionRecord]

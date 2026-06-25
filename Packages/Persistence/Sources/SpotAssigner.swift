@@ -58,7 +58,12 @@ public struct SpotAssigner {
     public func merge(_ source: Spot, into target: Spot) throws {
         guard source.persistentModelID != target.persistentModelID else { return }
         // Snapshot the relationship arrays — reassigning mutates them as we go.
-        for session in Array(source.sessions) { session.spot = target }
+        // Clear each session's Photos album id so its media re-mirrors under the
+        // target spot's folder rather than the now-orphaned source folder (#145).
+        for session in Array(source.sessions) {
+            session.spot = target
+            session.photosAlbumIdentifier = nil
+        }
         for photo in Array(source.photos) { photo.spot = target }
         recenter(target)
         context.delete(source)
@@ -71,6 +76,9 @@ public struct SpotAssigner {
         let previous = session.spot
         guard previous?.persistentModelID != spot.persistentModelID else { return }
         session.spot = spot
+        // Clear the Photos album id so the session re-mirrors under the new spot's
+        // folder rather than the previous spot's (#145).
+        session.photosAlbumIdentifier = nil
         recenter(spot)
         if let previous { recenter(previous) }
         try context.save()
