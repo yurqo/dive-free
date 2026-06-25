@@ -98,7 +98,7 @@ const PRIVACY_POLICY_HTML = `<!DOCTYPE html>
 <h2>What the app handles</h2>
 
 <h3>Health &amp; fitness</h3>
-<p>With your permission, the app reads and writes workout data through Apple HealthKit to record your dive sessions as workouts. This data is stored by Apple Health on your device; we never receive it. Health data is <strong>never</strong> used for advertising or marketing and is <strong>never</strong> shared with third parties.</p>
+<p>With your permission, the app reads and writes workout data through Apple HealthKit to record your dive sessions as workouts. This data is stored by Apple Health on your device; we never receive it and never use it for advertising or marketing. It is not shared with third parties &mdash; except that, if you choose to export a session to Strava, the exported activity can include your heart rate (see Strava below).</p>
 
 <h3>Location</h3>
 <p>With your permission, the app records where your dives happen so it can group them into dive spots and show them on a map. Coordinates are stored on your device. To turn coordinates into place names, the app uses Apple&rsquo;s geocoding service, which sends coordinates to Apple under Apple&rsquo;s privacy policy. Location is never used to track you.</p>
@@ -110,7 +110,7 @@ const PRIVACY_POLICY_HTML = `<!DOCTYPE html>
 <p>Voice notes you record are stored as audio files on your device.</p>
 
 <h3>Strava (optional)</h3>
-<p>If you connect Strava, the app exports the dives you choose as Strava activities. Sign-in uses Strava&rsquo;s OAuth; it is brokered by a stateless relay we operate <strong>solely</strong> to keep Strava&rsquo;s client secret off your device &mdash; the relay stores no user data or tokens. Your Strava access tokens are stored on your device. Activity data you export (such as the time, duration, depth, and location of the dive) is sent to Strava and is then governed by <a href="https://www.strava.com/legal/privacy">Strava&rsquo;s privacy policy</a>.</p>
+<p>If you connect Strava, the app exports the dives you choose as Strava activities. Sign-in uses Strava&rsquo;s OAuth; it is brokered by a stateless relay we operate <strong>solely</strong> to keep Strava&rsquo;s client secret off your device &mdash; the relay stores no user data or tokens. Your Strava access tokens are stored on your device. Activity data you export (such as the time, duration, depth, location, and heart rate of the dive) is sent to Strava and is then governed by <a href="https://www.strava.com/legal/privacy">Strava&rsquo;s privacy policy</a>.</p>
 
 <h2>What we do NOT do</h2>
 <p>We do not collect, transmit to ourselves, or sell your personal data. The app contains no analytics, advertising, crash-tracking SDKs, or device fingerprinting.</p>

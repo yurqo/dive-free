@@ -26,8 +26,10 @@ and where it goes.
 ### Health & fitness
 With your permission, the app reads and writes workout data through Apple
 HealthKit to record your dive sessions as workouts. This data is stored by Apple
-Health on your device; we never receive it. Health data is **never** used for
-advertising or marketing and is **never** shared with third parties.
+Health on your device; we never receive it and never use it for advertising or
+marketing. It is not shared with third parties — except that, if you choose to
+export a session to Strava, the exported activity can include your heart rate
+(see Strava below).
 
 ### Location
 With your permission, the app records where your dives happen so it can group
@@ -50,8 +52,8 @@ If you connect Strava, the app exports the dives you choose as Strava
 activities. Sign-in uses Strava's OAuth; it is brokered by a stateless relay we
 operate **solely** to keep Strava's client secret off your device — the relay
 stores no user data or tokens. Your Strava access tokens are stored on your
-device. Activity data you export (such as the time, duration, depth, and
-location of the dive) is sent to Strava and is then governed by
+device. Activity data you export (such as the time, duration, depth, location,
+and heart rate of the dive) is sent to Strava and is then governed by
 [Strava's privacy policy](https://www.strava.com/legal/privacy).
 
 ## What we do NOT do
