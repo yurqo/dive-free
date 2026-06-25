@@ -79,21 +79,23 @@ this change merges. Verify it loads before submitting.
 
 ## App Privacy ("nutrition label")
 
-The app stores everything on-device and runs no data-collecting backend, so the
-**recommended answer is "Data Not Collected,"** justified by:
+The Strava FIT export sends GPS coordinates, heart rate, and depth/duration
+off-device (to Strava, at the user's request), so the **recommended answer is to
+declare that data** — App Review runs network analysis and would flag observable
+egress against a "Data Not Collected" label. Declare exactly:
 
-1. All personal data (health, location, photos, voice notes) is stored only on
-   the user's devices; the developer operates no server that receives it.
-2. No analytics/ads/tracking SDKs.
-3. Strava export is **user-initiated** sharing to a service the user authorizes
-   via OAuth — this qualifies for Apple's user-consent sharing exemption.
-4. Location→place-name uses Apple's own geocoding service.
+- **Location → Precise Location**
+- **Health & Fitness → Health** (heart rate) and **Fitness** (depth, duration, calories)
 
-If you'd rather be conservative, declare **Health & Fitness, Location, Photos or
-Videos, and Audio Data** as _Collected → Linked to the user → Not used for
-tracking → Purpose: App Functionality_. Either is defensible; "Data Not
-Collected" is the more accurate one for this architecture. **Whatever you pick
-here must not contradict `PrivacyInfo.xcprivacy`** (which declares no collection).
+For each: used for **App Functionality** only; **not** linked to the user's
+identity; **not** used for tracking.
+
+Do **not** declare anything else — there are no analytics/ads/tracking SDKs, and
+photos and voice notes never leave the device (Strava's API can't accept photos).
+
+(The empty `NSPrivacyCollectedDataTypes` in `PrivacyInfo.xcprivacy` is fine: that
+array aggregates per-SDK privacy reports; the App Store Connect label is the
+authoritative per-app declaration and need not mirror it.)
 
 ## Age rating
 
@@ -107,7 +109,7 @@ DiveFree is a recreational freediving/snorkeling LOGBOOK, not a dive computer. I
 
 Underwater depth uses CMWaterSubmersionManager with the Shallow Depth and Pressure entitlement (com.apple.developer.submerged-shallow-depth-and-pressure, ~6 m max). Depth and automatic dive detection require an Apple Watch Ultra physically submerged in water and CANNOT be exercised in the simulator or in a dry paired-device review. Everything else — session history, depth charts, dive-spot maps, photo/video attachments, voice notes, and Strava export — is fully testable on the surface. A short demo video of an underwater session can be provided on request.
 
-HealthKit is used only to save and read the user's own dive sessions as workouts; health data is never used for advertising and never leaves the device except to Apple Health.
+HealthKit is used to save dive sessions as workouts and read the user's own workout/heart-rate data. Health data is never used for advertising. It stays on device except that, if the user exports a session to Strava, the activity (which can include heart rate, depth, duration, and a GPS track) is sent to Strava at the user's explicit request.
 
 Strava export is optional and user-initiated via OAuth. The OAuth client secret is held by a stateless relay (a Cloudflare Worker) so it is never embedded in the app; the relay stores no user data. No demo account is required — Strava is not needed to review the app.
 ```
