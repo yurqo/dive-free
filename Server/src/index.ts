@@ -13,6 +13,7 @@
  *     POST /refresh  { refresh_token } -> Strava grant_type=refresh_token
  *   public site host (divefree.software-engineer.ing):
  *     GET  /privacy                    -> HTML privacy policy (App Store listing)
+ *     GET  /support                    -> HTML support page (App Store listing)
  */
 
 export interface Env {
@@ -129,6 +130,42 @@ const PRIVACY_POLICY_HTML = `<!DOCTYPE html>
 </body>
 </html>`;
 
+// Support page served at GET /support for the App Store listing. Mirrors the
+// privacy page's shell — keep the <style> in sync if it ever changes.
+const SUPPORT_HTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DiveFree Support</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+         line-height: 1.6; max-width: 46rem; margin: 0 auto; padding: 2.5rem 1.25rem; }
+  h1 { font-size: 1.7rem; margin-bottom: 0.25rem; }
+  h2 { font-size: 1.2rem; margin-top: 2rem; }
+  a { color: #0a84ff; }
+</style>
+</head>
+<body>
+<h1>DiveFree Support</h1>
+<p>DiveFree is a logbook for recreational freediving and snorkeling on Apple Watch and iPhone. It is not a dive computer or a safety device.</p>
+
+<h2>Get help</h2>
+<p>Questions, bug reports, and feature requests are welcome &mdash; email <a href="mailto:yurko@software-engineer.ing">yurko@software-engineer.ing</a> and we&rsquo;ll get back to you.</p>
+
+<h2>Good to know</h2>
+<ul>
+<li>Depth tracking requires an Apple Watch Ultra, Series 10, or Series 11. Other Apple Watch models log sessions with GPS location and heart rate.</li>
+<li>On Apple Watch Ultra you can start and stop dives and drop markers underwater, hands-free, using the watch&rsquo;s buttons.</li>
+<li>Strava export is optional &mdash; connect it in Settings, then share the dives you choose.</li>
+</ul>
+
+<h2>Privacy</h2>
+<p>Read our <a href="/privacy">Privacy Policy</a>.</p>
+</body>
+</html>`;
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const { pathname, hostname } = new URL(request.url);
@@ -137,13 +174,17 @@ export default {
     // proxy lives on the strava.* host. Routing by host keeps the token proxy
     // off the public domain and the policy off the proxy domain.
     if (hostname === PUBLIC_SITE_HOST) {
-      if (pathname !== "/privacy") {
+      const page =
+        pathname === "/privacy" ? PRIVACY_POLICY_HTML :
+        pathname === "/support" ? SUPPORT_HTML :
+        null;
+      if (page === null) {
         return json({ error: "not_found" }, 404);
       }
       if (request.method !== "GET" && request.method !== "HEAD") {
         return json({ error: "method_not_allowed" }, 405);
       }
-      return new Response(PRIVACY_POLICY_HTML, {
+      return new Response(page, {
         headers: {
           "Content-Type": "text/html; charset=utf-8",
           "Cache-Control": "public, max-age=3600",
