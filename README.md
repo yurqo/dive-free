@@ -56,10 +56,10 @@ them from Xcode (⌘U) or:
 tuist test
 ```
 
-## Implementation status
+## Status
 
-Phase 1 scaffolding is in place: module structure, domain models, a working
-`DiveDetector` (with tests), SwiftData persistence, a mock depth provider, and the
-sync/Strava skeletons. Real sensor wiring (`CMWaterSubmersionManager`), HealthKit
-workouts, charts/maps, and Strava OAuth are marked with `TODO(Phase …)` per the
-[implementation guide](docs/CLAUDE_CODE_IMPLEMENTATION_GUIDE.md).
+DiveFree ships on TestFlight and is preparing for App Store release. Implemented:
+watch-first session capture with `CMWaterSubmersionManager` depth, automatic dive
+detection, hands-free Digital Crown + Action-button control, HealthKit workouts,
+watch↔phone sync, and an iPhone history with depth charts, dive-spot maps,
+photo/video attachments, voice notes, and Strava export.
