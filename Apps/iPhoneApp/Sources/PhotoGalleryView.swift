@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 import PhotosUI
 import Photos
 import AVKit
@@ -28,7 +29,11 @@ struct PhotoGallerySection<Extra: View>: View {
 
     @State private var libraryItems: [PhotosPickerItem] = []
     @State private var showCamera = false
-    @State private var fullScreen: PhotoRecord?
+    /// Identify the tapped photo by its stable id (not the SwiftData object) so a
+    /// model refresh during the cover's first presentation can't dismiss it.
+    @State private var presented: PresentedPhoto?
+
+    private struct PresentedPhoto: Identifiable { let id: PhotoRecord.ID }
 
     var body: some View {
         Section("Photos") {
@@ -36,8 +41,10 @@ struct PhotoGallerySection<Extra: View>: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
                         ForEach(photos) { photo in
-                            PhotoThumbnail(photo: photo)
-                                .onTapGesture { fullScreen = photo }
+                            Button { presented = PresentedPhoto(id: photo.id) } label: {
+                                PhotoThumbnail(photo: photo)
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
                     .padding(.vertical, 4)
@@ -70,8 +77,8 @@ struct PhotoGallerySection<Extra: View>: View {
             CameraPicker { media in Task { await addCaptured(media) } }
                 .ignoresSafeArea()
         }
-        .fullScreenCover(item: $fullScreen) { photo in
-            PhotoPagerView(photos: photos, initialID: photo.id, onDelete: onDelete)
+        .fullScreenCover(item: $presented) { item in
+            PhotoPagerView(photos: photos, initialID: item.id, onDelete: onDelete)
         }
     }
 
@@ -153,9 +160,7 @@ struct SessionPhotosSection: View {
             modelContext.insert(PhotoRecord(assetIdentifier: photo.assetIdentifier, thumbnailFileName: thumbnailFileName, isVideo: photo.isVideo, session: session))
         }
         try? modelContext.save()
-        let identifiers = imported.compactMap(\.assetIdentifier)
-        guard !identifiers.isEmpty else { return }
-        Task { await PhotoAlbum.mirror(assetIdentifiers: identifiers) }
+        mirrorSessionMedia(imported.compactMap(\.assetIdentifier), session: session, in: modelContext)
     }
 
     private func remove(_ photo: PhotoRecord) {
@@ -187,6 +192,39 @@ struct SessionPhotosSection: View {
     }
 }
 
+extension SessionRecord {
+    /// Name for this session's Photos album (#145): its title, else its date.
+    var photoAlbumName: String {
+        if let title, !title.isEmpty { return title }
+        // Include the time so two untitled same-day dives don't collide on one album.
+        return startTime.formatted(.dateTime.year().month(.abbreviated).day().hour().minute())
+    }
+}
+
+/// Mirrors a session's just-imported media into Dive Free ▸ Spots ▸ <spot> ▸
+/// <session> (and ▸ All), then persists the created folder/album ids back on the
+/// session/spot so they're reused and renamed later. Reads model values on the
+/// main actor, runs PhotoKit off it, writes the ids back on the main actor.
+@MainActor
+func mirrorSessionMedia(_ identifiers: [String], session: SessionRecord, in context: ModelContext) {
+    guard !identifiers.isEmpty else { return }
+    let spot = session.spot
+    let spotName = spot?.name
+    let spotFolderID = spot?.photosFolderIdentifier
+    let sessionName = session.photoAlbumName
+    let sessionAlbumID = session.photosAlbumIdentifier
+    Task {
+        let placement = await PhotoAlbum.mirror(
+            assetIdentifiers: identifiers,
+            spotName: spotName, spotFolderID: spotFolderID,
+            sessionName: sessionName, sessionAlbumID: sessionAlbumID
+        )
+        session.photosAlbumIdentifier = placement.sessionAlbumID
+        spot?.photosFolderIdentifier = placement.spotFolderID
+        try? context.save()
+    }
+}
+
 /// A spot's gallery — the union of its directly-attached photos and its sessions' photos.
 struct SpotPhotosSection: View {
     let spot: Spot
@@ -201,9 +239,9 @@ struct SpotPhotosSection: View {
                     modelContext.insert(PhotoRecord(assetIdentifier: photo.assetIdentifier, thumbnailFileName: thumbnailFileName, isVideo: photo.isVideo, spot: spot))
                 }
                 try? modelContext.save()
-                // Spot-direct photos mirror into the Dive Free album (#145).
+                // Spot-direct photos (no session) go in Dive Free ▸ All only (#145).
                 let identifiers = imported.compactMap(\.assetIdentifier)
-                Task { await PhotoAlbum.mirror(assetIdentifiers: identifiers) }
+                Task { _ = await PhotoAlbum.mirror(assetIdentifiers: identifiers, spotName: nil, spotFolderID: nil, sessionName: nil, sessionAlbumID: nil) }
             },
             onDelete: { photo in
                 PhotoStore.delete(photo.thumbnailFileName)

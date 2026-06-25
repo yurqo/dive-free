@@ -21,9 +21,12 @@ struct SpotStats {
         lastDived = sessions.map(\.startTime).max()
     }
 
-    /// e.g. "12 dives · last Jun 2026".
+    /// e.g. "5 sessions · 12 dives · last Jun 2026".
     var summaryLine: String {
-        var parts = ["\(diveCount) dive\(diveCount == 1 ? "" : "s")"]
+        var parts = [
+            "\(sessionCount) session\(sessionCount == 1 ? "" : "s")",
+            "\(diveCount) dive\(diveCount == 1 ? "" : "s")",
+        ]
         if let lastDived {
             parts.append("last \(lastDived.formatted(.dateTime.month(.abbreviated).year()))")
         }
@@ -130,6 +133,10 @@ struct SpotDetailView: View {
                 if !trimmed.isEmpty {
                     spot.name = trimmed
                     try? modelContext.save()
+                    // Keep the spot's Photos folder name in sync (#145).
+                    if let id = spot.photosFolderIdentifier {
+                        Task { await PhotoAlbum.renameFolder(id: id, to: trimmed) }
+                    }
                 }
             }
             Button("Cancel", role: .cancel) {}
