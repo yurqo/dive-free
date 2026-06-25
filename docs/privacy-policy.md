@@ -79,4 +79,4 @@ date above.
 
 ## Contact
 
-Questions about this policy: **yuri@perekupko.net**
+Questions about this policy: **yurko@software-engineer.ing**

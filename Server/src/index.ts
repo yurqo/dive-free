@@ -7,10 +7,12 @@
  * `client_id` + `client_secret` and forwards to Strava's token endpoint,
  * returning Strava's JSON response and status code verbatim.
  *
- * Endpoints:
- *   POST /token    { code }          -> Strava grant_type=authorization_code
- *   POST /refresh  { refresh_token } -> Strava grant_type=refresh_token
- *   GET  /privacy                    -> HTML privacy policy (App Store listing)
+ * Endpoints (routed by host):
+ *   strava.* host — the token proxy:
+ *     POST /token    { code }          -> Strava grant_type=authorization_code
+ *     POST /refresh  { refresh_token } -> Strava grant_type=refresh_token
+ *   public site host (divefree.software-engineer.ing):
+ *     GET  /privacy                    -> HTML privacy policy (App Store listing)
  */
 
 export interface Env {
@@ -22,6 +24,10 @@ export interface Env {
 }
 
 const DEFAULT_TOKEN_URL = "https://www.strava.com/oauth/token";
+
+// Public site host (apex). Serves only GET /privacy; the Strava proxy endpoints
+// (/token, /refresh) answer on the strava.* host, never here.
+const PUBLIC_SITE_HOST = "divefree.software-engineer.ing";
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -119,16 +125,21 @@ const PRIVACY_POLICY_HTML = `<!DOCTYPE html>
 <p>We may update this policy; material changes will be reflected by the effective date above.</p>
 
 <h2>Contact</h2>
-<p>Questions about this policy: <a href="mailto:yuri@perekupko.net">yuri@perekupko.net</a></p>
+<p>Questions about this policy: <a href="mailto:yurko@software-engineer.ing">yurko@software-engineer.ing</a></p>
 </body>
 </html>`;
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    const { pathname } = new URL(request.url);
+    const { pathname, hostname } = new URL(request.url);
 
-    // Public privacy policy page (required for the App Store listing). GET/HEAD.
-    if (pathname === "/privacy") {
+    // The public site host serves ONLY the privacy policy; the Strava token
+    // proxy lives on the strava.* host. Routing by host keeps the token proxy
+    // off the public domain and the policy off the proxy domain.
+    if (hostname === PUBLIC_SITE_HOST) {
+      if (pathname !== "/privacy") {
+        return json({ error: "not_found" }, 404);
+      }
       if (request.method !== "GET" && request.method !== "HEAD") {
         return json({ error: "method_not_allowed" }, 405);
       }
@@ -140,6 +151,7 @@ export default {
       });
     }
 
+    // Strava token proxy (strava.* host): /privacy is not served here.
     if (pathname !== "/token" && pathname !== "/refresh") {
       return json({ error: "not_found" }, 404);
     }

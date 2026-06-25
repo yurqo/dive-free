@@ -10,14 +10,18 @@ needed there), then POSTs the result here.
 
 ## Endpoints
 
-| Method & path  | Request body         | Behaviour                                              |
-| -------------- | -------------------- | ------------------------------------------------------ |
-| `POST /token`  | `{ "code": "..." }`  | `grant_type=authorization_code` exchange with Strava   |
-| `POST /refresh`| `{ "refresh_token" }`| `grant_type=refresh_token` refresh with Strava         |
-| `GET /privacy` | —                    | HTML privacy policy for the App Store listing          |
+Routed by host: the Strava proxy answers on `strava.divefree.software-engineer.ing`;
+the privacy policy on the public apex `divefree.software-engineer.ing`.
 
-Both return Strava's JSON (`access_token`, `refresh_token`, `expires_at`, …) and
-status code verbatim.
+| Host     | Method & path   | Behaviour                                            |
+| -------- | --------------- | ---------------------------------------------------- |
+| strava.* | `POST /token`   | `grant_type=authorization_code` exchange with Strava |
+| strava.* | `POST /refresh` | `grant_type=refresh_token` refresh with Strava       |
+| apex     | `GET /privacy`  | HTML privacy policy for the App Store listing        |
+
+`/token` and `/refresh` return Strava's JSON (`access_token`, `refresh_token`,
+`expires_at`, …) and status code verbatim; `/privacy` returns HTML. A request to
+the wrong host (e.g. `/privacy` on `strava.*`) gets a 404.
 
 ## Configuration
 
