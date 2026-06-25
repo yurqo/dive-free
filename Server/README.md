@@ -11,13 +11,14 @@ needed there), then POSTs the result here.
 ## Endpoints
 
 Routed by host: the Strava proxy answers on `strava.divefree.software-engineer.ing`;
-the privacy policy on the public apex `divefree.software-engineer.ing`.
+the privacy policy and support page on the public apex `divefree.software-engineer.ing`.
 
 | Host     | Method & path   | Behaviour                                            |
 | -------- | --------------- | ---------------------------------------------------- |
 | strava.* | `POST /token`   | `grant_type=authorization_code` exchange with Strava |
 | strava.* | `POST /refresh` | `grant_type=refresh_token` refresh with Strava       |
 | apex     | `GET /privacy`  | HTML privacy policy for the App Store listing        |
+| apex     | `GET /support`  | HTML support page for the App Store listing          |
 
 `/token` and `/refresh` return Strava's JSON (`access_token`, `refresh_token`,
 `expires_at`, …) and status code verbatim; `/privacy` returns HTML. A request to

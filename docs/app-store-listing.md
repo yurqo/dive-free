@@ -34,9 +34,9 @@ Dive Free is the Apple Watch companion for recreational freediving and snorkelin
 Start a session on your Apple Watch before you get in. Dive Free tracks your depth and dives completely hands-free using the Digital Crown and Action button, so you never have to touch a water-locked screen. Back on the surface, relive every dive on your iPhone with depth charts, maps of your dive spots, and the photos you took that day.
 
 WATCH-FIRST, HANDS-FREE
-• Control a session with the Digital Crown and Action button — no taps needed underwater
+• Run a session hands-free with the Digital Crown — plus the Action button on Apple Watch Ultra — no taps needed underwater
 • Automatic dive detection and surface-interval tracking
-• Live depth and dive duration underwater (Apple Watch Ultra)
+• Live depth and dive duration underwater (Apple Watch Ultra, Series 10, and Series 11)
 • Drop event markers during a dive
 
 REMEMBER EVERY DIVE
@@ -51,7 +51,7 @@ SHARE
 
 Dive Free is a logbook and memory platform for recreational freedivers, snorkelers, and travelers. It is NOT a dive computer: it does not provide decompression, dive-planning, or safety information, and must never be used as a safety device. Always dive within your training, follow your local rules, and never freedive alone.
 
-Apple Watch Ultra is required for underwater depth. Other Apple Watch models can log sessions without depth.
+Apple Watch Ultra is the best experience: it tracks depth and lets you run the whole session underwater, hands-free — start and stop sessions, log dives, and drop markers with the watch's buttons. Apple Watch Series 10 and 11 also track depth, and other Apple Watch models log your sessions with GPS location and heart rate.
 ```
 
 ## What's New (v1.0.30)
@@ -67,7 +67,7 @@ Apple Watch Ultra is required for underwater depth. Other Apple Watch models can
 | Field | Value | Notes |
 |---|---|---|
 | Privacy Policy URL | `https://divefree.software-engineer.ing/privacy` | **Required.** Served by the Worker (`Server/src/index.ts`); live after the next `Server/**` push deploys. |
-| Support URL | _required_ | A page with a contact/FAQ. GitHub repo or a simple page works. |
+| Support URL | `https://divefree.software-engineer.ing/support` | **Required.** Served by the Worker (`GET /support` on the apex). |
 | Marketing URL | _optional_ | |
 | Copyright | `© 2026 Yurko` | |
 
