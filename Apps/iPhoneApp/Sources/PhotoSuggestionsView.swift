@@ -75,7 +75,7 @@ private struct SuggestionCell: View {
                 .padding(5)
         }
         .task(id: asset.localIdentifier) {
-            PhotoMatcher.requestThumbnail(for: asset, targetSize: CGSize(width: 200, height: 200)) { image = $0 }
+            image = await PhotoLibrary.image(for: asset, targetSize: CGSize(width: 200, height: 200))
         }
     }
 }

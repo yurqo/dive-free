@@ -34,7 +34,9 @@ enum PhotoLibrary {
 
     /// Saves an image to the Photos library and returns the new asset's
     /// `localIdentifier` so it can be referenced. Requires add/read-write access.
-    static func save(_ image: UIImage) async -> String? {
+    /// `nonisolated`: `performChanges` runs the block off the main actor, so it
+    /// must not be actor-isolated (see `PhotoAlbum`).
+    nonisolated static func save(_ image: UIImage) async -> String? {
         guard await requestAccess() else { return nil }
         var identifier: String?
         do {
@@ -50,7 +52,8 @@ enum PhotoLibrary {
 
     /// Saves a captured video file to the Photos library; returns the new asset's
     /// `localIdentifier` so it can be referenced (#139). Requires add/write access.
-    static func saveVideo(_ url: URL) async -> String? {
+    /// `nonisolated` for the same reason as `save`.
+    nonisolated static func saveVideo(_ url: URL) async -> String? {
         guard await requestAccess() else { return nil }
         var identifier: String?
         do {
