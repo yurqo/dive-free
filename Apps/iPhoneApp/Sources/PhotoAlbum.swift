@@ -11,7 +11,10 @@ import Photos
 /// rock-solid create-album / add-assets calls. Best-effort — any failure is a
 /// silent no-op and never blocks an import; `PhotoRecord` links remain the source
 /// of truth.
-@MainActor
+// Deliberately NOT @MainActor: `PHPhotoLibrary.performChanges` runs its change
+// block on a background queue, so the block must not be actor-isolated — a
+// @MainActor block traps with a Swift executor-isolation assertion when Photos
+// invokes it off the main actor (the v1.0.27/28 crash).
 enum PhotoAlbum {
     static let albumTitle = "Dive Free"
 

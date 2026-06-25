@@ -1,6 +1,5 @@
 import Foundation
 import Photos
-import UIKit
 
 /// Finds camera-roll photos whose capture time falls within a dive's window, for
 /// the timestamp auto-suggest (#126). Read access only; it suggests — the user
@@ -38,17 +37,5 @@ enum PhotoMatcher {
             if !excludedIdentifiers.contains(asset.localIdentifier) { assets.append(asset) }
         }
         return assets
-    }
-
-    /// Loads a thumbnail via a callback — `requestImage` may fire twice (a
-    /// degraded image then the full one), which simply refreshes the cell.
-    @discardableResult
-    static func requestThumbnail(for asset: PHAsset, targetSize: CGSize, _ completion: @escaping (UIImage?) -> Void) -> PHImageRequestID {
-        let options = PHImageRequestOptions()
-        options.isNetworkAccessAllowed = true
-        options.deliveryMode = .opportunistic
-        return PHImageManager.default().requestImage(
-            for: asset, targetSize: targetSize, contentMode: .aspectFill, options: options
-        ) { image, _ in completion(image) }
     }
 }
