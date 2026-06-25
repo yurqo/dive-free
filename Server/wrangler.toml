@@ -11,6 +11,14 @@ compatibility_date = "2026-06-01"
 pattern = "strava.divefree.software-engineer.ing"
 custom_domain = true
 
+# Public site host for the App Store privacy-policy page (GET /privacy). Same
+# Worker — routing is by path, so /token & /refresh also answer here, but the
+# app only ever calls the strava.* host above. Requires the zone on this
+# account and no pre-existing DNS record for this hostname.
+[[routes]]
+pattern = "divefree.software-engineer.ing"
+custom_domain = true
+
 [vars]
 # Optional override of Strava's token endpoint (handy for testing).
 STRAVA_TOKEN_URL = "https://www.strava.com/oauth/token"

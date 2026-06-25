@@ -14,6 +14,7 @@ needed there), then POSTs the result here.
 | -------------- | -------------------- | ------------------------------------------------------ |
 | `POST /token`  | `{ "code": "..." }`  | `grant_type=authorization_code` exchange with Strava   |
 | `POST /refresh`| `{ "refresh_token" }`| `grant_type=refresh_token` refresh with Strava         |
+| `GET /privacy` | —                    | HTML privacy policy for the App Store listing          |
 
 Both return Strava's JSON (`access_token`, `refresh_token`, `expires_at`, …) and
 status code verbatim.
@@ -21,10 +22,11 @@ status code verbatim.
 ## Configuration
 
 - **`name`** in `wrangler.toml` is `dive-free`.
-- **Custom domain:** the `[[routes]]` `pattern` in `wrangler.toml` is set to
-  `strava.divefree.software-engineer.ing` (a bare hostname — `custom_domain`
-  routes take no path/`/*`). The zone must be on this Cloudflare account, and
-  this host must match `StravaConfig.proxyBaseURL` in the app.
+- **Custom domains:** two `[[routes]]` entries (bare hostnames — `custom_domain`
+  routes take no path/`/*`): `strava.divefree.software-engineer.ing` (must match
+  `StravaConfig.proxyBaseURL` in the app) and `divefree.software-engineer.ing`
+  (public privacy-policy page at `/privacy`). The zone must be on this Cloudflare
+  account.
 - **Secrets** (set once; they persist across deploys and are *not* needed at
   build time):
 

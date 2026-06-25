@@ -25,7 +25,8 @@ func module(
     _ name: String,
     dependencies: [TargetDependency] = [],
     destinations: Destinations = sharedDestinations,
-    deployment: DeploymentTargets = sharedDeployment
+    deployment: DeploymentTargets = sharedDeployment,
+    resources: ResourceFileElements? = nil
 ) -> [Target] {
     [
         .target(
@@ -35,6 +36,7 @@ func module(
             bundleId: "\(bundlePrefix).\(name.lowercased())",
             deploymentTargets: deployment,
             sources: ["Packages/\(name)/Sources/**"],
+            resources: resources,
             dependencies: dependencies
         ),
         .target(
@@ -168,9 +170,13 @@ let project = Project(
         "CODE_SIGN_STYLE": "Automatic",
     ]),
     targets: [iphoneApp, watchApp]
-        + module("Domain")
+        + module("Domain", resources: ["Packages/Domain/Resources/**"])
         + module("Persistence", dependencies: [.target(name: "Domain")])
-        + module("Sensors", dependencies: [.target(name: "Domain")])
+        + module(
+            "Sensors",
+            dependencies: [.target(name: "Domain")],
+            resources: ["Packages/Sensors/Resources/**"]
+        )
         + module("Sync", dependencies: [.target(name: "Domain")])
         + module(
             "Session",
@@ -184,6 +190,7 @@ let project = Project(
             "Strava",
             dependencies: [.target(name: "Domain")],
             destinations: .iOS,
-            deployment: .iOS(iOSVersion)
+            deployment: .iOS(iOSVersion),
+            resources: ["Packages/Strava/Resources/**"]
         )
 )
