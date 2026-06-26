@@ -3,6 +3,7 @@ import Observation
 import SwiftData
 import WatchKit
 import Domain
+import Persistence
 import Sensors
 import Session
 import Sync
@@ -248,6 +249,7 @@ final class SessionCoordinator {
     }
 
     private let sessionManager: SessionManager
+    private let modelContext: ModelContext
     let workout = WorkoutController()
     private let sync = SyncManager()
     let audioRecorder = AudioNoteRecorder()
@@ -256,6 +258,7 @@ final class SessionCoordinator {
     var isRecordingVoiceNote: Bool { audioRecorder.isRecording }
 
     init(modelContext: ModelContext) {
+        self.modelContext = modelContext
         sessionManager = SessionManager(modelContext: modelContext)
         sessionManager.onHapticEvent = { event in
             DiveHapticPlayer.play(event)
@@ -284,6 +287,20 @@ final class SessionCoordinator {
         sync.activate()
         // Let the Action-button intent route into this live coordinator.
         LiveSessionRegistry.shared.coordinator = self
+    }
+
+    /// Deletes a stored session by id — the watch-side "discard" for an
+    /// accidentally-recorded session. Child records cascade-delete locally, and
+    /// the iPhone is told to drop its copy too (WatchConnectivity only *sends*
+    /// sessions, so the deletion travels as its own message).
+    func deleteSession(_ id: UUID) {
+        var descriptor = FetchDescriptor<SessionRecord>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
+        if let record = try? modelContext.fetch(descriptor).first {
+            modelContext.delete(record)
+            try? modelContext.save()
+        }
+        sync.sendDeletion(id)
     }
 
     /// Starts a surface voice note, or stops the current one. Surface-only;

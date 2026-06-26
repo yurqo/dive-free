@@ -164,6 +164,32 @@ struct SyncManagerTests {
         #expect(received.withLock { $0 } == nil)
     }
 
+    @Test("a deletion message is forwarded to onDeleteSession, not onReceiveSession")
+    func decodesDeletion() {
+        let manager = SyncManager(performTransfer: { _, _ in })
+        let deleted = Mutex<UUID?>(nil)
+        let received = Mutex<DiveSession?>(nil)
+        manager.onDeleteSession = { id in deleted.withLock { $0 = id } }
+        manager.onReceiveSession = { session in received.withLock { $0 = session } }
+
+        let id = UUID()
+        manager.handleReceived([SyncManager.deletedKey: id.uuidString])
+
+        #expect(deleted.withLock { $0 } == id)
+        #expect(received.withLock { $0 } == nil)
+    }
+
+    @Test("deleting a session drops its pending send so a retry can't resurrect it")
+    func deletionCancelsPendingSend() throws {
+        let manager = SyncManager(performTransfer: { _, _ in }, performDeletion: { _ in })
+        let session = makeSession()
+        try manager.send(session)
+        #expect(manager.pendingCount == 1)
+
+        manager.sendDeletion(session.id)
+        #expect(manager.pendingCount == 0)
+    }
+
     @Test("custom markers round-trip through the application context")
     func customMarkersSync() {
         let captured = Mutex<[String: Any]?>(nil)
