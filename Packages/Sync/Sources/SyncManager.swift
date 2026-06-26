@@ -21,6 +21,11 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     /// Called on the phone when a session arrives from the watch.
     public var onReceiveSession: (@Sendable (DiveSession) -> Void)?
 
+    /// Called on the phone when the watch deletes a session (by id), so the phone
+    /// drops its copy too. WatchConnectivity only *sends* sessions, so a deletion
+    /// rides its own lightweight message (`deletedKey`).
+    public var onDeleteSession: (@Sendable (UUID) -> Void)?
+
     /// Called on the phone after a voice-note file has been received and stored
     /// (passed the stored URL). The file is already copied into `audioDirectory`.
     public var onReceiveAudioFile: (@Sendable (URL) -> Void)?
@@ -46,6 +51,7 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     static let markersKey = "customMarkers"
     static let unitsKey = "unitPreference"
     static let fileNameKey = "fileName"
+    static let deletedKey = "deletedSessionID"
 
     private let lock = NSLock()
     /// Payloads sent but not yet confirmed delivered, keyed by transfer id.
@@ -68,6 +74,10 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     /// `WCSession.updateApplicationContext`; tests inject a stub.
     private let applyContext: (_ context: [String: Any]) -> Void
 
+    /// Sends a session deletion. Defaults to `WCSession.transferUserInfo`; tests
+    /// inject a stub.
+    private let performDeletion: (_ id: UUID) -> Void
+
     /// Sessions queued but not yet confirmed delivered.
     public var pendingCount: Int {
         lock.lock(); defer { lock.unlock() }
@@ -76,7 +86,8 @@ public final class SyncManager: NSObject, @unchecked Sendable {
 
     public init(
         performTransfer: ((_ id: String, _ data: Data) -> Void)? = nil,
-        applyContext: ((_ context: [String: Any]) -> Void)? = nil
+        applyContext: ((_ context: [String: Any]) -> Void)? = nil,
+        performDeletion: ((_ id: UUID) -> Void)? = nil
     ) {
         self.performTransfer = performTransfer ?? { id, data in
             #if canImport(WatchConnectivity)
@@ -86,6 +97,11 @@ public final class SyncManager: NSObject, @unchecked Sendable {
         self.applyContext = applyContext ?? { context in
             #if canImport(WatchConnectivity)
             try? WCSession.default.updateApplicationContext(context)
+            #endif
+        }
+        self.performDeletion = performDeletion ?? { id in
+            #if canImport(WatchConnectivity)
+            WCSession.default.transferUserInfo([Self.deletedKey: id.uuidString])
             #endif
         }
         super.init()
@@ -153,6 +169,22 @@ public final class SyncManager: NSObject, @unchecked Sendable {
         performTransfer(id, data)
     }
 
+    /// Tells the counterpart device to delete a session by id. First drops any
+    /// not-yet-delivered send for that session, so a reachability-driven retry
+    /// can't re-deliver it *after* the deletion and resurrect it on the phone;
+    /// then sends the (idempotent) deletion via the background-safe transport.
+    public func sendDeletion(_ id: UUID) {
+        lock.lock()
+        let staleKeys = pending
+            .filter { (try? decoder.decode(DiveSession.self, from: $0.value))?.id == id }
+            .map(\.key)
+        for key in staleKeys { pending[key] = nil; attempts[key] = nil }
+        let count = pending.count
+        lock.unlock()
+        onPendingCountChange?(count)
+        performDeletion(id)
+    }
+
     /// Sends a voice-note file to the counterpart device. Uses the background-safe
     /// `transferFile`; the `fileName` rides in metadata so the receiver stores it
     /// under the name the session's markers reference.
@@ -193,8 +225,13 @@ public final class SyncManager: NSObject, @unchecked Sendable {
         for (id, data) in items { performTransfer(id, data) }
     }
 
-    /// Decodes an incoming payload and forwards the session to `onReceiveSession`.
+    /// Decodes an incoming payload and forwards it: a deletion (id only) to
+    /// `onDeleteSession`, otherwise a session to `onReceiveSession`.
     func handleReceived(_ userInfo: [String: Any]) {
+        if let idString = userInfo[Self.deletedKey] as? String, let id = UUID(uuidString: idString) {
+            onDeleteSession?(id)
+            return
+        }
         guard let data = userInfo[Self.payloadKey] as? Data,
               let decoded = try? decoder.decode(DiveSession.self, from: data) else { return }
         onReceiveSession?(decoded)

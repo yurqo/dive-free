@@ -40,6 +40,19 @@ struct DiveFreeApp: App {
                             try? SessionImporter(context: container.mainContext).importSession(session)
                         }
                     }
+                    // Mirror a watch-side deletion: drop the phone's copy (and its
+                    // photo thumbnails) so a discarded session doesn't linger.
+                    sync.onDeleteSession = { id in
+                        Task { @MainActor in
+                            let context = container.mainContext
+                            var descriptor = FetchDescriptor<SessionRecord>(predicate: #Predicate { $0.id == id })
+                            descriptor.fetchLimit = 1
+                            guard let session = try? context.fetch(descriptor).first else { return }
+                            for photo in session.photos { PhotoStore.delete(photo.thumbnailFileName) }
+                            context.delete(session)
+                            try? context.save()
+                        }
+                    }
                     // Store voice-note files the watch transfers, keyed by the
                     // name the markers reference, so they're playable from detail.
                     sync.audioDirectory = VoiceNoteStore.directory

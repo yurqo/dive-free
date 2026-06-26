@@ -13,6 +13,8 @@ struct WatchSessionSummaryView: View {
     var showSync = false
 
     @Environment(SessionCoordinator.self) private var coordinator
+    @Environment(\.dismiss) private var dismiss
+    @State private var showDeleteConfirm = false
 
     private var hasGeo: Bool { !session.track.isEmpty || session.location != nil }
 
@@ -41,10 +43,33 @@ struct WatchSessionSummaryView: View {
 
                 // Full session map at the bottom.
                 if hasGeo { mapSection }
+
+                // Discard an accidentally-recorded session right from the watch.
+                // Only on a browsed past session, not the live post-dive summary.
+                if !showSync { deleteButton }
             }
             .frame(maxWidth: .infinity)
             .padding(.horizontal, 4)
         }
+        .confirmationDialog("Delete this session?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
+            Button("Delete", role: .destructive) {
+                coordinator.deleteSession(session.id)
+                dismiss()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This removes the session from your watch and iPhone.")
+        }
+    }
+
+    /// Destructive action at the bottom of a past session's details.
+    private var deleteButton: some View {
+        Button(role: .destructive) { showDeleteConfirm = true } label: {
+            Label("Delete Session", systemImage: "trash")
+                .frame(maxWidth: .infinity)
+        }
+        .tint(.red)
+        .padding(.top, 8)
     }
 
     private var stats: some View {
