@@ -36,7 +36,7 @@ Start a session on your Apple Watch before you get in. Dive Free tracks your dep
 WATCH-FIRST, HANDS-FREE
 • Run a session hands-free with the Digital Crown — plus the Action button on Apple Watch Ultra — no taps needed underwater
 • Automatic dive detection and surface-interval tracking
-• Live depth and dive duration underwater (Apple Watch Ultra, Series 10, and Series 11)
+• Live depth (to 6 m) and dive duration underwater (Apple Watch Ultra, Series 10, and Series 11)
 • Drop event markers during a dive
 
 REMEMBER EVERY DIVE
@@ -49,7 +49,7 @@ REMEMBER EVERY DIVE
 SHARE
 • Export the dives you choose to Strava
 
-Dive Free is a logbook and memory platform for recreational freedivers, snorkelers, and travelers. It is NOT a dive computer: it does not provide decompression, dive-planning, or safety information, and must never be used as a safety device. Always dive within your training, follow your local rules, and never freedive alone.
+Dive Free is a logbook and memory platform for recreational freedivers, snorkelers, and travelers. It is NOT a dive computer and has no dive-computer capabilities: it provides no decompression, dive-planning, or safety information, and depth tracking is capped at 6 metres (shallow water). Never use it as a safety device. Always dive within your training, follow your local rules, and never freedive alone.
 
 Apple Watch Ultra is the best experience: it tracks depth and lets you run the whole session underwater, hands-free — start and stop sessions, log dives, and drop markers with the watch's buttons. Apple Watch Series 10 and 11 also track depth, and other Apple Watch models log your sessions with GPS location and heart rate.
 ```
