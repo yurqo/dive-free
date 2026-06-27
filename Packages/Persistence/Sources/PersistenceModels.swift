@@ -208,6 +208,9 @@ public final class MarkerRecord {
     public var emoji: String = ""
     public var label: String = ""
     public var text: String?
+    // Filename of the attached surface voice note, stored so the marker→clip link
+    // survives persistence and watch→phone sync. Optional → lightweight migration.
+    public var audioFileName: String?
     public var session: SessionRecord?
 
     /// Photos the user linked to this marker (#143). Nullify so deleting the
@@ -222,6 +225,7 @@ public final class MarkerRecord {
         emoji: String = "",
         label: String = "",
         text: String? = nil,
+        audioFileName: String? = nil,
         session: SessionRecord? = nil
     ) {
         self.id = id
@@ -230,6 +234,7 @@ public final class MarkerRecord {
         self.emoji = emoji
         self.label = label
         self.text = text
+        self.audioFileName = audioFileName
         self.session = session
     }
 }
@@ -275,7 +280,7 @@ public extension MarkerRecord {
         } else {
             resolved = MarkerKind(id: kind, emoji: emoji, label: label)
         }
-        return EventMarker(id: id, timestamp: timestamp, kind: resolved, text: text)
+        return EventMarker(id: id, timestamp: timestamp, kind: resolved, text: text, audioFileName: audioFileName)
     }
 }
 
@@ -334,7 +339,8 @@ public extension MarkerRecord {
             kind: marker.kind.id,
             emoji: marker.kind.emoji,
             label: marker.kind.label,
-            text: marker.text
+            text: marker.text,
+            audioFileName: marker.audioFileName
         )
     }
 }
