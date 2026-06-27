@@ -18,10 +18,15 @@ struct WatchSessionListView: View {
     /// the track haversine on every render.
     @State private var rowCache: [PersistentIdentifier: SessionRow] = [:]
 
+    /// `sessions` (the @Query) can briefly still contain a just-deleted record
+    /// before the query refreshes; reading its properties then traps (#148). Use
+    /// only live records (deleted + saved → modelContext is nil) for display.
+    private var liveSessions: [SessionRecord] { sessions.filter { $0.modelContext != nil } }
+
     var body: some View {
         NavigationStack {
             Group {
-                if sessions.isEmpty {
+                if liveSessions.isEmpty {
                     ContentUnavailableView(
                         "No Sessions",
                         systemImage: "water.waves",
@@ -29,7 +34,7 @@ struct WatchSessionListView: View {
                     )
                 } else {
                     List {
-                        ForEach(sessions) { record in
+                        ForEach(liveSessions) { record in
                             let row = rowCache[record.persistentModelID] ?? SessionRow(record)
                             NavigationLink(value: record) {
                                 VStack(alignment: .leading, spacing: 2) {
@@ -74,13 +79,13 @@ struct WatchSessionListView: View {
     /// cache. Distance depends only on the track (fixed once a session is saved),
     /// so it isn't part of the signature.
     private var rowSignature: String {
-        sessions
+        liveSessions
             .map { "\($0.persistentModelID.hashValue):\($0.locationName ?? ""):\($0.dives.count):\($0.markers.count)" }
             .joined(separator: "|")
     }
 
     private func rebuildRowCache() {
-        rowCache = Dictionary(uniqueKeysWithValues: sessions.map { ($0.persistentModelID, SessionRow($0)) })
+        rowCache = Dictionary(uniqueKeysWithValues: liveSessions.map { ($0.persistentModelID, SessionRow($0)) })
     }
 
     /// Resolves and persists the area name for any session missing one, one at a
@@ -88,8 +93,11 @@ struct WatchSessionListView: View {
     /// new sessions get named and older ones backfill; failures just retry next
     /// time. Skipped per-session once a name is saved, so each spot geocodes once.
     private func backfillLocationNames() async {
-        for record in sessions {
+        for record in liveSessions {
             if Task.isCancelled { return }
+            // The record can be deleted while we await an earlier one; reading or
+            // writing a deleted model traps (#148). modelContext is nil once deleted.
+            guard record.modelContext != nil else { continue }
             guard record.locationName == nil,
                   !record.locationNameEdited,
                   !geocodeAttempted.contains(record.id),
@@ -100,6 +108,8 @@ struct WatchSessionListView: View {
             geocodeAttempted.insert(record.id)
             guard let name = await LocationName.resolve(latitude: lat, longitude: lon),
                   !name.isEmpty else { continue }
+            // The session may have been deleted during the await.
+            guard record.modelContext != nil else { continue }
             record.locationName = name
             try? modelContext.save()
         }
