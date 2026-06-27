@@ -30,6 +30,10 @@ struct SessionListView: View {
                 } else {
                     List {
                         ForEach(sessions) { session in
+                        // A session deleted in this update pass can still be enumerated for
+                        // one render before @Query refreshes; reading its properties
+                        // (toDomain) then traps (#148). modelContext is nil once deleted+saved.
+                        if session.modelContext != nil {
                         let domain = session.toDomain()
                         NavigationLink(value: session) {
                             HStack(spacing: 12) {
@@ -74,6 +78,7 @@ struct SessionListView: View {
                                         .allowsHitTesting(false)
                                 }
                             }
+                        }
                         }
                         }
                         .onDelete(perform: deleteSessions)
