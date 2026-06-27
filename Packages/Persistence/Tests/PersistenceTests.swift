@@ -51,7 +51,7 @@ struct PersistenceTests {
                 )
             ],
             markers: [
-                EventMarker(timestamp: t0.addingTimeInterval(45), kind: .wildlife, text: "turtle")
+                EventMarker(timestamp: t0.addingTimeInterval(45), kind: .wildlife, text: "turtle", audioFileName: "voice-turtle.m4a")
             ],
             location: GeoPoint(latitude: 20.5, longitude: -87.0)
         )
@@ -76,6 +76,8 @@ struct PersistenceTests {
         #expect(result.markers.count == 1)
         #expect(result.markers[0].kind == MarkerKind(.wildlife))
         #expect(result.markers[0].text == "turtle")
+        // Regression: the marker→voice-note link must survive persistence + sync.
+        #expect(result.markers[0].audioFileName == "voice-turtle.m4a")
     }
 
     @Test("importSession stores a new session and is queryable")
