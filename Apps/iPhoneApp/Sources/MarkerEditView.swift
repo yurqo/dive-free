@@ -70,10 +70,10 @@ struct MarkerEditView: View {
 
     @ViewBuilder private var photosSection: some View {
         Section("Photos") {
-            if !marker.photos.isEmpty {
+            if !(marker.photos ?? []).isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
-                        ForEach(marker.photos.sorted { $0.createdAt < $1.createdAt }) { photo in
+                        ForEach((marker.photos ?? []).sorted { $0.createdAt < $1.createdAt }) { photo in
                             PhotoThumbnail(photo: photo)
                         }
                     }
@@ -125,7 +125,7 @@ struct AttachExistingPhotosView: View {
         NavigationStack {
             ScrollView {
                 LazyVGrid(columns: columns, spacing: 8) {
-                    ForEach(session.photos.sorted { $0.createdAt < $1.createdAt }) { photo in
+                    ForEach((session.photos ?? []).sorted { $0.createdAt < $1.createdAt }) { photo in
                         Button { toggle(photo) } label: {
                             PhotoThumbnail(photo: photo)
                                 .overlay(alignment: .topTrailing) {
@@ -149,7 +149,7 @@ struct AttachExistingPhotosView: View {
             .navigationTitle("Attach Photos")
             .navigationBarTitleDisplayMode(.inline)
             .overlay {
-                if session.photos.isEmpty {
+                if (session.photos ?? []).isEmpty {
                     ContentUnavailableView("No Photos", systemImage: "photo", description: Text("Add photos to this dive first."))
                 }
             }

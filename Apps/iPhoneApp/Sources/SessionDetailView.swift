@@ -276,7 +276,7 @@ struct SessionDetailView: View {
     private func reconcileVoiceNotes() {
         guard session.modelContext != nil else { return } // skip a deleted session (#148)
         var changed = false
-        for marker in session.markers {
+        for marker in (session.markers ?? []) {
             guard let name = marker.audioFileName else { continue }
             if marker.audioData == nil, let data = VoiceNoteStore.data(for: name) {
                 marker.audioData = data                          // local file → CloudKit
@@ -414,7 +414,7 @@ struct MarkerListSection: View {
         if !markers.isEmpty {
             Section("Markers") {
                 ForEach(markers.sorted { $0.timestamp < $1.timestamp }) { marker in
-                    let record = session.flatMap { session in session.markers.first { $0.id == marker.id } }
+                    let record = session.flatMap { session in (session.markers ?? []).first { $0.id == marker.id } }
                     MarkerRow(marker: marker)
                         .contentShape(Rectangle())
                         .onTapGesture { if let record { editing = record } }

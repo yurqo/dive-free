@@ -52,7 +52,7 @@ struct SessionListView: View {
                                         StarRating(rating: rating)
                                             .font(.caption2)
                                     }
-                                    Text(statsLine(domain, photoCount: session.photos.count))
+                                    Text(statsLine(domain, photoCount: session.photos?.count ?? 0))
                                         .font(.subheadline)
                                         .foregroundStyle(.secondary)
                                     if let name = domain.locationName, !name.isEmpty {
@@ -115,7 +115,7 @@ struct SessionListView: View {
         for index in offsets {
             let session = sessions[index]
             // SwiftData cascade-deletes the PhotoRecords; remove their files too.
-            for photo in session.photos { PhotoStore.delete(photo.thumbnailFileName) }
+            for photo in (session.photos ?? []) { PhotoStore.delete(photo.thumbnailFileName) }
             modelContext.delete(session)
         }
         try? modelContext.save()

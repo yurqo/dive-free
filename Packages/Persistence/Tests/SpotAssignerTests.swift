@@ -81,8 +81,8 @@ struct SpotAssignerTests {
         #expect(try ctx.fetch(FetchDescriptor<Spot>()).count == 1)
         #expect(moved.spot === target)
         #expect(photo.spot === target)
-        #expect(target.sessions.count == 1)
-        #expect(target.photos.count == 1)
+        #expect((target.sessions ?? []).count == 1)
+        #expect((target.photos ?? []).count == 1)
     }
 
     @Test("reassign moves a session to another spot, recentering both")
@@ -99,8 +99,8 @@ struct SpotAssignerTests {
 
         try SpotAssigner(context: ctx).reassign(moved, to: b)
         #expect(moved.spot === b)
-        #expect(a.sessions.isEmpty)
-        #expect(b.sessions.count == 1)
+        #expect((a.sessions ?? []).isEmpty)
+        #expect((b.sessions ?? []).count == 1)
     }
 
     @Test("a session without a location is skipped")

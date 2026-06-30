@@ -40,11 +40,11 @@ struct StatsView: View {
     private func computeStats() -> DiveStats {
         let liveSessions = sessions.filter { $0.modelContext != nil }
         let inputs = liveSessions.map { record -> SessionStat in
-            let durations = record.dives.map { $0.endTime.timeIntervalSince($0.startTime) }
+            let durations = (record.dives ?? []).map { $0.endTime.timeIntervalSince($0.startTime) }
             return SessionStat(
                 startTime: record.startTime,
-                diveCount: record.dives.count,
-                maxDepthMeters: record.dives.map(\.maxDepthMeters).max() ?? 0,
+                diveCount: record.dives?.count ?? 0,
+                maxDepthMeters: (record.dives ?? []).map(\.maxDepthMeters).max() ?? 0,
                 bottomTime: durations.reduce(0, +),
                 longestDive: durations.max() ?? 0
             )

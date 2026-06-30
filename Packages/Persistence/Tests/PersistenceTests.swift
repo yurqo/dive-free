@@ -25,7 +25,7 @@ struct PersistenceTests {
 
         let fetched = try context.fetch(FetchDescriptor<SessionRecord>())
         #expect(fetched.count == 1)
-        #expect(fetched.first?.dives.count == 1)
+        #expect(fetched.first?.dives?.count == 1)
         #expect(fetched.first?.toDomain().maxDepthMeters == 12.5)
     }
 

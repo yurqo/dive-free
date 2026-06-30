@@ -4,6 +4,7 @@ import Domain
 import Persistence
 import Sync
 import Strava
+import os
 
 /// App-level `@AppStorage` keys.
 enum AppStorageKey {
@@ -28,15 +29,24 @@ struct DiveFreeApp: App {
         // (applied on next launch). Fall back to a local store if CloudKit setup
         // fails, so an iCloud/sync error can never block launch (#168).
         let syncEnabled = UserDefaults.standard.object(forKey: AppStorageKey.iCloudSyncEnabled) as? Bool ?? true
-        if syncEnabled,
-           let cloud = try? DiveStore(cloudKitContainerID: DiveSchema.cloudKitContainerID).container {
-            container = cloud
-        } else {
+        let log = Logger(subsystem: "org.yurko.divefree", category: "Persistence")
+        if syncEnabled {
             do {
-                container = try DiveStore().container
+                container = try DiveStore(cloudKitContainerID: DiveSchema.cloudKitContainerID).container
+                log.notice("SwiftData container initialized WITH CloudKit (\(DiveSchema.cloudKitContainerID, privacy: .public)).")
+                return
             } catch {
-                fatalError("Failed to create the SwiftData container: \(error)")
+                // Don't crash on a CloudKit failure — fall back to a local store —
+                // but log loudly (this was previously a silent `try?`, which hid
+                // exactly the kind of failure that leaves the CloudKit schema empty).
+                log.error("CloudKit container init FAILED; using local store. Error: \(String(describing: error), privacy: .public)")
             }
+        }
+        do {
+            container = try DiveStore().container
+            log.notice("SwiftData container initialized LOCAL-ONLY (iCloud sync \(syncEnabled ? "failed" : "off", privacy: .public)).")
+        } catch {
+            fatalError("Failed to create the SwiftData container: \(error)")
         }
     }
 
@@ -64,7 +74,7 @@ struct DiveFreeApp: App {
                             var descriptor = FetchDescriptor<SessionRecord>(predicate: #Predicate { $0.id == id })
                             descriptor.fetchLimit = 1
                             guard let session = try? context.fetch(descriptor).first else { return }
-                            for photo in session.photos { PhotoStore.delete(photo.thumbnailFileName) }
+                            for photo in (session.photos ?? []) { PhotoStore.delete(photo.thumbnailFileName) }
                             context.delete(session)
                             try? context.save()
                         }

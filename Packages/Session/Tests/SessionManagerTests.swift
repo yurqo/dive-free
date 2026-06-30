@@ -62,8 +62,8 @@ struct SessionManagerTests {
         #expect(records.count == 1)
         let record = records[0]
         #expect(record.startTime == session!.startTime)
-        #expect(!record.dives.isEmpty)
-        #expect(!record.dives[0].samples.isEmpty)
+        #expect(!(record.dives ?? []).isEmpty)
+        #expect(!(record.dives ?? [])[0].samples.isEmpty)
     }
 
     @Test("second startSession call is a no-op while active")
