@@ -81,4 +81,4 @@ date above.
 
 ## Contact
 
-Questions about this policy: **yurko@software-engineer.ing**
+Questions about this policy: **dive-free@software-engineer.ing**
