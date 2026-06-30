@@ -15,6 +15,12 @@ struct WatchSettingsView: View {
     @AppStorage("defaultMarkerKindID") private var defaultMarkerKindID = EventKind.note.rawValue
     @AppStorage(GPSPrecision.highPrecisionKey) private var highPrecisionGPS = false
 
+    // Periodic underwater time cues (#178). Default off so existing users aren't
+    // surprised by new sounds; 0 disables a tier.
+    @AppStorage("timeCuesEnabled") private var timeCuesEnabled = false
+    @AppStorage("timeCueMinorSeconds") private var timeCueMinorSeconds = 10
+    @AppStorage("timeCueMajorSeconds") private var timeCueMajorSeconds = 60
+
     // Units — synced from the iPhone, but also adjustable here. Each dimension is
     // stored independently so the Custom pickers bind directly.
     @AppStorage(UnitPreference.Key.mode) private var unitModeRaw = UnitPreference.regionDefault.mode.rawValue
@@ -70,6 +76,31 @@ struct WatchSettingsView: View {
                     Text("GPS")
                 } footer: {
                     Text("More accurate dive-spot location and surface track. Drains the battery faster. Applies to your next session.")
+                }
+
+                Section {
+                    Toggle("Time cues", isOn: $timeCuesEnabled)
+                    if timeCuesEnabled {
+                        Picker("Minor", selection: $timeCueMinorSeconds) {
+                            Text("Off").tag(0)
+                            Text("5s").tag(5)
+                            Text("10s").tag(10)
+                            Text("15s").tag(15)
+                            Text("20s").tag(20)
+                            Text("30s").tag(30)
+                        }
+                        Picker("Major", selection: $timeCueMajorSeconds) {
+                            Text("Off").tag(0)
+                            Text("30s").tag(30)
+                            Text("1min").tag(60)
+                            Text("90s").tag(90)
+                            Text("2min").tag(120)
+                        }
+                    }
+                } header: {
+                    Text("Time cues")
+                } footer: {
+                    Text("Plays a tone underwater at each interval — a distinct double tone at the major mark — so you can track dive time hands-free. Awareness only, not a dive timer.")
                 }
 
                 Section {
