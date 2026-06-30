@@ -5,8 +5,12 @@ import Domain
 /// SwiftData-backed record for a stored dive session.
 @Model
 public final class SessionRecord {
-    public var id: UUID
-    public var startTime: Date
+    // All stored properties are optional or defaulted: CloudKit (SwiftData
+    // mirroring) requires every attribute to have a default or be optional, and
+    // every relationship to be optional/defaulted. Defaults are additive
+    // (same column types) so existing rows migrate without a custom plan (#168).
+    public var id: UUID = UUID()
+    public var startTime: Date = Date()
     public var endTime: Date?
     public var latitude: Double?
     public var longitude: Double?
@@ -106,10 +110,10 @@ public final class SessionRecord {
     public var spot: Spot?
 
     @Relationship(deleteRule: .cascade, inverse: \DiveRecord.session)
-    public var dives: [DiveRecord]
+    public var dives: [DiveRecord] = []
 
     @Relationship(deleteRule: .cascade, inverse: \MarkerRecord.session)
-    public var markers: [MarkerRecord]
+    public var markers: [MarkerRecord] = []
 
     @Relationship(deleteRule: .cascade, inverse: \PhotoRecord.session)
     public var photos: [PhotoRecord] = []
@@ -172,11 +176,11 @@ public final class SessionRecord {
 /// no per-sample row overhead.
 @Model
 public final class DiveRecord {
-    public var id: UUID
-    public var startTime: Date
-    public var endTime: Date
-    public var maxDepthMeters: Double
-    public var samples: [DepthSample]
+    public var id: UUID = UUID()
+    public var startTime: Date = Date()
+    public var endTime: Date = Date()
+    public var maxDepthMeters: Double = 0
+    public var samples: [DepthSample] = []
     public var session: SessionRecord?
 
     public init(
@@ -199,9 +203,9 @@ public final class DiveRecord {
 /// SwiftData-backed record for a user-placed event marker within a session.
 @Model
 public final class MarkerRecord {
-    public var id: UUID
-    public var timestamp: Date
-    public var kind: String       // `MarkerKind.id` (built-in EventKind raw value, or custom UUID)
+    public var id: UUID = UUID()
+    public var timestamp: Date = Date()
+    public var kind: String = ""  // `MarkerKind.id` (built-in EventKind raw value, or custom UUID)
     // Snapshot of the kind's emoji/label so a marker renders even if a custom
     // definition is later edited/deleted. Defaulted for lightweight migration of
     // pre-existing rows (built-ins are re-resolved from `EventKind` in toDomain).
@@ -242,10 +246,10 @@ public final class MarkerRecord {
 /// A user-defined custom marker definition (managed on iPhone, synced to Watch).
 @Model
 public final class CustomMarkerRecord {
-    public var id: UUID
-    public var emoji: String
-    public var label: String
-    public var createdAt: Date
+    public var id: UUID = UUID()
+    public var emoji: String = ""
+    public var label: String = ""
+    public var createdAt: Date = Date()
 
     public init(id: UUID = UUID(), emoji: String, label: String, createdAt: Date = Date()) {
         self.id = id

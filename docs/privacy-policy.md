@@ -16,6 +16,9 @@ and where it goes.
 - **Your dive data stays on your devices.** We do not operate a server that
   stores your personal data, and we have no access to your dives, health data,
   location, photos, or voice notes.
+- **Optional iCloud sync.** If you turn on iCloud Sync, your dive log syncs across
+  your own devices through your private iCloud (Apple's CloudKit). It stays in your
+  iCloud account under your Apple ID; we have no access to it.
 - **No analytics, advertising, or third-party tracking SDKs.** The app does not
   track you across apps or websites.
 - Data leaves your device only when **you** choose to share it (for example,
@@ -46,6 +49,19 @@ upload them anywhere, and they remain in your photo library.
 
 ### Voice notes
 Voice notes you record are stored as audio files on your device.
+
+### iCloud sync (optional)
+If you turn on **iCloud Sync** (Settings → iCloud), the app syncs your dive log —
+sessions, dives, markers, spots, and photo references — across your own devices
+using Apple's CloudKit, stored in your **private** iCloud database. This data
+lives in your iCloud account under your Apple ID; we operate no server for it and
+have no access to it. It is governed by
+[Apple's privacy policy](https://www.apple.com/legal/privacy/). Turn iCloud Sync
+off in Settings to keep your data only on the local device.
+
+_(Applies from app version 1.1.0. The **live** policy at the URL above and the App
+Store privacy details are updated when 1.1.0 is released publicly — deferred while
+1.0.x is in review.)_
 
 ### Strava (optional)
 If you connect Strava, the app exports the dives you choose as Strava

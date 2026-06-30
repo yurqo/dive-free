@@ -10,14 +10,15 @@ import SwiftData
 /// the app's footprint flat regardless of how much media is attached.
 @Model
 public final class PhotoRecord {
-    public var id: UUID
+    // Optional/defaulted for CloudKit compatibility (#168); additive migration.
+    public var id: UUID = UUID()
     /// `PHAsset.localIdentifier` of the referenced library photo — the source of
     /// truth for the full image. `nil` only if a reference couldn't be obtained.
     public var assetIdentifier: String?
     /// File name of the cached thumbnail in the app container (see `PhotoStore`),
     /// shown in the gallery without needing Photos access. `nil` if not cached.
     public var thumbnailFileName: String?
-    public var createdAt: Date
+    public var createdAt: Date = Date()
     /// Whether the referenced asset is a video (#139) — drives the play badge and
     /// AVKit playback. Defaulted false for lightweight migration of photo rows.
     public var isVideo: Bool = false

@@ -6,11 +6,12 @@ import SwiftData
 /// created), and the spot's center is the mean of its sessions' locations.
 @Model
 public final class Spot {
-    public var id: UUID
-    public var name: String
-    public var centerLatitude: Double
-    public var centerLongitude: Double
-    public var createdAt: Date
+    // Optional/defaulted for CloudKit compatibility (#168); additive migration.
+    public var id: UUID = UUID()
+    public var name: String = ""
+    public var centerLatitude: Double = 0
+    public var centerLongitude: Double = 0
+    public var createdAt: Date = Date()
     public var notes: String?
     /// Reverse-geocoded country name + ISO code (#147), backfilled from the spot
     /// center. Optional so existing rows migrate to nil and get backfilled.
@@ -22,7 +23,7 @@ public final class Spot {
     public var photosFolderIdentifier: String?
 
     @Relationship(deleteRule: .nullify, inverse: \SessionRecord.spot)
-    public var sessions: [SessionRecord]
+    public var sessions: [SessionRecord] = []
 
     /// Photos attached directly to the spot (not via a session). The spot's full
     /// gallery is these plus its sessions' photos.
