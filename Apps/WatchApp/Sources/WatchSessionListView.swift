@@ -62,8 +62,19 @@ struct WatchSessionListView: View {
             }
             .navigationTitle("Sessions")
             .navigationDestination(for: SessionRecord.self) { record in
-                WatchSessionSummaryView(session: record.toDomain())
-                    .navigationTitle(record.startTime.formatted(.dateTime.month(.abbreviated).day().hour().minute()))
+                // The pushed record can be deleted from inside the detail view
+                // (Delete Session); SwiftUI may re-evaluate this destination with
+                // the now-deleted @Model before the pop finishes, and reading a
+                // deleted model's stored properties traps (#148). modelContext is
+                // nil once deleted+saved, so guard on it and render nothing while
+                // the pop is in flight. (#175 guarded the list rows; this is the
+                // same crash on the detail-navigation path.)
+                if record.modelContext != nil {
+                    WatchSessionSummaryView(session: record.toDomain())
+                        .navigationTitle(record.startTime.formatted(.dateTime.month(.abbreviated).day().hour().minute()))
+                } else {
+                    Color.clear
+                }
             }
         }
     }
