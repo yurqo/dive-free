@@ -11,6 +11,7 @@ public enum DiveSchema {
         CustomMarkerRecord.self,
         Spot.self,
         PhotoRecord.self,
+        Trip.self,
     ]
 
     /// The app's private CloudKit container for cross-device sync (#168),
