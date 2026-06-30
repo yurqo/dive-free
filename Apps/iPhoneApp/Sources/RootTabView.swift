@@ -12,6 +12,9 @@ struct RootTabView: View {
             Tab("Spots", systemImage: "mappin.and.ellipse") {
                 SpotsListView()
             }
+            Tab("Passport", systemImage: "rosette") {
+                StatsView()
+            }
         }
         .tabViewStyle(.sidebarAdaptable)
     }
