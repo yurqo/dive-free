@@ -109,6 +109,10 @@ public final class SessionRecord {
     /// existing rows migrate to nil and get backfilled by the spot assigner.
     public var spot: Spot?
 
+    /// The trip this session belongs to (#111). Optional so existing rows migrate
+    /// to nil; assigned by the trip auto-suggester or manually.
+    public var trip: Trip?
+
     @Relationship(deleteRule: .cascade, inverse: \DiveRecord.session)
     public var dives: [DiveRecord] = []
 

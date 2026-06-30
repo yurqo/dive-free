@@ -15,6 +15,9 @@ struct RootTabView: View {
             Tab("Passport", systemImage: "rosette") {
                 StatsView()
             }
+            Tab("Trips", systemImage: "suitcase") {
+                TripsView()
+            }
         }
         .tabViewStyle(.sidebarAdaptable)
     }
