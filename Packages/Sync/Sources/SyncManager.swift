@@ -89,18 +89,25 @@ public final class SyncManager: NSObject, @unchecked Sendable {
         applyContext: ((_ context: [String: Any]) -> Void)? = nil,
         performDeletion: ((_ id: UUID) -> Void)? = nil
     ) {
+        // Each default transport guards WCSession.isSupported(): WatchConnectivity
+        // imports on iPad (canImport is true) but isn't supported there, and calling
+        // these on an unactivated session raises an exception. iPad gets its data via
+        // CloudKit (#168/#170), so these are correctly no-ops on it.
         self.performTransfer = performTransfer ?? { id, data in
             #if canImport(WatchConnectivity)
+            guard WCSession.isSupported() else { return }
             WCSession.default.transferUserInfo([Self.payloadKey: data, Self.idKey: id])
             #endif
         }
         self.applyContext = applyContext ?? { context in
             #if canImport(WatchConnectivity)
+            guard WCSession.isSupported() else { return }
             try? WCSession.default.updateApplicationContext(context)
             #endif
         }
         self.performDeletion = performDeletion ?? { id in
             #if canImport(WatchConnectivity)
+            guard WCSession.isSupported() else { return }
             WCSession.default.transferUserInfo([Self.deletedKey: id.uuidString])
             #endif
         }
@@ -190,7 +197,7 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     /// under the name the session's markers reference.
     public func sendAudioFile(_ url: URL, fileName: String) {
         #if canImport(WatchConnectivity)
-        guard FileManager.default.fileExists(atPath: url.path) else { return }
+        guard WCSession.isSupported(), FileManager.default.fileExists(atPath: url.path) else { return }
         WCSession.default.transferFile(url, metadata: [Self.fileNameKey: fileName])
         #endif
     }

@@ -100,10 +100,10 @@ let watchApp = Target.target(
 
 let iphoneApp = Target.target(
     name: "DiveFree",
-    // iPhone-only: sessions are captured on Apple Watch and synced to the paired
-    // iPhone over WatchConnectivity (which iPad can't receive), and there is no
-    // iCloud sync, so an iPad install would only ever show an empty store.
-    destinations: [.iPhone],
+    // Universal (iPhone + iPad). Sessions are captured on Apple Watch and synced to
+    // the iPhone over WatchConnectivity; the iPad gets the dive log via iCloud
+    // (CloudKit) sync (#168), so it shows the same data without a paired watch (#170).
+    destinations: [.iPhone, .iPad],
     product: .app,
     bundleId: "\(bundlePrefix)",
     deploymentTargets: .iOS(iOSVersion),
