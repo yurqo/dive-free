@@ -15,6 +15,21 @@ enum VoiceNoteStore {
     static func exists(_ fileName: String) -> Bool {
         FileManager.default.fileExists(atPath: url(for: fileName).path)
     }
+
+    /// The bytes of a stored clip, for mirroring via CloudKit (#169).
+    static func data(for fileName: String) -> Data? {
+        try? Data(contentsOf: url(for: fileName))
+    }
+
+    /// Writes CloudKit-synced bytes to the local file if it isn't already present,
+    /// so a clip synced from another device becomes playable here (#169). Returns
+    /// true when a file was written.
+    @discardableResult
+    static func materialize(_ data: Data, as fileName: String) -> Bool {
+        let target = url(for: fileName)
+        guard !FileManager.default.fileExists(atPath: target.path) else { return false }
+        do { try data.write(to: target); return true } catch { return false }
+    }
 }
 
 extension Notification.Name {

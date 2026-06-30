@@ -18,6 +18,14 @@ public final class PhotoRecord {
     /// File name of the cached thumbnail in the app container (see `PhotoStore`),
     /// shown in the gallery without needing Photos access. `nil` if not cached.
     public var thumbnailFileName: String?
+    /// Thumbnail bytes, stored externally and mirrored via CloudKit so the gallery
+    /// thumbnail shows on your other devices (#169). The cached file stays the fast
+    /// path; this is the cross-device carrier.
+    @Attribute(.externalStorage) public var thumbnailData: Data?
+    /// `PHCloudIdentifier.stringValue` for the referenced asset (#169) — stable
+    /// across devices (unlike `assetIdentifier`, a device-local id), so the full
+    /// image can be resolved from iCloud Photos on another device.
+    public var assetCloudIdentifier: String?
     public var createdAt: Date = Date()
     /// Whether the referenced asset is a video (#139) — drives the play badge and
     /// AVKit playback. Defaulted false for lightweight migration of photo rows.
@@ -34,6 +42,8 @@ public final class PhotoRecord {
         id: UUID = UUID(),
         assetIdentifier: String? = nil,
         thumbnailFileName: String? = nil,
+        thumbnailData: Data? = nil,
+        assetCloudIdentifier: String? = nil,
         createdAt: Date = Date(),
         isVideo: Bool = false,
         session: SessionRecord? = nil,
@@ -43,6 +53,8 @@ public final class PhotoRecord {
         self.id = id
         self.assetIdentifier = assetIdentifier
         self.thumbnailFileName = thumbnailFileName
+        self.thumbnailData = thumbnailData
+        self.assetCloudIdentifier = assetCloudIdentifier
         self.createdAt = createdAt
         self.isVideo = isVideo
         self.session = session

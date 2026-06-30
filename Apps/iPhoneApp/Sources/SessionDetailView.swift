@@ -67,6 +67,7 @@ struct SessionDetailView: View {
         }
         .navigationTitle(domain.title ?? domain.startTime.formatted(date: .abbreviated, time: .omitted))
         .navigationBarTitleDisplayMode(.inline)
+        .task { reconcileVoiceNotes() }
         .fullScreenCover(isPresented: $showFullMap) { fullMap(domain) }
         .sheet(isPresented: $showEdit) { SessionEditView(session: session) }
         .toolbar {
@@ -265,6 +266,28 @@ struct SessionDetailView: View {
         domain.markers.contains {
             $0.audioFileName != nil && $0.timestamp >= segment.startTime && $0.timestamp <= segment.endTime
         }
+    }
+
+    /// Bridges voice-note files and their CloudKit-synced bytes both ways (#169):
+    /// uploads local-only clips (sets `audioData`) so they sync, and materializes
+    /// synced-only clips (writes the file) so they play on this device. Runs when
+    /// the detail view appears; only touches files when one side is missing, so the
+    /// same-device path is unaffected.
+    private func reconcileVoiceNotes() {
+        guard session.modelContext != nil else { return } // skip a deleted session (#148)
+        var changed = false
+        for marker in session.markers {
+            guard let name = marker.audioFileName else { continue }
+            if marker.audioData == nil, let data = VoiceNoteStore.data(for: name) {
+                marker.audioData = data                          // local file → CloudKit
+                changed = true
+            } else if let data = marker.audioData, !VoiceNoteStore.exists(name) {
+                if VoiceNoteStore.materialize(data, as: name) {  // CloudKit → local file
+                    NotificationCenter.default.post(name: .voiceNoteReceived, object: nil)
+                }
+            }
+        }
+        if changed { try? session.modelContext?.save() }
     }
 
     /// Whole-session heart-rate and water-temperature charts (each shown only when

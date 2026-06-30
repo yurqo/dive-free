@@ -20,7 +20,10 @@ enum PhotoStore {
 
     /// Downscales `image` to a thumbnail and writes it; returns the file name, or
     /// `nil` if encoding/writing fails.
-    static func saveThumbnail(_ image: UIImage) -> String? {
+    /// Downscales `image` to a thumbnail, writes it, and returns the file name plus
+    /// the JPEG bytes. The bytes are also stored on the `PhotoRecord` so the
+    /// thumbnail syncs across devices via CloudKit (#169). Nil if encoding fails.
+    static func saveThumbnail(_ image: UIImage) -> (fileName: String, data: Data)? {
         let fileName = "\(UUID().uuidString).jpg"
         guard let data = downscaled(image).jpegData(compressionQuality: 0.8) else { return nil }
         do {
@@ -28,7 +31,7 @@ enum PhotoStore {
         } catch {
             return nil
         }
-        return fileName
+        return (fileName, data)
     }
 
     static func delete(_ fileName: String?) {
@@ -38,10 +41,22 @@ enum PhotoStore {
 
     /// Reads and decodes a cached thumbnail off the main thread (keeps gallery
     /// scrolling smooth — the decode would otherwise run on the main actor).
-    static func thumbnailPrepared(for fileName: String) async -> UIImage? {
-        let path = url(for: fileName).path
+    static func thumbnailPrepared(for fileName: String?, fallbackData: Data? = nil) async -> UIImage? {
+        // Prefer the cached file. On a device that doesn't have it yet (synced from
+        // elsewhere), fall back to the CloudKit-mirrored bytes and materialize the
+        // file for next time (#169).
+        if let fileName, FileManager.default.fileExists(atPath: url(for: fileName).path) {
+            let path = url(for: fileName).path
+            if let image = await Task.detached(priority: .userInitiated, operation: {
+                UIImage(contentsOfFile: path)
+            }).value {
+                return await image.byPreparingForDisplay()
+            }
+        }
+        guard let fallbackData else { return nil }
+        if let fileName { try? fallbackData.write(to: url(for: fileName)) }
         guard let image = await Task.detached(priority: .userInitiated, operation: {
-            UIImage(contentsOfFile: path)
+            UIImage(data: fallbackData)
         }).value else { return nil }
         return await image.byPreparingForDisplay()
     }
