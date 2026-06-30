@@ -248,8 +248,56 @@ final class SessionCoordinator {
         }
     }
 
+    // MARK: - Time cues (#178)
+
+    /// Drives periodic time cues off the dive lifecycle: tick while submerged, stop
+    /// at the surface.
+    private func handleTimeCueEvent(_ event: DiveHapticEvent) {
+        switch event {
+        case .diveStart: startTimeCues()
+        case .surface: stopTimeCues()
+        default: break
+        }
+    }
+
+    /// Begins a per-second ticker that plays a minor/major cue on each interval
+    /// boundary (relative to the dive start). No-op when cues are disabled. The
+    /// inner loop steps one whole second at a time so a sleep that drifts past a
+    /// boundary still plays that cue rather than skipping it.
+    private func startTimeCues() {
+        let defaults = UserDefaults.standard
+        guard defaults.bool(forKey: "timeCuesEnabled") else { return }
+        let minor = defaults.object(forKey: "timeCueMinorSeconds") as? Int ?? 10
+        let major = defaults.object(forKey: "timeCueMajorSeconds") as? Int ?? 60
+        guard minor > 0 || major > 0 else { return }
+        let start = sessionManager.currentDiveStart ?? Date()
+        timeCueTask?.cancel()
+        timeCueTask = Task { @MainActor in
+            var last = 0
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(1))
+                if Task.isCancelled { return }
+                let elapsed = Int(Date().timeIntervalSince(start))
+                while last < elapsed {
+                    last += 1
+                    if let cue = diveTimeCue(elapsedSeconds: last, minorInterval: minor, majorInterval: major) {
+                        DiveTonePlayer.playTimeCue(major: cue == .major)
+                        DiveHapticPlayer.playTimeCue(major: cue == .major)
+                    }
+                }
+            }
+        }
+    }
+
+    private func stopTimeCues() {
+        timeCueTask?.cancel()
+        timeCueTask = nil
+    }
+
     private let sessionManager: SessionManager
     private let modelContext: ModelContext
+    /// Repeating per-second time-cue ticker, live only while submerged (#178).
+    private var timeCueTask: Task<Void, Never>?
     let workout = WorkoutController()
     private let sync = SyncManager()
     let audioRecorder = AudioNoteRecorder()
@@ -260,9 +308,10 @@ final class SessionCoordinator {
     init(modelContext: ModelContext) {
         self.modelContext = modelContext
         sessionManager = SessionManager(modelContext: modelContext)
-        sessionManager.onHapticEvent = { event in
+        sessionManager.onHapticEvent = { [weak self] event in
             DiveHapticPlayer.play(event)
             DiveTonePlayer.play(for: event)
+            self?.handleTimeCueEvent(event)
         }
         // Auto-stop a surface voice note the instant the diver submerges.
         sessionManager.onSubmerge = { [weak self] in self?.stopVoiceNote() }
@@ -407,6 +456,7 @@ final class SessionCoordinator {
     @discardableResult
     func stop() async -> DiveSession? {
         guard case .active = state else { return nil }
+        stopTimeCues()
         // Finish any in-flight voice-note stitch first, so the saved session
         // references the merged clip and not a source file the merge will delete.
         await pendingMergeTask?.value

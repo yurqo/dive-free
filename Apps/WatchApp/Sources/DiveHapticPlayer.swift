@@ -22,6 +22,12 @@ enum DiveHapticPlayer {
         }
         WKInterfaceDevice.current().play(type)
     }
+
+    /// A periodic time cue (#178), distinct from the depth-event haptics above:
+    /// a light tap for a minor cue, a stronger notification for a major one.
+    static func playTimeCue(major: Bool) {
+        WKInterfaceDevice.current().play(major ? .notification : .click)
+    }
 }
 
 /// Synthesises and plays short audio tones for dive events, layered on top of the
@@ -66,6 +72,19 @@ enum DiveTonePlayer {
             tone(frequency: ascendFrequency, duration: leftCeiling ? longDuration : shortDuration)
         case .markerPlaced:
             break // markers stay haptic-only
+        }
+    }
+
+    /// A periodic time-cue tone (#178), deliberately distinct from the depth
+    /// beep/boop (C6/C5): a single mid-pitch G5 blip for a minor cue, a quick
+    /// double blip for a major one.
+    static func playTimeCue(major: Bool) {
+        let frequency = 783.99 // G5 — between ascend C5 and descend C6
+        tone(frequency: frequency, duration: shortDuration)
+        guard major else { return }
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(170))
+            tone(frequency: frequency, duration: shortDuration)
         }
     }
 
