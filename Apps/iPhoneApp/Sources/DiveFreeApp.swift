@@ -5,6 +5,13 @@ import Persistence
 import Sync
 import Strava
 
+/// App-level `@AppStorage` keys.
+enum AppStorageKey {
+    /// User's iCloud Sync opt-out (default on). Read at launch to choose the
+    /// CloudKit vs local store (#168).
+    static let iCloudSyncEnabled = "iCloudSyncEnabled"
+}
+
 @main
 struct DiveFreeApp: App {
     @State private var sync = SyncManager()
@@ -17,10 +24,19 @@ struct DiveFreeApp: App {
     private let container: ModelContainer
 
     init() {
-        do {
-            container = try ModelContainer(for: Schema(DiveSchema.models))
-        } catch {
-            fatalError("Failed to create the SwiftData container: \(error)")
+        // CloudKit sync is on by default; the user can opt out in Settings
+        // (applied on next launch). Fall back to a local store if CloudKit setup
+        // fails, so an iCloud/sync error can never block launch (#168).
+        let syncEnabled = UserDefaults.standard.object(forKey: AppStorageKey.iCloudSyncEnabled) as? Bool ?? true
+        if syncEnabled,
+           let cloud = try? DiveStore(cloudKitContainerID: DiveSchema.cloudKitContainerID).container {
+            container = cloud
+        } else {
+            do {
+                container = try DiveStore().container
+            } catch {
+                fatalError("Failed to create the SwiftData container: \(error)")
+            }
         }
     }
 

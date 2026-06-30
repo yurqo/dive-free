@@ -17,10 +17,14 @@ struct SettingsView: View {
     @AppStorage(UnitPreference.Key.distance) private var distanceRaw = UnitPreference.regionDefault.customDistance.rawValue
     @AppStorage(UnitPreference.Key.temperature) private var temperatureRaw = UnitPreference.regionDefault.customTemperature.rawValue
     @AppStorage(UnitPreference.Key.windSpeed) private var windSpeedRaw = UnitPreference.regionDefault.windSpeed.rawValue
+    // iCloud Sync opt-out (#168). Applied at next launch — the SwiftData container
+    // is built in DiveFreeApp.init.
+    @AppStorage(AppStorageKey.iCloudSyncEnabled) private var iCloudSyncEnabled = true
 
     var body: some View {
         Form {
             unitsSection
+            iCloudSection
             Section {
                 if strava.isConnected {
                     Label("Connected", systemImage: "checkmark.circle.fill")
@@ -103,6 +107,16 @@ struct SettingsView: View {
         .onChange(of: distanceRaw) { syncUnits() }
         .onChange(of: temperatureRaw) { syncUnits() }
         .onChange(of: windSpeedRaw) { syncUnits() }
+    }
+
+    @ViewBuilder private var iCloudSection: some View {
+        Section {
+            Toggle("iCloud Sync", isOn: $iCloudSyncEnabled)
+        } header: {
+            Text("iCloud")
+        } footer: {
+            Text("Syncs your dive log across your devices through your private iCloud account. Your data stays in your iCloud and isn't accessible to us. Changes take effect next time you open the app.")
+        }
     }
 
     /// Push the (just-written) units preference to the watch.
