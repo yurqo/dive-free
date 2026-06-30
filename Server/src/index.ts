@@ -126,7 +126,7 @@ const PRIVACY_POLICY_HTML = `<!DOCTYPE html>
 <p>We may update this policy; material changes will be reflected by the effective date above.</p>
 
 <h2>Contact</h2>
-<p>Questions about this policy: <a href="mailto:yurko@software-engineer.ing">yurko@software-engineer.ing</a></p>
+<p>Questions about this policy: <a href="mailto:dive-free@software-engineer.ing">dive-free@software-engineer.ing</a></p>
 </body>
 </html>`;
 
@@ -152,7 +152,7 @@ const SUPPORT_HTML = `<!DOCTYPE html>
 <p>DiveFree is a logbook for recreational freediving and snorkeling on Apple Watch and iPhone. It is not a dive computer or a safety device.</p>
 
 <h2>Get help</h2>
-<p>Questions, bug reports, and feature requests are welcome &mdash; email <a href="mailto:yurko@software-engineer.ing">yurko@software-engineer.ing</a> and we&rsquo;ll get back to you.</p>
+<p>Questions, bug reports, and feature requests are welcome &mdash; email <a href="mailto:dive-free@software-engineer.ing">dive-free@software-engineer.ing</a> and we&rsquo;ll get back to you.</p>
 
 <h2>Good to know</h2>
 <ul>
