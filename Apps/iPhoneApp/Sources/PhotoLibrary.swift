@@ -16,6 +16,14 @@ enum PhotoLibrary {
         return status == .authorized || status == .limited
     }
 
+    /// Current read authorization **without prompting** — for background work that
+    /// must not trigger the permission dialog outside a user-initiated flow (e.g.
+    /// the launch-time backfill). True only once the user has already granted access.
+    static func hasReadAccess() -> Bool {
+        let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+        return status == .authorized || status == .limited
+    }
+
     /// The asset for a stored identifier, or nil if it's no longer in the library.
     static func asset(for identifier: String) -> PHAsset? {
         PHAsset.fetchAssets(withLocalIdentifiers: [identifier], options: nil).firstObject
@@ -40,6 +48,20 @@ enum PhotoLibrary {
         let mapping = PHPhotoLibrary.shared().cloudIdentifierMappings(forLocalIdentifiers: [localIdentifier])
         guard case let .success(cloudID)? = mapping[localIdentifier] else { return nil }
         return cloudID.stringValue
+    }
+
+    /// Batched `cloudIdentifier(for:)` — maps each resolvable local id to its
+    /// `PHCloudIdentifier.stringValue` in a single lookup (the per-id call is
+    /// expensive, so the backfill resolves the whole set at once). Local ids with
+    /// no cloud counterpart (not yet in iCloud Photos) are omitted (#169).
+    static func cloudIdentifiers(forLocalIdentifiers localIdentifiers: [String]) -> [String: String] {
+        guard !localIdentifiers.isEmpty else { return [:] }
+        let mappings = PHPhotoLibrary.shared().cloudIdentifierMappings(forLocalIdentifiers: localIdentifiers)
+        var result: [String: String] = [:]
+        for (local, outcome) in mappings {
+            if case let .success(cloudID) = outcome { result[local] = cloudID.stringValue }
+        }
+        return result
     }
 
     /// The local asset id for a stored cloud identifier on this device, or nil (#169).
