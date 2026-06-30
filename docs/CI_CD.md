@@ -118,8 +118,10 @@ The **patch version auto-increments** — a plain dispatch ships the next patch:
 - To **jump versions** (e.g. a new minor), set `MARKETING_VERSION` in
   `Project.swift` *higher* than the latest tag — CI uses it verbatim for that one
   release, then resumes auto-incrementing from there.
-- The **build number** (`CFBundleVersion`) tracks the patch, so version and build
-  stay aligned (`1.0.13` → build `13`).
+- The **build number** (`CFBundleVersion`) is **decoupled** from the version —
+  CI sets it to the git commit count, which stays monotonic across minor bumps
+  (a `1.0.x` → `1.1.0` jump would otherwise reset `build=patch` backwards and
+  TestFlight would reject the upload).
 
 `ExportOptions.plist` deliberately omits `teamID`: the signing team is resolved
 from the App Store Connect API key (`-allowProvisioningUpdates`), and the archive

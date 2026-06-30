@@ -4,11 +4,11 @@ name: Deliver to TestFlight
 # Manually triggered delivery to TestFlight.
 #
 # Versioning is automatic: each dispatch ships the next patch, computed from the
-# latest vX.Y.Z release tag (1.0.12 → 1.0.13). The build number tracks the patch,
-# so version and build stay aligned (1.0.13 → build 13), and the delivered
-# version is recorded as a git tag. To jump versions (e.g. a new minor), set
-# MARKETING_VERSION in Project.swift higher than the latest tag — CI uses it for
-# that one release, then resumes auto-incrementing from there.
+# latest vX.Y.Z release tag (1.0.12 → 1.0.13). The build number is DECOUPLED from
+# the version — it's the git commit count (monotonic across minor bumps), and the
+# delivered version is recorded as a git tag. To jump versions (e.g. a new minor),
+# set MARKETING_VERSION in Project.swift higher than the latest tag — CI uses it
+# for that one release, then resumes auto-incrementing from there.
 #
 # SAFE BY DEFAULT: the Preflight step fails fast if any required secret is
 # missing. See docs/CI_CD.md.
@@ -84,8 +84,10 @@ jobs:
               version="$major.$minor.$((patch + 1))"     # auto patch bump
             fi
           fi
-          # Build number = patch, so version and build stay aligned (1.0.13 → 13).
-          build="${version##*.}"
+          # Build number is DECOUPLED from the marketing version: use the commit
+          # count, which is monotonic across minor bumps. (build=patch would step
+          # backwards on a 1.0.x→1.1.0 jump and TestFlight rejects a lower build.)
+          build="$(git rev-list --count HEAD)"
           echo "Shipping version $version (build $build)."
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "build=$build" >> "$GITHUB_OUTPUT"
@@ -178,7 +180,7 @@ jobs:
             --apiKey ${{ secrets.APP_STORE_CONNECT_KEY_ID }} \
             --apiIssuer ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
 
-      # ── Record the delivered version as a tag (build == patch, so unique) ────
+      # ── Record the delivered version as a tag (one tag per marketing version) ─
       - name: Tag delivered version
         if: success()
         run: |
