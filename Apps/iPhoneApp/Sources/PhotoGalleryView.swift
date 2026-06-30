@@ -156,8 +156,15 @@ struct SessionPhotosSection: View {
     /// library assets into the DiveFree / per-session Photos albums (#145).
     private func saveAll(_ imported: [ImportedPhoto]) {
         for photo in imported {
-            let thumbnailFileName = photo.thumbnail.flatMap { PhotoStore.saveThumbnail($0) }
-            modelContext.insert(PhotoRecord(assetIdentifier: photo.assetIdentifier, thumbnailFileName: thumbnailFileName, isVideo: photo.isVideo, session: session))
+            let thumb = photo.thumbnail.flatMap { PhotoStore.saveThumbnail($0) }
+            modelContext.insert(PhotoRecord(
+                assetIdentifier: photo.assetIdentifier,
+                thumbnailFileName: thumb?.fileName,
+                thumbnailData: thumb?.data,
+                assetCloudIdentifier: PhotoLibrary.cloudIdentifier(for: photo.assetIdentifier),
+                isVideo: photo.isVideo,
+                session: session
+            ))
         }
         try? modelContext.save()
         mirrorSessionMedia(imported.compactMap(\.assetIdentifier), session: session, in: modelContext)
@@ -235,8 +242,15 @@ struct SpotPhotosSection: View {
             photos: (spot.photos + spot.sessions.flatMap { $0.photos }).sorted { $0.createdAt < $1.createdAt },
             onAdd: { imported in
                 for photo in imported {
-                    let thumbnailFileName = photo.thumbnail.flatMap { PhotoStore.saveThumbnail($0) }
-                    modelContext.insert(PhotoRecord(assetIdentifier: photo.assetIdentifier, thumbnailFileName: thumbnailFileName, isVideo: photo.isVideo, spot: spot))
+                    let thumb = photo.thumbnail.flatMap { PhotoStore.saveThumbnail($0) }
+                    modelContext.insert(PhotoRecord(
+                        assetIdentifier: photo.assetIdentifier,
+                        thumbnailFileName: thumb?.fileName,
+                        thumbnailData: thumb?.data,
+                        assetCloudIdentifier: PhotoLibrary.cloudIdentifier(for: photo.assetIdentifier),
+                        isVideo: photo.isVideo,
+                        spot: spot
+                    ))
                 }
                 try? modelContext.save()
                 // Spot-direct photos (no session) go in Dive Free ▸ All only (#145).
@@ -285,7 +299,7 @@ struct PhotoThumbnail: View {
     }
 
     private func load() async {
-        if let name = photo.thumbnailFileName, let cached = await PhotoStore.thumbnailPrepared(for: name) {
+        if let cached = await PhotoStore.thumbnailPrepared(for: photo.thumbnailFileName, fallbackData: photo.thumbnailData) {
             image = cached
             return
         }
@@ -404,15 +418,14 @@ private struct PhotoPage: View {
             }
             return
         }
-        if let id = photo.assetIdentifier, await PhotoLibrary.requestAccess(),
-           let full = await PhotoLibrary.fullImage(forIdentifier: id) {
+        if await PhotoLibrary.requestAccess(),
+           let full = await PhotoLibrary.fullImage(forIdentifier: photo.assetIdentifier, orCloudIdentifier: photo.assetCloudIdentifier) {
             image = full
             return
         }
-        // No original (deleted / no access): show the cached thumbnail if we have one.
-        if let name = photo.thumbnailFileName {
-            image = await PhotoStore.thumbnailPrepared(for: name)
-        }
+        // No original (deleted / no access / another device): show the cached
+        // thumbnail — local file, or the CloudKit-synced bytes (#169).
+        image = await PhotoStore.thumbnailPrepared(for: photo.thumbnailFileName, fallbackData: photo.thumbnailData)
     }
 }
 

@@ -215,6 +215,10 @@ public final class MarkerRecord {
     // Filename of the attached surface voice note, stored so the marker→clip link
     // survives persistence and watch→phone sync. Optional → lightweight migration.
     public var audioFileName: String?
+    /// Voice-note audio bytes, stored externally and mirrored via CloudKit so the
+    /// clip syncs to your other devices (#169). The local VoiceNoteStore file stays
+    /// the fast path; this is the cross-device carrier.
+    @Attribute(.externalStorage) public var audioData: Data?
     public var session: SessionRecord?
 
     /// Photos the user linked to this marker (#143). Nullify so deleting the
@@ -230,6 +234,7 @@ public final class MarkerRecord {
         label: String = "",
         text: String? = nil,
         audioFileName: String? = nil,
+        audioData: Data? = nil,
         session: SessionRecord? = nil
     ) {
         self.id = id
@@ -239,6 +244,7 @@ public final class MarkerRecord {
         self.label = label
         self.text = text
         self.audioFileName = audioFileName
+        self.audioData = audioData
         self.session = session
     }
 }

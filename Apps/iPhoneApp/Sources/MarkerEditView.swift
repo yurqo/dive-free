@@ -96,10 +96,12 @@ struct MarkerEditView: View {
         var identifiers: [String] = []
         for item in items {
             guard let data = try? await item.loadTransferable(type: Data.self), let image = UIImage(data: data) else { continue }
-            let thumbnailFileName = PhotoStore.saveThumbnail(image)
+            let thumb = PhotoStore.saveThumbnail(image)
             modelContext.insert(PhotoRecord(
                 assetIdentifier: item.itemIdentifier,
-                thumbnailFileName: thumbnailFileName,
+                thumbnailFileName: thumb?.fileName,
+                thumbnailData: thumb?.data,
+                assetCloudIdentifier: PhotoLibrary.cloudIdentifier(for: item.itemIdentifier),
                 session: session,
                 marker: marker
             ))

@@ -22,9 +22,32 @@ enum PhotoLibrary {
     }
 
     /// Full-resolution image for a stored identifier, or nil if missing/denied.
-    static func fullImage(forIdentifier identifier: String) async -> UIImage? {
-        guard let asset = asset(for: identifier) else { return nil }
-        return await image(for: asset)
+    static func fullImage(forIdentifier identifier: String?, orCloudIdentifier cloudID: String? = nil) async -> UIImage? {
+        if let identifier, let asset = asset(for: identifier) { return await image(for: asset) }
+        // The local id is device-specific; on another device, resolve via the
+        // stable CloudKit-synced cloud identifier (#169).
+        if let cloudID, let localID = localIdentifier(forCloudIdentifier: cloudID),
+           let asset = asset(for: localID) {
+            return await image(for: asset)
+        }
+        return nil
+    }
+
+    /// `PHCloudIdentifier.stringValue` for a local asset id, for cross-device
+    /// reference (#169). Best-effort: nil if unavailable or not in iCloud Photos.
+    static func cloudIdentifier(for localIdentifier: String?) -> String? {
+        guard let localIdentifier else { return nil }
+        let mapping = PHPhotoLibrary.shared().cloudIdentifierMappings(forLocalIdentifiers: [localIdentifier])
+        guard case let .success(cloudID)? = mapping[localIdentifier] else { return nil }
+        return cloudID.stringValue
+    }
+
+    /// The local asset id for a stored cloud identifier on this device, or nil (#169).
+    static func localIdentifier(forCloudIdentifier cloudID: String) -> String? {
+        let cloud = PHCloudIdentifier(stringValue: cloudID)
+        let mapping = PHPhotoLibrary.shared().localIdentifierMappings(for: [cloud])
+        guard case let .success(localID)? = mapping[cloud] else { return nil }
+        return localID
     }
 
     /// A thumbnail-sized image for caching at import time.
