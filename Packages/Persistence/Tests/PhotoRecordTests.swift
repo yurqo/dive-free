@@ -15,7 +15,7 @@ struct PhotoRecordTests {
         ctx.insert(PhotoRecord(assetIdentifier: "a", session: session))
         ctx.insert(PhotoRecord(assetIdentifier: "b", session: session))
         try ctx.save()
-        #expect(session.photos.count == 2)
+        #expect((session.photos ?? []).count == 2)
         #expect(try ctx.fetch(FetchDescriptor<PhotoRecord>()).count == 2)
 
         ctx.delete(session)
@@ -32,7 +32,7 @@ struct PhotoRecordTests {
         let photo = PhotoRecord(assetIdentifier: "c", spot: spot)
         ctx.insert(photo)
         try ctx.save()
-        #expect(spot.photos.count == 1)
+        #expect((spot.photos ?? []).count == 1)
         #expect(photo.spot === spot)
     }
 }

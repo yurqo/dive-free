@@ -60,11 +60,11 @@ public struct SpotAssigner {
         // Snapshot the relationship arrays — reassigning mutates them as we go.
         // Clear each session's Photos album id so its media re-mirrors under the
         // target spot's folder rather than the now-orphaned source folder (#145).
-        for session in Array(source.sessions) {
+        for session in Array(source.sessions ?? []) {
             session.spot = target
             session.photosAlbumIdentifier = nil
         }
-        for photo in Array(source.photos) { photo.spot = target }
+        for photo in Array(source.photos ?? []) { photo.spot = target }
         recenter(target)
         context.delete(source)
         try context.save()
@@ -86,7 +86,7 @@ public struct SpotAssigner {
 
     /// Recomputes a spot's center as the mean of its sessions' locations.
     private func recenter(_ spot: Spot) {
-        let points = spot.sessions.compactMap { session -> GeoPoint? in
+        let points = (spot.sessions ?? []).compactMap { session -> GeoPoint? in
             guard let latitude = session.latitude, let longitude = session.longitude else { return nil }
             return GeoPoint(latitude: latitude, longitude: longitude)
         }

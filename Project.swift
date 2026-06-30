@@ -117,6 +117,11 @@ let iphoneApp = Target.target(
         // App uses only standard (exempt) HTTPS encryption — auto-clears the
         // TestFlight/App Store export-compliance prompt.
         "ITSAppUsesNonExemptEncryption": false,
+        // Receive CloudKit's silent pushes so SwiftData imports changes from the
+        // user's other devices (#168). NSPersistentCloudKitContainer requires this;
+        // without it CloudKit logs "requires the 'remote-notification' background
+        // mode" and sync never completes.
+        "UIBackgroundModes": ["remote-notification"],
         "UISupportedInterfaceOrientations": ["UIInterfaceOrientationPortrait"],
         "UISupportedInterfaceOrientations~ipad": [
             "UIInterfaceOrientationPortrait",

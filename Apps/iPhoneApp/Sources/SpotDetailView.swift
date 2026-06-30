@@ -12,9 +12,9 @@ struct SpotStats {
     let lastDived: Date?
 
     init(_ spot: Spot) {
-        let sessions = spot.sessions
+        let sessions = spot.sessions ?? []
         sessionCount = sessions.count
-        let dives = sessions.flatMap { $0.dives }
+        let dives = sessions.flatMap { $0.dives ?? [] }
         diveCount = dives.count
         maxDepthMeters = dives.map(\.maxDepthMeters).max()
         firstDived = sessions.map(\.startTime).min()
@@ -64,7 +64,7 @@ struct SpotDetailView: View {
 
     var body: some View {
         let stats = SpotStats(spot)
-        let sessions = spot.sessions.sorted { $0.startTime > $1.startTime }
+        let sessions = (spot.sessions ?? []).sorted { $0.startTime > $1.startTime }
         List {
             Section {
                 LabeledContent("Sessions", value: "\(stats.sessionCount)")
@@ -99,7 +99,7 @@ struct SpotDetailView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(session.startTime.formatted(date: .abbreviated, time: .shortened))
                                 .font(.subheadline)
-                            Text("\(session.dives.count) dive\(session.dives.count == 1 ? "" : "s")")
+                            Text("\(session.dives?.count ?? 0) dive\((session.dives?.count ?? 0) == 1 ? "" : "s")")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }

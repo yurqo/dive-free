@@ -23,12 +23,12 @@ public final class Spot {
     public var photosFolderIdentifier: String?
 
     @Relationship(deleteRule: .nullify, inverse: \SessionRecord.spot)
-    public var sessions: [SessionRecord] = []
+    public var sessions: [SessionRecord]?
 
     /// Photos attached directly to the spot (not via a session). The spot's full
     /// gallery is these plus its sessions' photos.
     @Relationship(deleteRule: .nullify, inverse: \PhotoRecord.spot)
-    public var photos: [PhotoRecord] = []
+    public var photos: [PhotoRecord]?
 
     public init(
         id: UUID = UUID(),

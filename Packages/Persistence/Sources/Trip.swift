@@ -16,7 +16,7 @@ public final class Trip {
 
     /// Deleting a trip just unlinks its sessions (they stay in the log).
     @Relationship(deleteRule: .nullify, inverse: \SessionRecord.trip)
-    public var sessions: [SessionRecord] = []
+    public var sessions: [SessionRecord]?
 
     public init(
         id: UUID = UUID(),

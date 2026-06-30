@@ -50,7 +50,7 @@ struct TripsView: View {
         VStack(alignment: .leading, spacing: 3) {
             Text(trip.name.isEmpty ? "Trip" : trip.name).font(.headline)
             Text(dateRange(trip)).font(.caption).foregroundStyle(.secondary)
-            Text("\(trip.sessions.count) session\(trip.sessions.count == 1 ? "" : "s")")
+            Text("\(trip.sessions?.count ?? 0) session\((trip.sessions?.count ?? 0) == 1 ? "" : "s")")
                 .font(.caption2).foregroundStyle(.secondary)
         }
     }

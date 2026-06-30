@@ -10,7 +10,7 @@ struct TripDetailView: View {
     @Environment(\.modelContext) private var modelContext
 
     private var liveSessions: [SessionRecord] {
-        trip.sessions.filter { $0.modelContext != nil }.sorted { $0.startTime < $1.startTime }
+        (trip.sessions ?? []).filter { $0.modelContext != nil }.sorted { $0.startTime < $1.startTime }
     }
 
     var body: some View {
@@ -52,11 +52,11 @@ struct TripDetailView: View {
     @ViewBuilder private var statsSection: some View {
         let stats = DiveStats.compute(
             sessions: liveSessions.map { record in
-                let durations = record.dives.map { $0.endTime.timeIntervalSince($0.startTime) }
+                let durations = (record.dives ?? []).map { $0.endTime.timeIntervalSince($0.startTime) }
                 return SessionStat(
                     startTime: record.startTime,
-                    diveCount: record.dives.count,
-                    maxDepthMeters: record.dives.map(\.maxDepthMeters).max() ?? 0,
+                    diveCount: record.dives?.count ?? 0,
+                    maxDepthMeters: (record.dives ?? []).map(\.maxDepthMeters).max() ?? 0,
                     bottomTime: durations.reduce(0, +),
                     longestDive: durations.max() ?? 0
                 )

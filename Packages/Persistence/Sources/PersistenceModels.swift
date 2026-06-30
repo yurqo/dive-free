@@ -113,14 +113,17 @@ public final class SessionRecord {
     /// to nil; assigned by the trip auto-suggester or manually.
     public var trip: Trip?
 
+    // CloudKit requires to-many relationships to be OPTIONAL — defaulting to []
+    // isn't enough (the store fails to load: "relationships must be optional").
+    // Reads go through `?? []`.
     @Relationship(deleteRule: .cascade, inverse: \DiveRecord.session)
-    public var dives: [DiveRecord] = []
+    public var dives: [DiveRecord]?
 
     @Relationship(deleteRule: .cascade, inverse: \MarkerRecord.session)
-    public var markers: [MarkerRecord] = []
+    public var markers: [MarkerRecord]?
 
     @Relationship(deleteRule: .cascade, inverse: \PhotoRecord.session)
-    public var photos: [PhotoRecord] = []
+    public var photos: [PhotoRecord]?
 
     public init(
         id: UUID = UUID(),
@@ -228,7 +231,7 @@ public final class MarkerRecord {
     /// Photos the user linked to this marker (#143). Nullify so deleting the
     /// marker just unlinks the photos (they remain on the session/spot).
     @Relationship(deleteRule: .nullify, inverse: \PhotoRecord.marker)
-    public var photos: [PhotoRecord] = []
+    public var photos: [PhotoRecord]?
 
     public init(
         id: UUID = UUID(),
@@ -309,8 +312,8 @@ public extension SessionRecord {
             id: id,
             startTime: startTime,
             endTime: endTime,
-            dives: dives.map { $0.toDomain() },
-            markers: markers.map { $0.toDomain() },
+            dives: (dives ?? []).map { $0.toDomain() },
+            markers: (markers ?? []).map { $0.toDomain() },
             location: location,
             track: track,
             heartRateSamples: heartRateSamples,

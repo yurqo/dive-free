@@ -91,7 +91,7 @@ struct WatchSessionListView: View {
     /// so it isn't part of the signature.
     private var rowSignature: String {
         liveSessions
-            .map { "\($0.persistentModelID.hashValue):\($0.locationName ?? ""):\($0.dives.count):\($0.markers.count)" }
+            .map { "\($0.persistentModelID.hashValue):\($0.locationName ?? ""):\(($0.dives ?? []).count):\(($0.markers ?? []).count)" }
             .joined(separator: "|")
     }
 
@@ -141,8 +141,8 @@ private struct SessionRow {
     init(_ record: SessionRecord) {
         startTime = record.startTime
         totalDuration = (record.endTime ?? record.startTime).timeIntervalSince(record.startTime)
-        diveCount = record.dives.count
-        markerCount = record.markers.count
+        diveCount = record.dives?.count ?? 0
+        markerCount = record.markers?.count ?? 0
         // Distance from the track only (no dives/samples copy); honors smoothTrack.
         distanceMeters = DiveSession(
             startTime: record.startTime, track: record.track, smoothTrack: record.smoothTrack

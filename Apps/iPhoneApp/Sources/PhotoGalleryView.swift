@@ -126,7 +126,7 @@ struct SessionPhotosSection: View {
 
     var body: some View {
         PhotoGallerySection(
-            photos: session.photos.sorted { $0.createdAt < $1.createdAt },
+            photos: (session.photos ?? []).sorted { $0.createdAt < $1.createdAt },
             onAdd: { saveAll($0) },
             onDelete: { remove($0) }
         ) {
@@ -178,7 +178,7 @@ struct SessionPhotosSection: View {
 
     private func suggest() async {
         guard await PhotoMatcher.requestReadAccess() else { showPermissionAlert = true; return }
-        let existing = Set(session.photos.compactMap { $0.assetIdentifier })
+        let existing = Set((session.photos ?? []).compactMap { $0.assetIdentifier })
         let window = PhotoMatcher.window(start: session.startTime, end: session.endTime ?? session.startTime)
         let assets = PhotoMatcher.mediaAssets(in: window, excluding: existing)
         suggestions = assets
@@ -239,7 +239,7 @@ struct SpotPhotosSection: View {
 
     var body: some View {
         PhotoGallerySection(
-            photos: (spot.photos + spot.sessions.flatMap { $0.photos }).sorted { $0.createdAt < $1.createdAt },
+            photos: ((spot.photos ?? []) + (spot.sessions ?? []).flatMap { $0.photos ?? [] }).sorted { $0.createdAt < $1.createdAt },
             onAdd: { imported in
                 for photo in imported {
                     let thumb = photo.thumbnail.flatMap { PhotoStore.saveThumbnail($0) }
