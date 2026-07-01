@@ -17,6 +17,8 @@ enum AppStorageKey {
 struct DiveFreeApp: App {
     @State private var sync = SyncManager()
     @State private var liveSession = LiveSessionMonitor()
+    @State private var photoPager = PhotoPagerPresenter()
+    @State private var cloudSync = CloudKitSyncMonitor()
     @State private var strava = StravaAuthManager(
         store: KeychainTokenStore(),
         webAuth: ASWebAuthenticationProvider()
@@ -56,9 +58,14 @@ struct DiveFreeApp: App {
             RootTabView()
                 .environment(strava)
                 .environment(liveSession)
+                .environment(photoPager)
+                .environment(cloudSync)
                 .environment(\.syncManager, sync)
                 .unitsAware()
                 .onAppear {
+                    // Surface CloudKit sync status + errors (the diagnostic for
+                    // cross-device photo sync).
+                    cloudSync.start()
                     // Reflect an in-progress Watch session on the phone: banner +
                     // Live Activity (#118). Latest-value over the app context.
                     sync.onReceiveLiveSession = { snapshot in

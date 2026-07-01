@@ -29,11 +29,9 @@ struct PhotoGallerySection<Extra: View>: View {
 
     @State private var libraryItems: [PhotosPickerItem] = []
     @State private var showCamera = false
-    /// Identify the tapped photo by its stable id (not the SwiftData object) so a
-    /// model refresh during the cover's first presentation can't dismiss it.
-    @State private var presented: PresentedPhoto?
-
-    private struct PresentedPhoto: Identifiable { let id: PhotoRecord.ID }
+    /// Presents the full-screen pager from a stable top-level view, so a list
+    /// re-render right after the first tap can't dismiss it (see `PhotoPagerPresenter`).
+    @Environment(PhotoPagerPresenter.self) private var pager
 
     var body: some View {
         Section("Photos") {
@@ -41,7 +39,7 @@ struct PhotoGallerySection<Extra: View>: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
                         ForEach(photos) { photo in
-                            Button { presented = PresentedPhoto(id: photo.id) } label: {
+                            Button { pager.open(photos, initialID: photo.id, onDelete: onDelete) } label: {
                                 PhotoThumbnail(photo: photo)
                             }
                             .buttonStyle(.plain)
@@ -76,9 +74,6 @@ struct PhotoGallerySection<Extra: View>: View {
         .sheet(isPresented: $showCamera) {
             CameraPicker { media in Task { await addCaptured(media) } }
                 .ignoresSafeArea()
-        }
-        .fullScreenCover(item: $presented) { item in
-            PhotoPagerView(photos: photos, initialID: item.id, onDelete: onDelete)
         }
     }
 

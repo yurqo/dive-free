@@ -5,8 +5,10 @@ import SwiftUI
 /// (regular width), so the same two destinations feel native on both (#170).
 struct RootTabView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(PhotoPagerPresenter.self) private var pager
 
     var body: some View {
+        @Bindable var pager = pager
         TabView {
             Tab("Dives", systemImage: "water.waves") {
                 SessionListView()
@@ -25,5 +27,10 @@ struct RootTabView: View {
         // Repair photos imported before the cross-device fields existed so they
         // resolve on other devices (#169). Idempotent; no-op once filled in.
         .task { await PhotoBackfill.run(in: modelContext) }
+        // The full-screen photo pager is presented here (stable across list
+        // re-renders), not from inside a List row that gets torn down (#118 follow-up).
+        .fullScreenCover(item: $pager.request) { request in
+            PhotoPagerView(photos: request.photos, initialID: request.initialID, onDelete: request.onDelete)
+        }
     }
 }
