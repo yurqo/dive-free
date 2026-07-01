@@ -6,9 +6,11 @@ import SwiftUI
 struct RootTabView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(PhotoPagerPresenter.self) private var pager
+    @Environment(PhotoSuggestionPresenter.self) private var suggestions
 
     var body: some View {
         @Bindable var pager = pager
+        @Bindable var suggestions = suggestions
         TabView {
             Tab("Dives", systemImage: "water.waves") {
                 SessionListView()
@@ -31,6 +33,14 @@ struct RootTabView: View {
         // re-renders), not from inside a List row that gets torn down (#118 follow-up).
         .fullScreenCover(item: $pager.request) { request in
             PhotoPagerView(photos: request.photos, initialID: request.initialID, onDelete: request.onDelete)
+        }
+        // Photo-suggest selection sheet, also presented top-level so a list
+        // re-render on first open can't dismiss it (#126 follow-up).
+        .sheet(item: $suggestions.request) { request in
+            PhotoSuggestionsView(assets: request.assets) { picked in
+                request.onConfirm(picked)
+                suggestions.request = nil
+            }
         }
     }
 }

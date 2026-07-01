@@ -114,8 +114,7 @@ struct PhotoGallerySection<Extra: View>: View {
 struct SessionPhotosSection: View {
     let session: SessionRecord
     @Environment(\.modelContext) private var modelContext
-    @State private var suggestions: [PHAsset] = []
-    @State private var showSuggestions = false
+    @Environment(PhotoSuggestionPresenter.self) private var suggestionPresenter
     @State private var showPermissionAlert = false
     @State private var showNoMatches = false
     @State private var scanning = false
@@ -127,22 +126,18 @@ struct SessionPhotosSection: View {
             onDelete: { remove($0) }
         ) {
             Button { Task { await suggest() } } label: {
-                if scanning {
-                    HStack(spacing: 8) {
+                // Swap only the icon (image ⇄ spinner) so the text doesn't shift.
+                Label {
+                    Text(scanning ? "Scanning library…" : "Suggest from This Dive")
+                } icon: {
+                    if scanning {
                         ProgressView().controlSize(.small)
-                        Text("Scanning library…")
+                    } else {
+                        Image(systemName: "wand.and.stars")
                     }
-                } else {
-                    Label("Suggest from This Dive", systemImage: "wand.and.stars")
                 }
             }
             .disabled(scanning)
-        }
-        .sheet(isPresented: $showSuggestions) {
-            PhotoSuggestionsView(assets: suggestions) { assets in
-                Task { await importAssets(assets) }
-                showSuggestions = false
-            }
         }
         .alert("Photo Access Needed", isPresented: $showPermissionAlert) {
             Button("OK") {}
@@ -194,9 +189,14 @@ struct SessionPhotosSection: View {
             PhotoMatcher.matchingIdentifiers(in: window, excluding: existing)
         }.value
         let assets = PhotoMatcher.assets(withIdentifiers: ids)
-        suggestions = assets
-        showSuggestions = !assets.isEmpty
-        showNoMatches = assets.isEmpty
+        if assets.isEmpty {
+            showNoMatches = true
+        } else {
+            // Present top-level (stable) so a list re-render can't dismiss it on first open.
+            suggestionPresenter.present(assets) { picked in
+                Task { await importAssets(picked) }
+            }
+        }
     }
 
     private func importAssets(_ assets: [PHAsset]) async {
