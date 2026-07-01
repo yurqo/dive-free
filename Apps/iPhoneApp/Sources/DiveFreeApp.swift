@@ -18,6 +18,7 @@ struct DiveFreeApp: App {
     @State private var sync = SyncManager()
     @State private var liveSession = LiveSessionMonitor()
     @State private var photoPager = PhotoPagerPresenter()
+    @State private var photoSuggestions = PhotoSuggestionPresenter()
     @State private var cloudSync = CloudKitSyncMonitor()
     @State private var strava = StravaAuthManager(
         store: KeychainTokenStore(),
@@ -59,6 +60,7 @@ struct DiveFreeApp: App {
                 .environment(strava)
                 .environment(liveSession)
                 .environment(photoPager)
+                .environment(photoSuggestions)
                 .environment(cloudSync)
                 .environment(\.syncManager, sync)
                 .unitsAware()
@@ -70,10 +72,6 @@ struct DiveFreeApp: App {
                     // Live Activity (#118). Latest-value over the app context.
                     sync.onReceiveLiveSession = { snapshot in
                         Task { @MainActor in liveSession.ingest(snapshot) }
-                    }
-                    // Real-time disconnect signal for the live-session UI (#118).
-                    sync.onReachabilityChange = { reachable in
-                        Task { @MainActor in liveSession.setReachable(reachable) }
                     }
                     let container = container
                     // Persist sessions arriving from the watch into the shared

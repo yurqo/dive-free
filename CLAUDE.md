@@ -18,6 +18,8 @@ tuist generate --no-open
 
 Tuist version is pinned in `mise.toml`.
 
+For a **signed** local build use the `tuist-generate` shell function (defined in `~/.zshrc`) instead of plain `tuist generate` — it injects `TUIST_DEVELOPMENT_TEAM` from the macOS Keychain (`security find-generic-password -l apple-team-id -w`), which `Project.swift` reads, so the generated targets have your signing team. Plain `tuist generate` leaves them unsigned ("requires a development team"). Args pass through, e.g. `tuist-generate --no-open`.
+
 ## Commands
 
 ```sh

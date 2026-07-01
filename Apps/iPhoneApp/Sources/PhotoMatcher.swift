@@ -21,9 +21,11 @@ enum PhotoMatcher {
         await PhotoLibrary.requestAccess()
     }
 
-    /// Image assets created within `window`, excluding `excludedIdentifiers`
-    /// (already-attached assets), oldest first.
-    static func mediaAssets(in window: DateInterval, excluding excludedIdentifiers: Set<String>) -> [PHAsset] {
+    /// Local identifiers of in-window image/video assets, oldest first, minus the
+    /// excluded ones. `nonisolated` + returns `Sendable` ids so the (slow, on a big
+    /// library) `PHAsset.fetchAssets` can run **off the main thread** — the caller
+    /// then materializes the assets on the main actor.
+    nonisolated static func matchingIdentifiers(in window: DateInterval, excluding excludedIdentifiers: Set<String>) -> [String] {
         let options = PHFetchOptions()
         options.predicate = NSPredicate(
             format: "(mediaType == %d OR mediaType == %d) AND creationDate >= %@ AND creationDate <= %@",
@@ -32,10 +34,26 @@ enum PhotoMatcher {
         )
         options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: true)]
         let result = PHAsset.fetchAssets(with: options)
-        var assets: [PHAsset] = []
+        var ids: [String] = []
         result.enumerateObjects { asset, _, _ in
-            if !excludedIdentifiers.contains(asset.localIdentifier) { assets.append(asset) }
+            if !excludedIdentifiers.contains(asset.localIdentifier) { ids.append(asset.localIdentifier) }
         }
-        return assets
+        return ids
+    }
+
+    /// Materializes assets for `identifiers`, preserving order.
+    static func assets(withIdentifiers identifiers: [String]) -> [PHAsset] {
+        guard !identifiers.isEmpty else { return [] }
+        let fetched = PHAsset.fetchAssets(withLocalIdentifiers: identifiers, options: nil)
+        var byID: [String: PHAsset] = [:]
+        fetched.enumerateObjects { asset, _, _ in byID[asset.localIdentifier] = asset }
+        return identifiers.compactMap { byID[$0] }
+    }
+
+    /// Whether the current read access is limited (only selected photos visible),
+    /// which makes the scan miss un-selected shots — the likely cause of a "0
+    /// matches" when a photo really was taken during the dive.
+    static var accessIsLimited: Bool {
+        PHPhotoLibrary.authorizationStatus(for: .readWrite) == .limited
     }
 }

@@ -7,7 +7,6 @@ import Strava
 struct SettingsView: View {
     @Environment(StravaAuthManager.self) private var strava
     @Environment(\.syncManager) private var sync
-    @Environment(CloudKitSyncMonitor.self) private var cloudSync
     @State private var isConnecting = false
     @State private var errorMessage: String?
 
@@ -113,33 +112,11 @@ struct SettingsView: View {
     @ViewBuilder private var iCloudSection: some View {
         Section {
             Toggle("iCloud Sync", isOn: $iCloudSyncEnabled)
-            if iCloudSyncEnabled { syncStatusRow }
+            if iCloudSyncEnabled { CloudKitSyncStatusRows() }
         } header: {
             Text("iCloud")
         } footer: {
             Text("Syncs your dive log across your devices through your private iCloud account. Your data stays in your iCloud and isn't accessible to us. Changes take effect next time you open the app.")
-        }
-    }
-
-    /// Live CloudKit sync state — and, on failure, the actual error, so a sync
-    /// problem (e.g. photos not appearing on another device) is diagnosable.
-    @ViewBuilder private var syncStatusRow: some View {
-        if let error = cloudSync.lastError {
-            LabeledContent("Status") {
-                Label("Sync error", systemImage: "exclamationmark.icloud").foregroundStyle(.red)
-            }
-            Text(error)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .textSelection(.enabled)
-        } else if cloudSync.phase == .syncing {
-            LabeledContent("Status") {
-                HStack(spacing: 6) { ProgressView().controlSize(.small); Text("Syncing…") }
-            }
-        } else if let last = cloudSync.lastSyncDate {
-            LabeledContent("Last synced", value: last.formatted(.relative(presentation: .named)))
-        } else {
-            LabeledContent("Status", value: "Idle")
         }
     }
 

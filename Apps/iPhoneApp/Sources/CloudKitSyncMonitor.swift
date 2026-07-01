@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import CoreData
+import CloudKit
 import os
 
 /// Observes NSPersistentCloudKitContainer's sync events (which back SwiftData's
@@ -16,7 +17,7 @@ final class CloudKitSyncMonitor {
     private(set) var phase: Phase = .idle
     /// End time of the last successful import/export, for "Synced <time> ago".
     private(set) var lastSyncDate: Date?
-    /// Human-readable message from the last failed sync event, or nil if healthy.
+    /// Message from the last failed sync event, or nil once a later event succeeds.
     private(set) var lastError: String?
 
     @ObservationIgnored private var observer: NSObjectProtocol?
@@ -36,7 +37,7 @@ final class CloudKitSyncMonitor {
             // Extract Sendable primitives; the Event itself isn't Sendable.
             let inProgress = event.endDate == nil
             let endDate = event.endDate
-            let errorText = event.error?.localizedDescription
+            let errorText = event.error.map { Self.describe($0) }
             // Delivered on the main queue, so we're already on the main actor.
             MainActor.assumeIsolated {
                 self?.apply(inProgress: inProgress, endDate: endDate, errorText: errorText)
@@ -53,9 +54,23 @@ final class CloudKitSyncMonitor {
         if let errorText {
             lastError = errorText
             log.error("CloudKit sync event failed: \(errorText, privacy: .public)")
-        } else {
+        } else if let endDate {
+            lastSyncDate = endDate
             lastError = nil
-            lastSyncDate = endDate ?? Date()
         }
+    }
+
+    /// Turns a CloudKit error into something actionable. For a `partialFailure`
+    /// (the common "some records rejected" case — e.g. photo records failing on a
+    /// schema gap), the useful detail is per-record, so surface the first
+    /// underlying error rather than the generic "error 2".
+    nonisolated static func describe(_ error: Error) -> String {
+        if let ck = error as? CKError, ck.code == .partialFailure,
+           let partials = ck.partialErrorsByItemID, let first = partials.values.first {
+            let ns = first as NSError
+            return "\(ns.localizedDescription) [\(ns.domain) \(ns.code)]"
+        }
+        let ns = error as NSError
+        return "\(ns.localizedDescription) [\(ns.domain) \(ns.code)]"
     }
 }
