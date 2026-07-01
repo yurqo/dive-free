@@ -16,6 +16,7 @@ enum AppStorageKey {
 @main
 struct DiveFreeApp: App {
     @State private var sync = SyncManager()
+    @State private var liveSession = LiveSessionMonitor()
     @State private var strava = StravaAuthManager(
         store: KeychainTokenStore(),
         webAuth: ASWebAuthenticationProvider()
@@ -54,9 +55,15 @@ struct DiveFreeApp: App {
         WindowGroup {
             RootTabView()
                 .environment(strava)
+                .environment(liveSession)
                 .environment(\.syncManager, sync)
                 .unitsAware()
                 .onAppear {
+                    // Reflect an in-progress Watch session on the phone: banner +
+                    // Live Activity (#118). Latest-value over the app context.
+                    sync.onReceiveLiveSession = { snapshot in
+                        Task { @MainActor in liveSession.ingest(snapshot) }
+                    }
                     let container = container
                     // Persist sessions arriving from the watch into the shared
                     // container; the importer dedupes by id, so the sync layer's

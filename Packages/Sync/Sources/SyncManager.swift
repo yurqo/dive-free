@@ -40,6 +40,12 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     /// Called on the watch when the iPhone's units preference changes.
     public var onReceiveUnitPreference: (@Sendable (UnitPreference) -> Void)?
 
+    /// Called on the phone with each live snapshot of an in-progress Watch session
+    /// (#118). Coalesced latest-value over the application context, so the phone
+    /// can drive an in-app banner + Live Activity and keep the last value while the
+    /// Watch is out of range.
+    public var onReceiveLiveSession: (@Sendable (LiveSessionSnapshot) -> Void)?
+
     /// Notified with the new pending count whenever transfer status changes.
     /// Fires on an arbitrary thread; hop to the main actor before touching UI.
     public var onPendingCountChange: (@Sendable (Int) -> Void)?
@@ -52,6 +58,7 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     static let unitsKey = "unitPreference"
     static let fileNameKey = "fileName"
     static let deletedKey = "deletedSessionID"
+    static let liveSessionKey = "liveSession"
 
     private let lock = NSLock()
     /// Payloads sent but not yet confirmed delivered, keyed by transfer id.
@@ -132,6 +139,18 @@ public final class SyncManager: NSObject, @unchecked Sendable {
         mergeAndApplyContext([Self.unitsKey: data])
     }
 
+    // MARK: - Live session (watch → phone, #118)
+
+    /// Pushes the latest in-progress session snapshot to the phone over the
+    /// application context (latest-wins, background-delivered, survives brief
+    /// unreachability by overwriting). Send `isActive: false` on stop so the phone
+    /// ends its banner/Live Activity promptly. Safe to call before activation — the
+    /// retained outgoing context is re-applied once the session activates.
+    public func sendLiveSession(_ snapshot: LiveSessionSnapshot) {
+        guard let data = try? encoder.encode(snapshot) else { return }
+        mergeAndApplyContext([Self.liveSessionKey: data])
+    }
+
     /// Merges `entries` into the outgoing application context and re-applies the
     /// whole thing. `updateApplicationContext` is latest-wins over the *entire*
     /// dictionary, so markers and units must be sent together — applying one key
@@ -154,6 +173,10 @@ public final class SyncManager: NSObject, @unchecked Sendable {
         if let data = context[Self.unitsKey] as? Data,
            let preference = try? decoder.decode(UnitPreference.self, from: data) {
             onReceiveUnitPreference?(preference)
+        }
+        if let data = context[Self.liveSessionKey] as? Data,
+           let snapshot = try? decoder.decode(LiveSessionSnapshot.self, from: data) {
+            onReceiveLiveSession?(snapshot)
         }
     }
 
