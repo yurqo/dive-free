@@ -294,10 +294,51 @@ final class SessionCoordinator {
         timeCueTask = nil
     }
 
+    // MARK: - Live session mirror (watch → phone, #118)
+
+    /// Pushes an immediate snapshot, then one every couple of seconds, so the
+    /// phone's in-app banner + Live Activity track the live session. Latest-wins
+    /// over the application context, so a missed tick just gets overwritten.
+    private func startLiveSync() {
+        liveSyncTask?.cancel()
+        sendLiveSnapshot(active: true)
+        liveSyncTask = Task { @MainActor in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(2))
+                if Task.isCancelled { return }
+                guard case .active = state else { return }
+                sendLiveSnapshot(active: true)
+            }
+        }
+    }
+
+    private func stopLiveSync() {
+        liveSyncTask?.cancel()
+        liveSyncTask = nil
+    }
+
+    /// Sends the current session state to the phone. `active: false` is the
+    /// terminal snapshot on stop, telling the phone to end its live display.
+    private func sendLiveSnapshot(active: Bool) {
+        let start: Date
+        if case .active(let s) = state { start = s } else { start = sessionManager.startTime ?? Date() }
+        sync.sendLiveSession(LiveSessionSnapshot(
+            isActive: active,
+            startTime: start,
+            depthMeters: currentDepthMeters,
+            maxDepthMeters: maxDepthMeters,
+            diveCount: diveCount,
+            isSubmerged: isSubmerged,
+            currentDiveElapsed: currentDiveElapsed
+        ))
+    }
+
     private let sessionManager: SessionManager
     private let modelContext: ModelContext
     /// Repeating per-second time-cue ticker, live only while submerged (#178).
     private var timeCueTask: Task<Void, Never>?
+    /// Repeating ticker that pushes live snapshots to the phone while active (#118).
+    private var liveSyncTask: Task<Void, Never>?
     let workout = WorkoutController()
     private let sync = SyncManager()
     let audioRecorder = AudioNoteRecorder()
@@ -440,6 +481,8 @@ final class SessionCoordinator {
                 kinds: EventKind.builtInMarkerKinds + customKinds, defaultMarkerID: defaultMarkerKindID
             )
             state = .active(start: sessionManager.startTime ?? Date())
+            // Start mirroring the live session to the phone (#118).
+            startLiveSync()
         } catch {
             // HealthKit unavailable (e.g. simulator), sensor unavailable, or
             // permission denied. Surface the underlying reason so the diver (and
@@ -457,6 +500,9 @@ final class SessionCoordinator {
     func stop() async -> DiveSession? {
         guard case .active = state else { return nil }
         stopTimeCues()
+        stopLiveSync()
+        // Tell the phone the session ended so it dismisses the banner/Live Activity.
+        sendLiveSnapshot(active: false)
         // Finish any in-flight voice-note stitch first, so the saved session
         // references the merged clip and not a source file the merge will delete.
         await pendingMergeTask?.value

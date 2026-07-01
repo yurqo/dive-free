@@ -122,6 +122,8 @@ let iphoneApp = Target.target(
         // without it CloudKit logs "requires the 'remote-notification' background
         // mode" and sync never completes.
         "UIBackgroundModes": ["remote-notification"],
+        // Reflect an in-progress Watch session on the phone as a Live Activity (#118).
+        "NSSupportsLiveActivities": true,
         "UISupportedInterfaceOrientations": ["UIInterfaceOrientationPortrait"],
         "UISupportedInterfaceOrientations~ipad": [
             "UIInterfaceOrientationPortrait",
@@ -155,6 +157,32 @@ let iphoneApp = Target.target(
         .target(name: "Sensors"),
         // Embeds the watchOS app inside the iPhone app (companion pairing).
         .target(name: "DiveFreeWatch"),
+        // Embeds the widget extension hosting the in-progress-dive Live Activity (#118).
+        .target(name: "DiveFreeWidgets"),
+    ]
+)
+
+// The widget extension: hosts the in-progress-dive Live Activity (#118). Shares
+// the ActivityAttributes + LiveSessionSnapshot with the app via Domain, so the
+// app's `Activity<DiveActivityAttributes>` and the widget's `ActivityConfiguration`
+// resolve to the same type.
+let widgetExtension = Target.target(
+    name: "DiveFreeWidgets",
+    destinations: [.iPhone, .iPad],
+    product: .appExtension,
+    bundleId: "\(bundlePrefix).widgets",
+    deploymentTargets: .iOS(iOSVersion),
+    infoPlist: .extendingDefault(with: [
+        "CFBundleDisplayName": "Dive Free",
+        "CFBundleShortVersionString": "$(MARKETING_VERSION)",
+        "CFBundleVersion": "$(CURRENT_PROJECT_VERSION)",
+        "NSExtension": [
+            "NSExtensionPointIdentifier": "com.apple.widgetkit-extension",
+        ],
+    ]),
+    sources: ["Apps/Widgets/Sources/**"],
+    dependencies: [
+        .target(name: "Domain"),
     ]
 )
 
@@ -180,7 +208,7 @@ let project = Project(
         "DEVELOPMENT_TEAM": SettingValue(stringLiteral: developmentTeam),
         "CODE_SIGN_STYLE": "Automatic",
     ]),
-    targets: [iphoneApp, watchApp]
+    targets: [iphoneApp, watchApp, widgetExtension]
         + module("Domain", resources: ["Packages/Domain/Resources/**"])
         + module("Persistence", dependencies: [.target(name: "Domain")])
         + module(

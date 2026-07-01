@@ -235,6 +235,48 @@ struct SyncManagerTests {
         #expect(context?[SyncManager.markersKey] != nil)
         #expect(context?[SyncManager.unitsKey] != nil)
     }
+
+    @Test("a live session snapshot round-trips through the application context")
+    func liveSessionSync() {
+        let captured = Mutex<[String: Any]?>(nil)
+        let manager = SyncManager(applyContext: { ctx in captured.withLock { $0 = ctx } })
+        let snapshot = LiveSessionSnapshot(
+            isActive: true,
+            startTime: Date(timeIntervalSince1970: 1000),
+            updatedAt: Date(timeIntervalSince1970: 1042),
+            depthMeters: 12.4,
+            maxDepthMeters: 14.1,
+            diveCount: 3,
+            isSubmerged: true,
+            currentDiveElapsed: 20
+        )
+
+        manager.sendLiveSession(snapshot)
+        let context = captured.withLock { $0 }
+        #expect(context?[SyncManager.liveSessionKey] != nil)
+
+        let received = Mutex<LiveSessionSnapshot?>(nil)
+        manager.onReceiveLiveSession = { snap in received.withLock { $0 = snap } }
+        manager.handleApplicationContext(context ?? [:])
+        #expect(received.withLock { $0 } == snapshot)
+    }
+
+    @Test("the terminal live snapshot (isActive false) is delivered to the phone")
+    func liveSessionEnded() {
+        let manager = SyncManager(applyContext: { _ in })
+        let ended = LiveSessionSnapshot(
+            isActive: false, startTime: Date(timeIntervalSince1970: 0),
+            depthMeters: 0, maxDepthMeters: 8, diveCount: 2, isSubmerged: false
+        )
+        manager.sendLiveSession(ended)
+
+        let received = Mutex<LiveSessionSnapshot?>(nil)
+        manager.onReceiveLiveSession = { snap in received.withLock { $0 = snap } }
+        // Simulate the phone receiving what the watch put on the context.
+        guard let data = try? JSONEncoder().encode(ended) else { Issue.record("encode failed"); return }
+        manager.handleApplicationContext([SyncManager.liveSessionKey: data])
+        #expect(received.withLock { $0 }?.isActive == false)
+    }
 }
 
 /// Minimal lock-guarded box so test observers can capture values from the
