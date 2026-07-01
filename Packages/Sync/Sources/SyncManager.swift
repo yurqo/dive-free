@@ -46,6 +46,11 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     /// Watch is out of range.
     public var onReceiveLiveSession: (@Sendable (LiveSessionSnapshot) -> Void)?
 
+    /// Called on the phone when the Watch's reachability flips (#118) — the
+    /// real-time disconnect signal for the live-session UI, far faster than the
+    /// application-context staleness backstop. Fires on activation and each change.
+    public var onReachabilityChange: (@Sendable (Bool) -> Void)?
+
     /// Notified with the new pending count whenever transfer status changes.
     /// Fires on an arbitrary thread; hop to the main actor before touching UI.
     public var onPendingCountChange: (@Sendable (Int) -> Void)?
@@ -282,6 +287,7 @@ extension SyncManager: WCSessionDelegate {
             // Re-apply any context we tried to send before activation completed.
             lock.lock(); let outgoing = outgoingContext; lock.unlock()
             if !outgoing.isEmpty { applyContext(outgoing) }
+            onReachabilityChange?(session.isReachable)
         }
     }
 
@@ -317,6 +323,7 @@ extension SyncManager: WCSessionDelegate {
 
     public func sessionReachabilityDidChange(_ session: WCSession) {
         if session.isReachable { retryPending() }
+        onReachabilityChange?(session.isReachable)
     }
 
     #if os(iOS)

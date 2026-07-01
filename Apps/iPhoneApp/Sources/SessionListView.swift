@@ -11,6 +11,7 @@ struct SessionListView: View {
     @Query(sort: \SessionRecord.startTime, order: .reverse)
     private var sessions: [SessionRecord]
     @Environment(\.modelContext) private var modelContext
+    @Environment(LiveSessionMonitor.self) private var liveSession
     /// Sessions geocoded this launch, so a coordinate that resolves to no name
     /// (open water, remote spots) isn't retried on every list appearance.
     @State private var geocodeAttempted: Set<UUID> = []
@@ -21,7 +22,7 @@ struct SessionListView: View {
     var body: some View {
         NavigationStack {
             Group {
-                if sessions.isEmpty {
+                if sessions.isEmpty && liveSession.snapshot == nil {
                     ContentUnavailableView(
                         "No Sessions Yet",
                         systemImage: "water.waves",
@@ -29,6 +30,13 @@ struct SessionListView: View {
                     )
                 } else {
                     List {
+                        // In-progress Watch session, live at the top of the list (#118).
+                        if liveSession.snapshot != nil {
+                            LiveSessionRow()
+                                .swipeActions(edge: .trailing) {
+                                    Button("Dismiss") { liveSession.dismiss() }.tint(.gray)
+                                }
+                        }
                         ForEach(sessions) { session in
                         // A session deleted in this update pass can still be enumerated for
                         // one render before @Query refreshes; reading its properties
@@ -104,9 +112,14 @@ struct SessionListView: View {
         }
     }
 
-    /// Row subtitle: dive count, max depth, and a photo count when present.
+    /// Row subtitle: dive count, session duration, max depth, and a photo count.
     private func statsLine(_ domain: DiveSession, photoCount: Int) -> String {
-        var line = "\(domain.diveCount) dives · max \(DepthFormat.string(domain.maxDepthMeters))"
+        var parts = ["\(domain.diveCount) dives"]
+        if domain.totalDuration > 0 {
+            parts.append(Duration.seconds(domain.totalDuration).formatted(.units(allowed: [.hours, .minutes], width: .narrow)))
+        }
+        parts.append("max \(DepthFormat.string(domain.maxDepthMeters))")
+        var line = parts.joined(separator: " · ")
         if photoCount > 0 { line += " · 📷\(photoCount)" }
         return line
     }
@@ -185,5 +198,6 @@ struct SessionListView: View {
 #Preview {
     SessionListView()
         .environment(StravaAuthManager(store: InMemoryTokenStore(), webAuth: ASWebAuthenticationProvider()))
+        .environment(LiveSessionMonitor())
         .modelContainer(for: SessionRecord.self, inMemory: true)
 }
