@@ -394,6 +394,7 @@ private struct SessionDetailPreview: View {
             SessionDetailView(session: record)
         }
         .environment(StravaAuthManager(store: InMemoryTokenStore(), webAuth: ASWebAuthenticationProvider()))
+        .environment(PhotoPagerPresenter())
     }
 }
 

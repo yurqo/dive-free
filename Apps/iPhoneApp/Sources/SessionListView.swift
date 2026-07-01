@@ -91,6 +91,7 @@ struct SessionListView: View {
                         }
                         .onDelete(perform: deleteSessions)
                     }
+                    .refreshable { await refresh() }
                     .task { await backfillLocationNames(); assignSpots() }
                     .task { await backfillWeather() }
                     .navigationDestination(for: SessionRecord.self) { session in
@@ -122,6 +123,15 @@ struct SessionListView: View {
         var line = parts.joined(separator: " · ")
         if photoCount > 0 { line += " · 📷\(photoCount)" }
         return line
+    }
+
+    /// Pull-to-refresh: CloudKit pulls on its own schedule (no API to force it),
+    /// so this re-runs the photo backfill — which fills in + saves any missing
+    /// cross-device fields, nudging a CloudKit export — and gives it a moment to
+    /// settle. The @Query and sync-status indicator update on their own.
+    private func refresh() async {
+        await PhotoBackfill.run(in: modelContext)
+        try? await Task.sleep(for: .seconds(1))
     }
 
     private func deleteSessions(at offsets: IndexSet) {
@@ -199,5 +209,6 @@ struct SessionListView: View {
     SessionListView()
         .environment(StravaAuthManager(store: InMemoryTokenStore(), webAuth: ASWebAuthenticationProvider()))
         .environment(LiveSessionMonitor())
+        .environment(PhotoPagerPresenter())
         .modelContainer(for: SessionRecord.self, inMemory: true)
 }
