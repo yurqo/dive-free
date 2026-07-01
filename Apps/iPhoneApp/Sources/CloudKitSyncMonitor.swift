@@ -17,12 +17,8 @@ final class CloudKitSyncMonitor {
     private(set) var phase: Phase = .idle
     /// End time of the last successful import/export, for "Synced <time> ago".
     private(set) var lastSyncDate: Date?
-    /// Message from the last failed sync event — **sticky**: it is NOT cleared by a
-    /// later successful event, so a photo-export failure isn't masked when an
-    /// unrelated session-export succeeds right after. Cleared only by `clearError()`
-    /// (pull-to-refresh) so a resolved problem can clear.
+    /// Message from the last failed sync event, or nil once a later event succeeds.
     private(set) var lastError: String?
-    private(set) var lastErrorDate: Date?
 
     @ObservationIgnored private var observer: NSObjectProtocol?
     @ObservationIgnored private let log = Logger(subsystem: "org.yurko.divefree", category: "CloudKitSync")
@@ -49,12 +45,6 @@ final class CloudKitSyncMonitor {
         }
     }
 
-    /// Clears a sticky error so a resolved problem can drop off (pull-to-refresh).
-    func clearError() {
-        lastError = nil
-        lastErrorDate = nil
-    }
-
     private func apply(inProgress: Bool, endDate: Date?, errorText: String?) {
         if inProgress {
             phase = .syncing
@@ -63,12 +53,10 @@ final class CloudKitSyncMonitor {
         phase = .idle
         if let errorText {
             lastError = errorText
-            lastErrorDate = Date()
             log.error("CloudKit sync event failed: \(errorText, privacy: .public)")
         } else if let endDate {
             lastSyncDate = endDate
-            // NB: don't clear lastError here — a successful session export must not
-            // hide a still-failing photo export.
+            lastError = nil
         }
     }
 

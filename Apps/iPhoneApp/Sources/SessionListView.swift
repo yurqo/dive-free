@@ -12,7 +12,6 @@ struct SessionListView: View {
     private var sessions: [SessionRecord]
     @Environment(\.modelContext) private var modelContext
     @Environment(LiveSessionMonitor.self) private var liveSession
-    @Environment(CloudKitSyncMonitor.self) private var cloudSync
     /// Sessions geocoded this launch, so a coordinate that resolves to no name
     /// (open water, remote spots) isn't retried on every list appearance.
     @State private var geocodeAttempted: Set<UUID> = []
@@ -71,12 +70,6 @@ struct SessionListView: View {
                                             .labelStyle(.titleAndIcon)
                                             .lineLimit(1)
                                     }
-                                    // Every session on the phone arrived from the
-                                    // Watch over WatchConnectivity.
-                                    Label("Synced from Apple Watch", systemImage: "checkmark.icloud")
-                                        .font(.caption2)
-                                        .foregroundStyle(.teal)
-                                        .labelStyle(.titleAndIcon)
                                 }
                                 if let location = domain.location {
                                     Spacer()
@@ -92,7 +85,6 @@ struct SessionListView: View {
                         }
                         .onDelete(perform: deleteSessions)
                     }
-                    .refreshable { await refresh() }
                     .task { await backfillLocationNames(); assignSpots() }
                     .task { await backfillWeather() }
                     .navigationDestination(for: SessionRecord.self) { session in
@@ -124,18 +116,6 @@ struct SessionListView: View {
         var line = parts.joined(separator: " · ")
         if photoCount > 0 { line += " · 📷\(photoCount)" }
         return line
-    }
-
-    /// Pull-to-refresh: CloudKit pulls on its own schedule (no API to force it),
-    /// so this re-runs the photo backfill — which fills in + saves any missing
-    /// cross-device fields, nudging a CloudKit export — and gives it a moment to
-    /// settle. The @Query and sync-status indicator update on their own.
-    private func refresh() async {
-        // Drop a sticky sync error so a resolved problem can clear (and re-surface
-        // if it's still failing).
-        cloudSync.clearError()
-        await PhotoBackfill.run(in: modelContext)
-        try? await Task.sleep(for: .seconds(1))
     }
 
     private func deleteSessions(at offsets: IndexSet) {
@@ -214,6 +194,5 @@ struct SessionListView: View {
         .environment(StravaAuthManager(store: InMemoryTokenStore(), webAuth: ASWebAuthenticationProvider()))
         .environment(LiveSessionMonitor())
         .environment(PhotoPagerPresenter())
-        .environment(CloudKitSyncMonitor())
         .modelContainer(for: SessionRecord.self, inMemory: true)
 }

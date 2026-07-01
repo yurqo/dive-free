@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Reusable CloudKit sync-status rows — used in Settings ▸ iCloud and on the
-/// session detail. Shows Syncing… / Last synced / a sticky Sync error with the
+/// session detail. Shows Syncing… / Last synced / the last Sync error with the
 /// actual CKError detail (the diagnostic for cross-device sync). Place inside a
 /// `Section`/`Form`.
 struct CloudKitSyncStatusRows: View {

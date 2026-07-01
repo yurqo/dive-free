@@ -21,12 +21,6 @@ enum PhotoMatcher {
         await PhotoLibrary.requestAccess()
     }
 
-    /// Image assets created within `window`, excluding `excludedIdentifiers`
-    /// (already-attached assets), oldest first.
-    static func mediaAssets(in window: DateInterval, excluding excludedIdentifiers: Set<String>) -> [PHAsset] {
-        assets(withIdentifiers: matchingIdentifiers(in: window, excluding: excludedIdentifiers))
-    }
-
     /// Local identifiers of in-window image/video assets, oldest first, minus the
     /// excluded ones. `nonisolated` + returns `Sendable` ids so the (slow, on a big
     /// library) `PHAsset.fetchAssets` can run **off the main thread** — the caller
