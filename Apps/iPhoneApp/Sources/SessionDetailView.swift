@@ -64,6 +64,12 @@ struct SessionDetailView: View {
 
             // Export lives at the very bottom, under the map.
             stravaSection(domain)
+
+            // iCloud sync status — surfaces the actual CloudKit error if a
+            // cross-device sync (e.g. this session's photos) is failing.
+            Section("iCloud Sync") {
+                CloudKitSyncStatusRows()
+            }
         }
         .navigationTitle(domain.title ?? domain.startTime.formatted(date: .abbreviated, time: .omitted))
         .navigationBarTitleDisplayMode(.inline)
@@ -395,6 +401,7 @@ private struct SessionDetailPreview: View {
         }
         .environment(StravaAuthManager(store: InMemoryTokenStore(), webAuth: ASWebAuthenticationProvider()))
         .environment(PhotoPagerPresenter())
+        .environment(CloudKitSyncMonitor())
     }
 }
 

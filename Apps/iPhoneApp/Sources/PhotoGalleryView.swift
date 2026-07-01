@@ -118,6 +118,7 @@ struct SessionPhotosSection: View {
     @State private var showSuggestions = false
     @State private var showPermissionAlert = false
     @State private var showNoMatches = false
+    @State private var scanning = false
 
     var body: some View {
         PhotoGallerySection(
@@ -126,8 +127,16 @@ struct SessionPhotosSection: View {
             onDelete: { remove($0) }
         ) {
             Button { Task { await suggest() } } label: {
-                Label("Suggest from This Dive", systemImage: "wand.and.stars")
+                if scanning {
+                    HStack(spacing: 8) {
+                        ProgressView().controlSize(.small)
+                        Text("Scanning library…")
+                    }
+                } else {
+                    Label("Suggest from This Dive", systemImage: "wand.and.stars")
+                }
             }
+            .disabled(scanning)
         }
         .sheet(isPresented: $showSuggestions) {
             PhotoSuggestionsView(assets: suggestions) { assets in
@@ -143,7 +152,9 @@ struct SessionPhotosSection: View {
         .alert("No Matching Photos", isPresented: $showNoMatches) {
             Button("OK") {}
         } message: {
-            Text("No library photos were taken during this dive.")
+            Text(PhotoMatcher.accessIsLimited
+                 ? "No matches in the photos DiveFree can access. You've granted limited access — allow full access in Settings so it can find shots taken during the dive."
+                 : "No library photos were taken during this dive (± a few minutes).")
         }
     }
 
@@ -173,9 +184,16 @@ struct SessionPhotosSection: View {
 
     private func suggest() async {
         guard await PhotoMatcher.requestReadAccess() else { showPermissionAlert = true; return }
+        scanning = true
+        defer { scanning = false }
         let existing = Set((session.photos ?? []).compactMap { $0.assetIdentifier })
         let window = PhotoMatcher.window(start: session.startTime, end: session.endTime ?? session.startTime)
-        let assets = PhotoMatcher.mediaAssets(in: window, excluding: existing)
+        // Run the (potentially slow, on a big library) fetch off the main thread so
+        // the UI/spinner stay responsive; then materialize the assets on the main actor.
+        let ids = await Task.detached(priority: .userInitiated) {
+            PhotoMatcher.matchingIdentifiers(in: window, excluding: existing)
+        }.value
+        let assets = PhotoMatcher.assets(withIdentifiers: ids)
         suggestions = assets
         showSuggestions = !assets.isEmpty
         showNoMatches = assets.isEmpty
