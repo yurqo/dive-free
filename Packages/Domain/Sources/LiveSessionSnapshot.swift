@@ -11,15 +11,16 @@ import Foundation
 /// (the start time lets it tick locally), catching up when a fresher snapshot
 /// arrives. `updatedAt` drives that staleness treatment.
 public struct LiveSessionSnapshot: Codable, Hashable, Sendable {
-    /// After this long without a fresher snapshot, the phone treats the live
-    /// values as stale (grays them out, marks the timer "estimated").
-    public static let staleThreshold: TimeInterval = 30
+    /// Backstop staleness: after this long without a fresher snapshot the phone
+    /// treats the live values as an estimate (grays them, marks the timer
+    /// "estimated"). The primary, real-time disconnect signal is WCSession
+    /// reachability; this only covers the case where reachability stays up but
+    /// data stops flowing.
+    public static let staleThreshold: TimeInterval = 15
 
     /// Hard cap: if no snapshot arrives for this long and no explicit "ended"
-    /// was received, the phone dismisses the live session on its own. Sized for a
-    /// long freedive outing (surface intervals can stretch a session to 1–2 h)
-    /// spent entirely out of range.
-    public static let maxAge: TimeInterval = 4 * 60 * 60
+    /// was received, the phone dismisses the live session on its own.
+    public static let maxAge: TimeInterval = 60 * 60
 
     /// False marks the terminal snapshot the Watch sends on stop, so the phone
     /// ends the banner/Live Activity promptly rather than waiting to time out.

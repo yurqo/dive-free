@@ -64,6 +64,10 @@ struct DiveFreeApp: App {
                     sync.onReceiveLiveSession = { snapshot in
                         Task { @MainActor in liveSession.ingest(snapshot) }
                     }
+                    // Real-time disconnect signal for the live-session UI (#118).
+                    sync.onReachabilityChange = { reachable in
+                        Task { @MainActor in liveSession.setReachable(reachable) }
+                    }
                     let container = container
                     // Persist sessions arriving from the watch into the shared
                     // container; the importer dedupes by id, so the sync layer's

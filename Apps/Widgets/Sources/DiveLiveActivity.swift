@@ -41,14 +41,19 @@ struct DiveLiveActivity: Widget {
                     .font(.caption)
                 }
             } compactLeading: {
-                Image(systemName: "water.waves").foregroundStyle(.cyan)
+                // Nudge up — the wave glyph sits low in its box, off-center in the pill.
+                Image(systemName: "water.waves")
+                    .foregroundStyle(dim ? Color.secondary : Color.cyan)
+                    .offset(y: -1)
             } compactTrailing: {
+                // Shift right to sit centered in the trailing circle; gray when disconnected.
                 Text(snapshot.startTime, style: .timer)
                     .monospacedDigit()
                     .frame(maxWidth: 44)
                     .foregroundStyle(dim ? .secondary : .primary)
+                    .offset(x: 5)
             } minimal: {
-                Image(systemName: "water.waves").foregroundStyle(.cyan)
+                Image(systemName: "water.waves").foregroundStyle(dim ? Color.secondary : Color.cyan)
             }
         }
     }
@@ -62,7 +67,8 @@ private struct LockScreenView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
-                Circle().fill(.red).frame(width: 8, height: 8).opacity(isStale ? 0.4 : 1)
+                // Green = connected & live; gray = out of range (matches the in-app row).
+                Circle().fill(isStale ? Color.secondary : Color.green).frame(width: 8, height: 8)
                 Text(isStale ? "Reconnecting to Apple Watch…" : "Dive in progress on Apple Watch")
                     .font(.caption.weight(.semibold))
                     .lineLimit(1)

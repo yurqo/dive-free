@@ -21,6 +21,10 @@ final class LiveSessionMonitor {
     /// The live session to display, or nil when none is active/shown.
     private(set) var snapshot: LiveSessionSnapshot?
 
+    /// Real-time Watch reachability (WCSession). The primary disconnect signal —
+    /// combined with snapshot staleness it drives the "reconnecting" treatment.
+    private(set) var isReachable = true
+
     /// Start time of a session the user manually dismissed — ignore further
     /// snapshots for it so a queued/stale update can't bring it back.
     @ObservationIgnored private var dismissedStart: Date?
@@ -42,6 +46,20 @@ final class LiveSessionMonitor {
         self.snapshot = snapshot
         updateActivity(with: snapshot)
         startWatchdog()
+    }
+
+    /// Updates real-time reachability and reflects it in the Live Activity at once
+    /// (the banner reacts via `@Observable`). This is the fast disconnect path —
+    /// no waiting on the staleness backstop.
+    func setReachable(_ reachable: Bool) {
+        guard reachable != isReachable else { return }
+        isReachable = reachable
+        if let snapshot { refreshActivity(with: snapshot) }
+    }
+
+    /// Combined disconnect state for the UI: unreachable now, or data gone stale.
+    func isDisconnected(asOf now: Date = Date()) -> Bool {
+        !isReachable || (snapshot?.isStale(asOf: now) ?? false)
     }
 
     /// Manual phone-side stop for when no "ended" will arrive (Watch battery died
@@ -80,10 +98,19 @@ final class LiveSessionMonitor {
     // MARK: - Live Activity
 
     private func content(for snapshot: LiveSessionSnapshot) -> ActivityContent<DiveActivityAttributes.ContentState> {
-        ActivityContent(
-            state: .init(snapshot: snapshot),
-            staleDate: snapshot.updatedAt.addingTimeInterval(LiveSessionSnapshot.staleThreshold)
-        )
+        // Unreachable → mark stale immediately so the Live Activity shows the
+        // "reconnecting" (grayed) treatment in real time; else the staleness backstop.
+        let staleDate = isReachable ? snapshot.updatedAt.addingTimeInterval(LiveSessionSnapshot.staleThreshold) : Date()
+        return ActivityContent(state: .init(snapshot: snapshot), staleDate: staleDate)
+    }
+
+    /// Pushes fresh content to an *existing* activity (used when only reachability
+    /// changed — never starts a new activity).
+    private func refreshActivity(with snapshot: LiveSessionSnapshot) {
+        guard let activity else { return }
+        let box = SendableActivity(activity)
+        let content = content(for: snapshot)
+        Task { await box.value.update(content) }
     }
 
     private func updateActivity(with snapshot: LiveSessionSnapshot) {
