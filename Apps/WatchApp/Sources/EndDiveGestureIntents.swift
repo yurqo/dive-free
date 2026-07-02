@@ -8,9 +8,13 @@ import Foundation
 /// confirms the end when the end dialog is armed; on the summary it's Done.
 /// Routing *both* intents to the same handler makes it robust to the system's
 /// pause/resume alternation.
+///
+/// The system alternates pause → resume on successive presses, which tracks the
+/// manual-dive start → stop toggle, so the captions read "Start Dive" (pause)
+/// and "Stop Dive" (resume) to match what each press actually does.
 
 struct PauseDiveIntent: PauseWorkoutIntent {
-    static let title: LocalizedStringResource = "Pause"
+    static let title: LocalizedStringResource = "Start Dive"
 
     @MainActor
     func perform() async throws -> some IntentResult {
@@ -20,7 +24,7 @@ struct PauseDiveIntent: PauseWorkoutIntent {
 }
 
 struct ResumeDiveIntent: ResumeWorkoutIntent {
-    static let title: LocalizedStringResource = "Resume"
+    static let title: LocalizedStringResource = "Stop Dive"
 
     @MainActor
     func perform() async throws -> some IntentResult {
