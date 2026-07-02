@@ -250,10 +250,15 @@ private enum UserGuide {
             .bullet("The gap between dives is your **surface interval** — your recovery time."),
         ],
         details: [
-            .subheading("Automatic detection"),
-            .text("The watch watches your depth and opens a dive when you sink past a shallow surface threshold, then closes it when you return. Brief bobbing at the surface won't start a new dive."),
+            .subheading("What counts as a dive"),
+            .text("So genuine dives register but brief surface bobbing doesn't, detection is **tiered** — the deeper you go, the sooner it counts. A dive is logged as soon as it meets any one of these:"),
+            .bullet("A quick drop to about **2 m** registers within a couple of seconds — for duck dives."),
+            .bullet("A dive to about **1.5 m** registers after about **3 seconds**."),
+            .bullet("A shallow dive past **1 m** registers if you stay down about **10 seconds** — so pool and shallow snorkel dives are logged, while a brief bob at the surface isn't."),
+            .subheading("The descent countdown"),
+            .text("As you go under, the depth and a small greyed **countdown** appear beside the surface icon on the watch, showing how long until the dive registers — it shrinks as you go deeper. When it reaches zero the screen switches to your live dive time. It's handy in shallow water, where you can watch a dive lock in."),
             .subheading("Manual dives"),
-            .text("For very shallow or quick drops that might slip under the threshold, mark the dive by hand with **Action + side** (see the watch chapter)."),
+            .text("For a very shallow or quick drop you want to be sure is logged, mark the dive by hand with **Action + side** (see the watch chapter) — it counts from the moment you press, whatever the depth."),
             .subheading("About depth"),
             .text("Depth is measured in shallow water only — up to about **6 m (20 ft)**. Dive Free is built for recreational freediving and snorkelling, so it doesn't measure or plan deep dives, and maximum depth stops at that ceiling."),
         ]

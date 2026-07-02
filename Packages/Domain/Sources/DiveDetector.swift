@@ -2,24 +2,55 @@ import Foundation
 
 /// Tunable thresholds for turning a stream of depth samples into discrete dives.
 public struct DiveDetectionConfig: Sendable, Equatable {
+    /// One acceptance rule: a candidate counts as a dive if it reaches
+    /// `minimumDepthMeters` AND lasts at least `minimumDuration`. Rules are OR-ed,
+    /// so the deeper you go the sooner it counts (a quick duck dive), while a
+    /// shallow dive must be sustained (which is what rejects brief surface bobbing).
+    public struct DiveThreshold: Sendable, Equatable {
+        public var minimumDepthMeters: Double
+        public var minimumDuration: TimeInterval
+        public init(minimumDepthMeters: Double, minimumDuration: TimeInterval) {
+            self.minimumDepthMeters = minimumDepthMeters
+            self.minimumDuration = minimumDuration
+        }
+    }
+
     /// Depth (m) below which the diver is considered underwater rather than at the surface.
     public var surfaceThresholdMeters: Double
-    /// A candidate dive is only kept if it reaches at least this depth (m).
-    public var minimumDiveDepthMeters: Double
-    /// A candidate dive is only kept if it lasts at least this long.
-    public var minimumDiveDuration: TimeInterval
+    /// Acceptance rules; a candidate is kept as a dive if it satisfies **any** of them.
+    public var thresholds: [DiveThreshold]
 
+    /// Designated initializer.
+    public init(surfaceThresholdMeters: Double = 1.0, thresholds: [DiveThreshold]) {
+        self.surfaceThresholdMeters = surfaceThresholdMeters
+        self.thresholds = thresholds
+    }
+
+    /// Convenience for a single (depth, duration) gate — the historical shape,
+    /// used across the tests.
     public init(
         surfaceThresholdMeters: Double = 1.0,
         minimumDiveDepthMeters: Double = 1.5,
         minimumDiveDuration: TimeInterval = 3
     ) {
-        self.surfaceThresholdMeters = surfaceThresholdMeters
-        self.minimumDiveDepthMeters = minimumDiveDepthMeters
-        self.minimumDiveDuration = minimumDiveDuration
+        self.init(
+            surfaceThresholdMeters: surfaceThresholdMeters,
+            thresholds: [DiveThreshold(minimumDepthMeters: minimumDiveDepthMeters, minimumDuration: minimumDiveDuration)]
+        )
     }
 
-    public static let `default` = DiveDetectionConfig()
+    /// Default tiers: a quick duck dive to **2 m** (≥2 s), a normal **1.5 m** dive
+    /// (≥3 s), or a sustained shallow dive past **1 m** (≥10 s). The shallow tier
+    /// lets pool / snorkel dives register while a brief bob at the surface still
+    /// doesn't; deeper dives qualify sooner. (`DiveDetectionConfig()` with no
+    /// arguments is the single 1.5 m/3 s gate — use `.default` for the tiers.)
+    public static let `default` = DiveDetectionConfig(
+        thresholds: [
+            DiveThreshold(minimumDepthMeters: 2.0, minimumDuration: 2),
+            DiveThreshold(minimumDepthMeters: 1.5, minimumDuration: 3),
+            DiveThreshold(minimumDepthMeters: 1.0, minimumDuration: 10),
+        ]
+    )
 }
 
 /// Splits a continuous depth track into individual dives using a simple
@@ -47,12 +78,15 @@ public struct DiveDetector: Sendable {
             // sample shouldn't register as a zero-duration dive (it would otherwise
             // pass the depth-and-duration gate below when minimumDiveDuration is 0).
             guard duration > 0 else { return }
-            // A dive must reach the minimum depth (going under is what defines a
-            // dive) AND last the minimum duration. The depth gate rejects long
-            // shallow bobs (wrist under at the surface); the duration gate rejects
-            // brief noise spikes.
-            guard maxDepth >= config.minimumDiveDepthMeters
-                && duration >= config.minimumDiveDuration else { return }
+            // A candidate is a dive if it satisfies ANY acceptance tier: deep and
+            // brief (a duck dive), or shallow and sustained (a pool/snorkel dive).
+            // Each tier pairs a depth floor with a duration floor, so a long shallow
+            // bob (wrist under at the surface) and a brief deep noise spike are both
+            // rejected — one fails the depth floor of every fast tier, the other the
+            // duration floor of every shallow tier.
+            guard config.thresholds.contains(where: {
+                maxDepth >= $0.minimumDepthMeters && duration >= $0.minimumDuration
+            }) else { return }
             dives.append(
                 Dive(
                     startTime: first.timestamp,
