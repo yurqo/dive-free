@@ -80,6 +80,35 @@ struct DiveDetectorTests {
         #expect(dives.first?.maxDepthMeters == 5)
     }
 
+    // MARK: - Default tiers (deep-fast OR shallow-sustained)
+
+    @Test("default tiers: a sustained shallow dive (~1 m for ~10 s) counts")
+    func defaultCountsSustainedShallow() {
+        let detector = DiveDetector() // .default tiers
+        // Just past 1 m for 11 s — under the 1.5 m tier's depth, but over the
+        // shallow tier's 10 s dwell. This is the pool / snorkel case.
+        let dives = detector.detectDives(from: samples([0] + Array(repeating: 1.2, count: 11) + [0]))
+        #expect(dives.count == 1)
+    }
+
+    @Test("default tiers: a brief shallow dip (~1 m for a few s) is ignored")
+    func defaultIgnoresBriefShallow() {
+        let detector = DiveDetector() // .default tiers
+        // 1.2 m for ~5 s — clears no fast tier's depth and no shallow tier's dwell.
+        let dives = detector.detectDives(from: samples([0] + Array(repeating: 1.2, count: 5) + [0]))
+        #expect(dives.isEmpty)
+    }
+
+    @Test("default tiers: a quick duck dive to ~2 m counts within a couple of seconds")
+    func defaultCountsQuickDuckDive() {
+        let detector = DiveDetector() // .default tiers
+        // Reaches ~2.4 m spanning ~3 s — too brief for the 1.5 m/3 s edge, but the
+        // 2 m/2 s duck-dive tier catches it.
+        let dives = detector.detectDives(from: samples([0, 2.2, 2.3, 2.4, 0]))
+        #expect(dives.count == 1)
+        #expect(dives.first?.maxDepthMeters == 2.4)
+    }
+
     // MARK: - Manual dive segments (#115)
 
     @Test("a manual segment defines a dive even when depth never crossed the bar")

@@ -71,6 +71,15 @@ final class SessionCoordinator {
     /// Elapsed time below the surface threshold, or `nil` at the surface.
     var currentDiveElapsed: TimeInterval? { sessionManager.currentDiveElapsed }
 
+    /// Whether the dive in progress has met the detector's criteria (so it's being
+    /// logged). Drives the live screen's switch from the provisional descent
+    /// (surface icon + greyed depth/countdown) to the confirmed dive readout.
+    var currentDiveConfirmed: Bool { sessionManager.currentDiveConfirmed }
+
+    /// Seconds until the descending dive locks in, or `nil` at the surface / once
+    /// confirmed. Drives the greyed "dive in N s" countdown.
+    var secondsToDiveConfirmation: TimeInterval? { sessionManager.secondsToDiveConfirmation }
+
     /// Seconds at the surface since the last dive ended, or `nil` when submerged
     /// or before the first completed dive. Drives the surface-interval timer.
     var surfaceInterval: TimeInterval? { sessionManager.surfaceInterval }

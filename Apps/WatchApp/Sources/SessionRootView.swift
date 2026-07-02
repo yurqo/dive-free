@@ -220,7 +220,10 @@ struct SessionRootView: View {
     private var centerpiece: some View {
         TimelineView(.periodic(from: .now, by: 1)) { _ in
             VStack(spacing: 4) {
-                heroTime(seconds: session.isSubmerged
+                // Stay on the surface/recovery clock until the dive is *confirmed*
+                // (a detection tier is met); the provisional descent shows the
+                // greyed depth + countdown below rather than a dive time.
+                heroTime(seconds: session.currentDiveConfirmed
                          ? (session.currentDiveElapsed ?? 0)
                          : (session.surfaceInterval ?? session.elapsedTime),
                          color: heroTimeColor)
@@ -242,7 +245,7 @@ struct SessionRootView: View {
     /// dive's duration — but only for the surface-recovery interval after a dive.
     /// Dive time and the pre-first-dive clock stay white.
     private var heroTimeColor: Color {
-        guard !session.isSubmerged,
+        guard !session.currentDiveConfirmed,
               let interval = session.surfaceInterval,
               let diveDuration = session.lastDiveDuration else { return .white }
         switch interval {
@@ -275,19 +278,29 @@ struct SessionRootView: View {
     /// hiding it) at the surface, the lone icon centers instead of being offset.
     private var secondLine: some View {
         ZStack {
-            // Centerpiece: mode icon, plus the current depth while submerged.
+            // Centerpiece: mode icon, plus the current depth once submerged. While
+            // the dive is still provisional (descending, not yet confirmed) the
+            // icon stays "surfaced" and the depth is greyed, joined by a greyed
+            // countdown to when the dive will register.
             HStack(spacing: 6) {
-                if session.isSubmerged {
+                if session.currentDiveConfirmed {
                     submergedIcon
                 } else {
                     surfacedIcon
                 }
-                if session.isSubmerged && session.hasDepthSensor {
+                if session.hasDepthSensor, session.isSubmerged {
                     Text(DepthFormat.string(session.currentDepthMeters))
                         .font(.custom("DINAlternate-Bold", fixedSize: 36))
                         .monospacedDigit()
                         .minimumScaleFactor(0.5)
                         .lineLimit(1)
+                        .foregroundStyle(session.currentDiveConfirmed ? .primary : .secondary)
+                    if !session.currentDiveConfirmed, let countdown = session.secondsToDiveConfirmation {
+                        Text("\(Int(countdown.rounded(.up)))s")
+                            .font(.system(size: 20, weight: .semibold, design: .rounded))
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
             // Flanking live metrics: temperature (left), heart rate (right). The

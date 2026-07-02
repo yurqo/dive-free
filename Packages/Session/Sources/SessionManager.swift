@@ -88,6 +88,35 @@ public final class SessionManager {
         currentDiveStart.map { Date().timeIntervalSince($0) }
     }
 
+    /// Whether the dive in progress has met one of the detector's acceptance tiers
+    /// (so it will be logged). A manual dive counts immediately. `false` at the
+    /// surface, and during the provisional descent before any tier is satisfied —
+    /// which is when the live UI shows the "dive in N s" countdown instead of a
+    /// confirmed dive.
+    public var currentDiveConfirmed: Bool {
+        if isManualDiveActive { return true }
+        guard let start = currentDiveStart else { return false }
+        let elapsed = Date().timeIntervalSince(start)
+        return detector.config.thresholds.contains {
+            currentDiveMaxDepth >= $0.minimumDepthMeters && elapsed >= $0.minimumDuration
+        }
+    }
+
+    /// Seconds until the dive in progress locks in at the current depth, or `nil`
+    /// at the surface / once confirmed / when no tier is within reach yet. Uses the
+    /// depth reached so far, so it shortens as the diver descends (deeper tiers
+    /// need less time). Drives the live countdown.
+    public var secondsToDiveConfirmation: TimeInterval? {
+        guard let start = currentDiveStart, !isManualDiveActive else { return nil }
+        let elapsed = Date().timeIntervalSince(start)
+        let soonest = detector.config.thresholds
+            .filter { currentDiveMaxDepth >= $0.minimumDepthMeters }
+            .map { $0.minimumDuration - elapsed }
+            .min()
+        guard let soonest, soonest > 0 else { return nil }
+        return soonest
+    }
+
     /// Markers placed during the dive currently in progress (0 when surfaced/idle).
     public var currentDiveMarkerCount: Int {
         guard let start = currentDiveStart else { return 0 }
