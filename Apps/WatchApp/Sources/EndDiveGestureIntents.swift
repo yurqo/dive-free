@@ -9,12 +9,13 @@ import Foundation
 /// Routing *both* intents to the same handler makes it robust to the system's
 /// pause/resume alternation.
 ///
-/// The system alternates pause → resume on successive presses, which tracks the
-/// manual-dive start → stop toggle, so the captions read "Start Dive" (pause)
-/// and "Stop Dive" (resume) to match what each press actually does.
+/// Because DiveFree never actually pauses the workout, watchOS stays in the
+/// "running" state and only ever fires the **pause** intent (never resume) — so
+/// both carry the same caption, "Toggle Dive", to label the single gesture
+/// consistently.
 
 struct PauseDiveIntent: PauseWorkoutIntent {
-    static let title: LocalizedStringResource = "Start Dive"
+    static let title: LocalizedStringResource = "Toggle Dive"
 
     @MainActor
     func perform() async throws -> some IntentResult {
@@ -24,7 +25,7 @@ struct PauseDiveIntent: PauseWorkoutIntent {
 }
 
 struct ResumeDiveIntent: ResumeWorkoutIntent {
-    static let title: LocalizedStringResource = "Stop Dive"
+    static let title: LocalizedStringResource = "Toggle Dive"
 
     @MainActor
     func perform() async throws -> some IntentResult {
