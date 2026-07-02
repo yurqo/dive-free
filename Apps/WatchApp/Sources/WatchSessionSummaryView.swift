@@ -1,4 +1,5 @@
 import SwiftUI
+import WatchKit
 import Domain
 import Persistence
 
@@ -15,6 +16,7 @@ struct WatchSessionSummaryView: View {
     @Environment(SessionCoordinator.self) private var coordinator
     @Environment(\.dismiss) private var dismiss
     @State private var showDeleteConfirm = false
+    @State private var resynced = false
 
     private var hasGeo: Bool { !session.track.isEmpty || session.location != nil }
 
@@ -44,9 +46,12 @@ struct WatchSessionSummaryView: View {
                 // Full session map at the bottom.
                 if hasGeo { mapSection }
 
-                // Discard an accidentally-recorded session right from the watch.
-                // Only on a browsed past session, not the live post-dive summary.
-                if !showSync { deleteButton }
+                // Re-send / discard actions on a browsed past session (not the
+                // live post-dive summary, which shows its own sync badge).
+                if !showSync {
+                    resyncButton
+                    deleteButton
+                }
             }
             .frame(maxWidth: .infinity)
             .padding(.horizontal, 4)
@@ -60,6 +65,23 @@ struct WatchSessionSummaryView: View {
         } message: {
             Text("This removes the session from your watch and iPhone.")
         }
+    }
+
+    /// Manually re-send this session (and its voice notes) to the iPhone — the
+    /// recovery when a dive didn't sync across (e.g. the phone was out of range).
+    private var resyncButton: some View {
+        Button {
+            coordinator.resync(session)
+            resynced = true
+            WKInterfaceDevice.current().play(.success)
+        } label: {
+            Label(resynced ? "Sent to iPhone" : "Re-send to iPhone",
+                  systemImage: resynced ? "checkmark.circle" : "arrow.triangle.2.circlepath")
+                .frame(maxWidth: .infinity)
+        }
+        .tint(.teal)
+        .disabled(resynced)
+        .padding(.top, 8)
     }
 
     /// Destructive action at the bottom of a past session's details.

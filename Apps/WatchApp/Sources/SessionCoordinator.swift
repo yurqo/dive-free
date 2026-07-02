@@ -527,15 +527,35 @@ final class SessionCoordinator {
         let activeEnergy = await workout.end()
         let session = try? sessionManager.stopSession(activeEnergyKilocalories: activeEnergy)
         if let session {
-            try? sync.send(session)
-            // Ship any voice-note files the session's markers reference.
-            for fileName in session.markers.compactMap(\.audioFileName) {
-                sync.sendAudioFile(AudioNoteRecorder.url(for: fileName), fileName: fileName)
-            }
+            sendSessionToPhone(session)
             state = .summary(session)
         } else {
             state = .idle
         }
         return session
+    }
+
+    /// Re-sends a stored session (and its voice-note files) to the iPhone — the
+    /// manual recovery when a dive didn't make it across (e.g. the phone was out
+    /// of range when it finished). Safe to repeat; the phone upserts by id.
+    func resync(_ session: DiveSession) {
+        sendSessionToPhone(session)
+    }
+
+    /// Re-sends every session stored on this watch to the iPhone.
+    func resyncAll() {
+        let records = (try? modelContext.fetch(FetchDescriptor<SessionRecord>())) ?? []
+        for record in records where record.modelContext != nil {
+            sendSessionToPhone(record.toDomain())
+        }
+    }
+
+    /// Queues a session and its voice notes for delivery to the iPhone — shared by
+    /// session-end and manual re-sync.
+    private func sendSessionToPhone(_ session: DiveSession) {
+        try? sync.send(session)
+        for fileName in session.markers.compactMap(\.audioFileName) {
+            sync.sendAudioFile(AudioNoteRecorder.url(for: fileName), fileName: fileName)
+        }
     }
 }
