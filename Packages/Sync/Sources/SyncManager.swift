@@ -50,6 +50,12 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     /// Fires on an arbitrary thread; hop to the main actor before touching UI.
     public var onPendingCountChange: (@Sendable (Int) -> Void)?
 
+    /// Notified with a session's id once its transfer is **confirmed delivered**
+    /// to the counterpart device — the safe signal watch-side retention uses to
+    /// know a session is on the phone and may be pruned locally. Fires on an
+    /// arbitrary thread.
+    public var onSessionDelivered: (@Sendable (UUID) -> Void)?
+
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
     static let payloadKey = "session"
@@ -234,6 +240,11 @@ public final class SyncManager: NSObject, @unchecked Sendable {
         if error == nil {
             lock.lock(); pending[id] = nil; attempts[id] = nil; let count = pending.count; lock.unlock()
             onPendingCountChange?(count)
+            // Confirmed on the phone — record the session id so retention can
+            // safely prune it from the watch. Only ever fires on genuine success.
+            if let session = try? decoder.decode(DiveSession.self, from: data) {
+                onSessionDelivered?(session.id)
+            }
             return
         }
         lock.lock()

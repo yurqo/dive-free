@@ -380,6 +380,10 @@ final class SessionCoordinator {
         sync.onPendingCountChange = { [weak self] count in
             Task { @MainActor in self?.pendingSyncCount = count }
         }
+        // Record confirmed deliveries so retention can safely prune synced sessions.
+        sync.onSessionDelivered = { [weak self] id in
+            Task { @MainActor in self?.markDelivered(id) }
+        }
         sync.onReceiveCustomMarkers = { [weak self] kinds in
             Task { @MainActor in
                 self?.customKinds = kinds
@@ -557,5 +561,83 @@ final class SessionCoordinator {
         for fileName in session.markers.compactMap(\.audioFileName) {
             sync.sendAudioFile(AudioNoteRecorder.url(for: fileName), fileName: fileName)
         }
+    }
+
+    // MARK: - Retention (auto-clean synced sessions off the watch)
+
+    /// Persisted set of session ids confirmed delivered to the phone. Watch-only
+    /// (UserDefaults, not the model), so no schema change; only grows, and only on
+    /// genuine delivery — so it never falsely marks an unsynced session.
+    @ObservationIgnored private static let deliveredKey = "deliveredSessionIDs"
+
+    private var deliveredIDs: Set<String> {
+        Set(UserDefaults.standard.stringArray(forKey: Self.deliveredKey) ?? [])
+    }
+
+    private func markDelivered(_ id: UUID) {
+        var ids = deliveredIDs
+        guard ids.insert(id.uuidString).inserted else { return }
+        UserDefaults.standard.set(Array(ids), forKey: Self.deliveredKey)
+    }
+
+    /// Auto-clean: removes old sessions from **this watch** — only ones confirmed
+    /// delivered to the phone, honoring the diver's retention caps. The phone /
+    /// iCloud keep the copy; this frees watch storage, it does NOT delete the
+    /// session everywhere (so no `sendDeletion`). No-op unless retention is on.
+    func pruneForRetention() {
+        let defaults = UserDefaults.standard
+        guard defaults.bool(forKey: "retentionEnabled") else { return }
+        let policy = RetentionPolicy(
+            maxDays: defaults.integer(forKey: "retentionMaxDays"),
+            maxSessions: defaults.integer(forKey: "retentionMaxSessions"),
+            maxSizeBytes: defaults.integer(forKey: "retentionMaxMegabytes") * 1_048_576
+        )
+        guard policy.isActive else { return }
+        let records = (try? modelContext.fetch(FetchDescriptor<SessionRecord>())) ?? []
+        let delivered = deliveredIDs
+        let candidates = records.compactMap { record -> RetentionCandidate? in
+            guard record.modelContext != nil else { return nil }
+            return RetentionCandidate(
+                id: record.id,
+                startTime: record.startTime,
+                sizeBytes: estimatedSize(record),
+                isDelivered: delivered.contains(record.id.uuidString)
+            )
+        }
+        let toPrune = Set(sessionsToPrune(candidates, policy: policy))
+        guard !toPrune.isEmpty else { return }
+        for record in records where record.modelContext != nil && toPrune.contains(record.id) {
+            // Free the voice-note files too, then drop only the local record —
+            // no sync deletion, so the phone keeps its copy.
+            for fileName in (record.markers ?? []).compactMap(\.audioFileName) {
+                try? FileManager.default.removeItem(at: AudioNoteRecorder.url(for: fileName))
+            }
+            modelContext.delete(record)
+        }
+        try? modelContext.save()
+    }
+
+    /// Stored session count + estimated watch footprint (bytes), for the Settings
+    /// storage row. Approximate.
+    func storageTotals() -> (count: Int, bytes: Int) {
+        let records = ((try? modelContext.fetch(FetchDescriptor<SessionRecord>())) ?? [])
+            .filter { $0.modelContext != nil }
+        return (records.count, records.reduce(0) { $0 + estimatedSize($1) })
+    }
+
+    /// Rough on-watch footprint of a session: its voice-note files (exact) plus a
+    /// duration-based estimate of the depth/HR/track series (~56 B/s). Approximate —
+    /// only used for the retention size cap and the storage total.
+    private func estimatedSize(_ record: SessionRecord) -> Int {
+        let duration = (record.endTime ?? record.startTime).timeIntervalSince(record.startTime)
+        var bytes = Int(max(0, duration) * 56)
+        for fileName in (record.markers ?? []).compactMap(\.audioFileName) {
+            let path = AudioNoteRecorder.url(for: fileName).path
+            if let attrs = try? FileManager.default.attributesOfItem(atPath: path),
+               let size = attrs[.size] as? Int {
+                bytes += size
+            }
+        }
+        return bytes
     }
 }

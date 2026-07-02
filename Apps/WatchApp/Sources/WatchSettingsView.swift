@@ -39,8 +39,29 @@ struct WatchSettingsView: View {
     /// One-shot latch so the "Re-send all" button confirms it fired.
     @State private var resyncedAll = false
 
+    // Retention: auto-clean synced sessions off the watch (they stay on the
+    // iPhone / iCloud). Off by default; each cap of 0 is disabled.
+    @AppStorage("retentionEnabled") private var retentionEnabled = false
+    @AppStorage("retentionMaxDays") private var retentionMaxDays = 0
+    @AppStorage("retentionMaxSessions") private var retentionMaxSessions = 0
+    @AppStorage("retentionMaxMegabytes") private var retentionMaxMegabytes = 0
+    /// On-watch storage total (count, bytes), refreshed when the view appears.
+    @State private var storage: (count: Int, bytes: Int) = (0, 0)
+
     /// Built-in kinds, plus any custom kinds synced from the iPhone.
     private var markerKinds: [MarkerKind] { EventKind.builtInMarkerKinds + session.customKinds }
+
+    private var storageSummary: String {
+        let mb = Double(storage.bytes) / 1_048_576
+        let size = mb < 1 ? "<1 MB" : String(format: "~%.0f MB", mb)
+        return "\(storage.count) · \(size)"
+    }
+
+    /// Re-prune and refresh the total when a retention cap changes.
+    private func applyRetention() {
+        session.pruneForRetention()
+        storage = session.storageTotals()
+    }
 
     var body: some View {
         NavigationStack {
@@ -149,6 +170,38 @@ struct WatchSettingsView: View {
                     Text("Re-send every session on this watch to your iPhone — use it if some dives didn't show up there.")
                 }
 
+                Section {
+                    Toggle("Auto-clean synced", isOn: $retentionEnabled)
+                    if retentionEnabled {
+                        Picker("Keep days", selection: $retentionMaxDays) {
+                            Text("Off").tag(0)
+                            Text("30").tag(30)
+                            Text("90").tag(90)
+                            Text("180").tag(180)
+                            Text("360").tag(360)
+                        }
+                        Picker("Max sessions", selection: $retentionMaxSessions) {
+                            Text("Off").tag(0)
+                            Text("50").tag(50)
+                            Text("100").tag(100)
+                            Text("200").tag(200)
+                            Text("500").tag(500)
+                        }
+                        Picker("Max size", selection: $retentionMaxMegabytes) {
+                            Text("Off").tag(0)
+                            Text("100 MB").tag(100)
+                            Text("250 MB").tag(250)
+                            Text("500 MB").tag(500)
+                            Text("1000 MB").tag(1000)
+                        }
+                    }
+                    LabeledContent("On watch", value: storageSummary)
+                } header: {
+                    Text("Storage")
+                } footer: {
+                    Text("Automatically remove older sessions from this watch once they're safely on your iPhone. Your dives stay on iPhone and iCloud — this only frees watch space.")
+                }
+
                 #if targetEnvironment(simulator)
                 Section {
                     Toggle("Depth sensor", isOn: $simDepthSensor)
@@ -161,6 +214,11 @@ struct WatchSettingsView: View {
                 #endif
             }
             .navigationTitle("Settings")
+            .task { storage = session.storageTotals() }
+            .onChange(of: retentionEnabled) { applyRetention() }
+            .onChange(of: retentionMaxDays) { applyRetention() }
+            .onChange(of: retentionMaxSessions) { applyRetention() }
+            .onChange(of: retentionMaxMegabytes) { applyRetention() }
         }
     }
 }
