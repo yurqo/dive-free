@@ -202,6 +202,8 @@ private enum UserGuide {
             .bullet("**GPS** (top-left) tags where you dived — let it get a fix at the surface before you drop, since GPS can't reach underwater."),
             .subheading("Time cues"),
             .text("Turn on periodic taps and tones during a dive in the watch's Settings for a sense of elapsed time without looking. Pick the short and long intervals that suit you."),
+            .subheading("Watch storage"),
+            .text("The watch keeps every dive locally and also sends it to your iPhone. To free up watch space, turn on **auto-clean** in the watch's Settings ▸ Storage — it removes older sessions from the watch (by age, count, or size), **only once they're safely on your iPhone**. Your dives always stay on iPhone and iCloud."),
             .tip("Wear the watch a finger-width above the wrist bone and tighten the strap before diving — a snug fit keeps the heart-rate sensor reading, especially in cold water."),
         ]
     )

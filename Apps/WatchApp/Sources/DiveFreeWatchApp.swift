@@ -21,6 +21,10 @@ struct DiveFreeWatchApp: App {
             WatchRootView()
                 .environment(session)
                 .unitsAware()
+                // Auto-clean synced sessions off the watch per the retention caps
+                // (no-op unless the diver enabled it). Safe: only prunes sessions
+                // already confirmed on the iPhone.
+                .task { session.pruneForRetention() }
         }
         .modelContainer(store.container)
     }
