@@ -97,7 +97,7 @@ struct SessionManagerTests {
 
         let records = try store.container.mainContext.fetch(FetchDescriptor<SessionRecord>())
         #expect(records.count == 1)
-        let kinds = Set(records[0].markers.map { $0.kind })
+        let kinds = Set((records[0].markers ?? []).map { $0.kind })
         #expect(kinds == Set(["wildlife", "note"]))
     }
 
