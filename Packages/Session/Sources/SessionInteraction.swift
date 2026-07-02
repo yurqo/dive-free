@@ -64,9 +64,21 @@ public struct SessionInteraction: Equatable, Sendable {
     public private(set) var focusedIndex: Int
     /// True while the end-session dialog is armed (Crown → End → Action button).
     public private(set) var pendingEndConfirmation: Bool
+    /// True while the diver is below the surface. Underwater the screen is
+    /// water-locked, so the menu hides Voice Note and End (neither can be used
+    /// while submerged) and shows marker kinds only.
+    public private(set) var isSubmerged: Bool
+
+    // Retained so the menu can be rebuilt when the submersion state or the
+    // available marker kinds change.
+    private var kinds: [MarkerKind]
+    private var defaultMarkerID: String
 
     public init(kinds: [MarkerKind], defaultMarkerID: String) {
-        menuItems = Self.buildMenu(kinds: kinds, defaultMarkerID: defaultMarkerID)
+        self.kinds = kinds
+        self.defaultMarkerID = defaultMarkerID
+        isSubmerged = false
+        menuItems = Self.buildMenu(kinds: kinds, defaultMarkerID: defaultMarkerID, submerged: false)
         focusedIndex = Self.defaultFocusIndex(in: menuItems, defaultMarkerID: defaultMarkerID)
         pendingEndConfirmation = false
     }
@@ -76,10 +88,36 @@ public struct SessionInteraction: Equatable, Sendable {
         menuItems.indices.contains(focusedIndex) ? menuItems[focusedIndex] : nil
     }
 
-    /// Rebuilds the menu (e.g. when custom markers sync in), clamping focus.
+    /// Rebuilds the menu (e.g. when custom markers sync in), keeping the same
+    /// item focused where it survives into the new menu.
     public mutating func setMenu(kinds: [MarkerKind], defaultMarkerID: String) {
-        menuItems = Self.buildMenu(kinds: kinds, defaultMarkerID: defaultMarkerID)
-        focusedIndex = min(focusedIndex, max(menuItems.count - 1, 0))
+        self.kinds = kinds
+        self.defaultMarkerID = defaultMarkerID
+        rebuildMenu(preserving: focusedAction)
+    }
+
+    /// Switches the menu between the surface menu (Voice Note · markers · End)
+    /// and the underwater menu (markers only). The focused marker stays
+    /// highlighted across the switch when it survives; otherwise focus falls back
+    /// to the default marker. Arming an end can't survive a descent (End leaves
+    /// the menu), so it's cleared on submerging.
+    public mutating func setSubmerged(_ submerged: Bool) {
+        guard submerged != isSubmerged else { return }
+        let previous = focusedAction
+        isSubmerged = submerged
+        if submerged { pendingEndConfirmation = false }
+        rebuildMenu(preserving: previous)
+    }
+
+    /// Rebuilds `menuItems` for the current kinds / default / submersion, keeping
+    /// `previous` focused if it survives, else focusing the default marker.
+    private mutating func rebuildMenu(preserving previous: Action?) {
+        menuItems = Self.buildMenu(kinds: kinds, defaultMarkerID: defaultMarkerID, submerged: isSubmerged)
+        if let previous, let index = menuItems.firstIndex(of: previous) {
+            focusedIndex = index
+        } else {
+            focusedIndex = Self.defaultFocusIndex(in: menuItems, defaultMarkerID: defaultMarkerID)
+        }
     }
 
     /// Moves the Crown highlight (clamped). Nothing fires until a button confirms.
@@ -130,10 +168,19 @@ public struct SessionInteraction: Equatable, Sendable {
 
     // MARK: - Menu construction
 
-    private static func buildMenu(kinds: [MarkerKind], defaultMarkerID: String) -> [Action] {
+    private static func buildMenu(kinds: [MarkerKind], defaultMarkerID: String, submerged: Bool) -> [Action] {
+        let markers = markerActions(kinds: kinds, defaultMarkerID: defaultMarkerID)
+        // Underwater the touchscreen is water-locked: Voice Note is disabled and
+        // ending is reserved for the Action+side gesture, so the carousel would
+        // only ever drop markers — show markers alone to make that obvious.
+        return submerged ? markers : [.voiceNote] + markers + [.end]
+    }
+
+    /// The marker actions in carousel order: the default marker first, then the rest.
+    private static func markerActions(kinds: [MarkerKind], defaultMarkerID: String) -> [Action] {
         let ordered = (kinds.first { $0.id == defaultMarkerID }.map { [$0] } ?? [])
             + kinds.filter { $0.id != defaultMarkerID }
-        return [.voiceNote] + ordered.map(Action.mark) + [.end]
+        return ordered.map(Action.mark)
     }
 
     private static func defaultFocusIndex(in menu: [Action], defaultMarkerID: String) -> Int {

@@ -23,6 +23,13 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
+            Section {
+                NavigationLink {
+                    UserGuideView()
+                } label: {
+                    Label("User Guide", systemImage: "book")
+                }
+            }
             unitsSection
             iCloudSection
             Section {

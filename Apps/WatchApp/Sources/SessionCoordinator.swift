@@ -354,8 +354,16 @@ final class SessionCoordinator {
             DiveTonePlayer.play(for: event)
             self?.handleTimeCueEvent(event)
         }
-        // Auto-stop a surface voice note the instant the diver submerges.
-        sessionManager.onSubmerge = { [weak self] in self?.stopVoiceNote() }
+        // Auto-stop a surface voice note the instant the diver submerges, and
+        // collapse the carousel to markers only (Voice Note / End don't work
+        // underwater). Restore the full menu on surfacing.
+        sessionManager.onSubmerge = { [weak self] in
+            self?.stopVoiceNote()
+            self?.interaction.setSubmerged(true)
+        }
+        sessionManager.onSurface = { [weak self] in
+            self?.interaction.setSubmerged(false)
+        }
         // Feed live workout heart rate into the session's time series.
         workout.onHeartRate = { [weak self] bpm in self?.sessionManager.recordHeartRate(bpm) }
         // The hard cap also stops via the coordinator so the file is still attached.

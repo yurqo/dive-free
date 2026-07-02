@@ -23,11 +23,17 @@ struct SessionListView: View {
         NavigationStack {
             Group {
                 if sessions.isEmpty && liveSession.snapshot == nil {
-                    ContentUnavailableView(
-                        "No Sessions Yet",
-                        systemImage: "water.waves",
-                        description: Text("Start a session on your Apple Watch to see it here.")
-                    )
+                    ContentUnavailableView {
+                        Label("No Sessions Yet", systemImage: "water.waves")
+                    } description: {
+                        Text("Start a session on your Apple Watch to see it here.")
+                    } actions: {
+                        NavigationLink {
+                            UserGuideView()
+                        } label: {
+                            Label("Read the User Guide", systemImage: "book")
+                        }
+                    }
                 } else {
                     List {
                         // In-progress Watch session, live at the top of the list (#118).

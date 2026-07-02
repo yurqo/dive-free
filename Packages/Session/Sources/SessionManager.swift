@@ -133,6 +133,7 @@ public final class SessionManager {
         dives = detector.detectDives(from: sensors.samples, manualSegments: manualSegments)
         lastSurfacedAt = dives.isEmpty ? nil : now
         suppressAutoUntilSurface = sensors.currentDepthMeters > detector.config.surfaceThresholdMeters
+        onSurface?()
     }
 
     /// When the diver last returned to the surface after a completed dive. Set
@@ -159,6 +160,11 @@ public final class SessionManager {
     /// new descent begins). Used to auto-stop a surface voice-note recording.
     @ObservationIgnored
     public var onSubmerge: (@MainActor () -> Void)?
+
+    /// Called when the diver returns to the surface (the dive in progress ends).
+    /// Mirrors `onSubmerge`; used to restore the surface action menu.
+    @ObservationIgnored
+    public var onSurface: (@MainActor () -> Void)?
 
     /// Attaches a recorded voice-note filename to the most recently placed
     /// marker, or — if none has been placed yet this session — drops a `.note`
@@ -295,9 +301,13 @@ public final class SessionManager {
             // Back at the surface: clear suppression; surfacing from a dive that
             // actually counted starts the recovery clock.
             suppressAutoUntilSurface = false
-            if currentDiveStart != nil, !dives.isEmpty { lastSurfacedAt = Date() }
-            currentDiveStart = nil
-            currentDiveMaxDepth = 0
+            if currentDiveStart != nil {
+                // Transition from submerged → surface.
+                if !dives.isEmpty { lastSurfacedAt = Date() }
+                currentDiveStart = nil
+                currentDiveMaxDepth = 0
+                onSurface?()
+            }
         }
         let events = hapticTracker.update(depthMeters: depth)
         for event in events { onHapticEvent?(event) }

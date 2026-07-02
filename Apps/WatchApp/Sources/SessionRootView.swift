@@ -482,10 +482,13 @@ struct SessionRootView: View {
     /// full-width rectangle flush to the screen's bottom edge, showing the focused
     /// option as a black label over the tinted fill. Shares `SessionActionBar`
     /// with the Settings scroll-speed preview.
+    @ViewBuilder
     private var actionSelector: some View {
         let items = session.menuItems
-        let current = items[min(session.focusedIndex, max(items.count - 1, 0))]
-        return SessionActionBar(action: current, isRecordingVoiceNote: session.isRecordingVoiceNote)
+        if !items.isEmpty {
+            let current = items[min(session.focusedIndex, items.count - 1)]
+            SessionActionBar(action: current, isRecordingVoiceNote: session.isRecordingVoiceNote)
+        }
     }
 
     /// Seconds without a fix before GPS reads "lost" — generous enough to
