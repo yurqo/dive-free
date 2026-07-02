@@ -18,12 +18,12 @@ final class LiveSessionRegistry {
 
 /// App Intent backing the Apple Watch Ultra Action button. The diver assigns it
 /// once in **Settings → Action Button**. A press is context-sensitive:
-/// underwater it drops a `.note` marker (the touchscreen is water-locked); on
-/// the surface it confirms the focused Crown-menu item.
+/// underwater it drops the selected marker (the touchscreen is water-locked); on
+/// the surface it confirms the selected Crown-menu item.
 struct AddMarkerIntent: AppIntent {
-    static let title: LocalizedStringResource = "Mark Dive Moment"
+    static let title: LocalizedStringResource = "Confirm Selection"
     static let description = IntentDescription(
-        "Drops a marker while underwater, or confirms the focused menu action on the surface."
+        "Drops the selected marker while underwater, or confirms the selected menu item on the surface."
     )
 
     /// Route the press into the running session in the background — do not
