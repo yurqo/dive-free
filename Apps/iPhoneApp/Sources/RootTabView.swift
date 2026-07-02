@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// Top-level tabs: the dive history and the dive spots. The sidebar-adaptable
+/// Top-level tabs: Dives, Trips, Spots, and Passport. The sidebar-adaptable
 /// style keeps a bottom tab bar on iPhone (compact) and shows a sidebar on iPad
-/// (regular width), so the same two destinations feel native on both (#170).
+/// (regular width), so the destinations feel native on both (#170).
 struct RootTabView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(PhotoPagerPresenter.self) private var pager
@@ -15,14 +15,14 @@ struct RootTabView: View {
             Tab("Dives", systemImage: "water.waves") {
                 SessionListView()
             }
+            Tab("Trips", systemImage: "suitcase") {
+                TripsView()
+            }
             Tab("Spots", systemImage: "mappin.and.ellipse") {
                 SpotsListView()
             }
             Tab("Passport", systemImage: "rosette") {
                 StatsView()
-            }
-            Tab("Trips", systemImage: "suitcase") {
-                TripsView()
             }
         }
         .tabViewStyle(.sidebarAdaptable)

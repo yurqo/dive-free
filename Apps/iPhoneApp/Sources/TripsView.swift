@@ -11,8 +11,25 @@ struct TripsView: View {
     @Environment(\.modelContext) private var modelContext
 
     /// `@Query` can briefly include a just-deleted trip before it refreshes;
-    /// reading a deleted model traps (#148), so display only live ones.
+    /// reading a deleted model traps (#148), so display only live ones. Trips left
+    /// empty (all their sessions deleted) are shown too, so the diver can
+    /// swipe-delete them — we never auto-remove a trip, since one whose sessions
+    /// simply haven't synced to this device yet would also look empty.
     private var liveTrips: [Trip] { trips.filter { $0.modelContext != nil } }
+
+    /// Sessions still in the store for a trip. A deleted session can linger in the
+    /// relationship until `@Query` refreshes, and reading a deleted model traps
+    /// (#148), so count only those still backed by a context.
+    private func liveSessionCount(_ trip: Trip) -> Int {
+        (trip.sessions ?? []).filter { $0.modelContext != nil }.count
+    }
+
+    /// Row subtitle: the live session count (an orphaned trip reads "0 sessions",
+    /// signalling it's safe to swipe away).
+    private func sessionCountText(_ trip: Trip) -> String {
+        let n = liveSessionCount(trip)
+        return "\(n) session\(n == 1 ? "" : "s")"
+    }
 
     var body: some View {
         NavigationStack {
@@ -50,7 +67,7 @@ struct TripsView: View {
         VStack(alignment: .leading, spacing: 3) {
             Text(trip.name.isEmpty ? "Trip" : trip.name).font(.headline)
             Text(dateRange(trip)).font(.caption).foregroundStyle(.secondary)
-            Text("\(trip.sessions?.count ?? 0) session\((trip.sessions?.count ?? 0) == 1 ? "" : "s")")
+            Text(sessionCountText(trip))
                 .font(.caption2).foregroundStyle(.secondary)
         }
     }
@@ -64,7 +81,13 @@ struct TripsView: View {
     }
 
     private func deleteTrips(_ offsets: IndexSet) {
-        for trip in offsets.map({ liveTrips[$0] }) { modelContext.delete(trip) }
+        for trip in offsets.map({ liveTrips[$0] }) {
+            // Detach the sessions first so deleting an orphaned trip whose sessions
+            // were already removed doesn't choke on a dangling relationship (which
+            // is what made an empty trip un-deletable). Sessions stay in the log.
+            trip.sessions = nil
+            modelContext.delete(trip)
+        }
         try? modelContext.save()
     }
 
