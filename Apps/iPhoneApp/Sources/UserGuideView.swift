@@ -181,6 +181,9 @@ private enum UserGuide {
             .bullet("**Action button** (Apple Watch Ultra) — drops the highlighted marker underwater, and confirms your choice at the surface."),
         ],
         details: [
+            .subheading("Setting up the Action button"),
+            .text("Dive Free runs as a **Workout** on your watch, so you assign the Action button under **Settings ▸ Action Button ▸ Workout ▸ Dive Free** (pick the Freedive workout) — not under “App.” The first press starts a session; while one is running, a press drops a marker."),
+            .text("It appears as a *Workout* rather than a dedicated “dive” because Dive Free is a recreational logbook built on Apple's workout tools, not a dive computer — the recording is exactly the same, it's just filed under Workout."),
             .subheading("Markers"),
             .text("Markers are little flags you drop during a dive — wildlife, a hazard, a photo moment, or your own custom kinds. Turn the Crown to the one you want and press the Action button to drop it. Set your most-used marker as the **default** in the watch's Settings; it's pre-selected, and it's what a quick Action-button press drops."),
             .subheading("Underwater the menu is shorter"),
@@ -333,7 +336,7 @@ private enum UserGuide {
             .subheading("No depth during a dive"),
             .text("Depth needs an Apple Watch Ultra, Series 10, or Series 11. Other watches log the GPS track, markers, and heart rate instead."),
             .subheading("The Action button does nothing"),
-            .text("On Apple Watch Ultra, assign Dive Free under the watch's Settings ▸ Action Button ▸ App. Without it, use the on-screen controls at the surface (see the watch chapter)."),
+            .text("On Apple Watch Ultra, assign Dive Free under the watch's Settings ▸ Action Button ▸ **Workout** ▸ Dive Free — it runs as a workout, so it's under Workout, not “App.” Without it, use the on-screen controls at the surface (see the watch chapter)."),
             .subheading("The live banner says \u{201C}Reconnecting…\u{201D}"),
             .text("That just means your phone and watch are briefly out of range — completely normal when the phone is on the boat. Your dive is still being recorded; the log fills in once they're back together."),
             .subheading("Photos aren't reaching my iPad"),
