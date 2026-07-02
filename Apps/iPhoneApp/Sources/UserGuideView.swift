@@ -163,7 +163,7 @@ private enum UserGuide {
         ],
         details: [
             .subheading("Getting a dive to your phone"),
-            .text("When you end a session, the watch sends it straight to your iPhone over their direct link — no internet or iCloud required. Keep the watch near the phone afterwards and the dive arrives within moments."),
+            .text("When you end a session, the watch sends it straight to your iPhone over their direct link — no internet or iCloud required. Keep the watch near the phone afterwards and the dive arrives within moments. If one ever doesn't, you can re-send it from the watch (see Troubleshooting)."),
             .subheading("Following a dive live"),
             .text("While a session runs on the watch, your iPhone shows it live: a banner at the top of the **Dives** tab, plus a Live Activity on the Lock Screen and in the Dynamic Island."),
             .text("A **green dot** means the phone is hearing from the watch; **grey** means they're briefly out of range — normal when your phone is on the boat and you're in the water. The timer keeps counting as an estimate and catches up once they reconnect."),
@@ -222,9 +222,9 @@ private enum UserGuide {
             .subheading("Editing and rating"),
             .text("Give a session a title, a star rating, and notes. You can tidy up details and remove a session you didn't mean to keep."),
             .subheading("Spots"),
-            .text("Dives at the same place are gathered into a **spot** automatically, each with its own map and history — a quick way to see how a favourite site has treated you over time."),
+            .text("Dives at the same place are gathered into a **spot** automatically, each with its own map and history — a quick way to see how a favourite site has treated you over time. Swipe a spot to remove it — handy for a stray empty one left after you deleted its dives."),
             .subheading("Trips"),
-            .text("Bundle several days of diving into a **trip** — perfect for a liveaboard or a week away — and see the trip's totals in one place."),
+            .text("Bundle several days of diving into a **trip** — perfect for a liveaboard or a week away — and see the trip's totals in one place. Swipe a trip to remove it; deleting a trip keeps its dives in your log."),
             .subheading("Passport"),
             .text("Your diving at a glance: number of dives, time in the water, places visited, and milestones that grow as you log more."),
             .subheading("Settings"),
@@ -333,6 +333,7 @@ private enum UserGuide {
         details: [
             .subheading("My dive isn't on my iPhone"),
             .text("Keep the watch near the phone with both apps opened recently — the watch delivers sessions over their direct link when they're close. Then give iCloud a minute to carry it on to your iPad."),
+            .text("Still missing? On the watch, open that session and tap **Re-send to iPhone** — or use **Settings ▸ Sync ▸ Re-send all to iPhone** to push everything again."),
             .subheading("No depth during a dive"),
             .text("Depth needs an Apple Watch Ultra, Series 10, or Series 11. Other watches log the GPS track, markers, and heart rate instead."),
             .subheading("The Action button does nothing"),

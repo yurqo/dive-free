@@ -1,4 +1,5 @@
 import SwiftUI
+import WatchKit
 import Domain
 import Sensors
 
@@ -34,6 +35,9 @@ struct WatchSettingsView: View {
     @AppStorage(SimCapabilityOverride.depthSensorKey) private var simDepthSensor = true
     @AppStorage(SimCapabilityOverride.actionButtonKey) private var simActionButton = true
     #endif
+
+    /// One-shot latch so the "Re-send all" button confirms it fired.
+    @State private var resyncedAll = false
 
     /// Built-in kinds, plus any custom kinds synced from the iPhone.
     private var markerKinds: [MarkerKind] { EventKind.builtInMarkerKinds + session.customKinds }
@@ -127,6 +131,22 @@ struct WatchSettingsView: View {
                     Text("Units")
                 } footer: {
                     Text("Syncs from your iPhone. Change it here to override on the watch.")
+                }
+
+                Section {
+                    Button {
+                        session.resyncAll()
+                        resyncedAll = true
+                        WKInterfaceDevice.current().play(.success)
+                    } label: {
+                        Label(resyncedAll ? "Sent all to iPhone" : "Re-send all to iPhone",
+                              systemImage: resyncedAll ? "checkmark.circle" : "arrow.triangle.2.circlepath")
+                    }
+                    .disabled(resyncedAll)
+                } header: {
+                    Text("Sync")
+                } footer: {
+                    Text("Re-send every session on this watch to your iPhone — use it if some dives didn't show up there.")
                 }
 
                 #if targetEnvironment(simulator)
