@@ -13,10 +13,16 @@ struct SpotsListView: View {
     /// isn't persisted, so it retries on a later launch).
     @State private var countryAttempted: Set<UUID> = []
 
+    /// `@Query` can briefly include a just-deleted spot before it refreshes;
+    /// reading a deleted model traps (#148), so work off the live ones. Orphan
+    /// spots (all their sessions deleted) are shown too, so they can be
+    /// swipe-deleted.
+    private var liveSpots: [Spot] { spots.filter { $0.modelContext != nil } }
+
     /// Spots grouped by country (name-sorted within each), countries A→Z with the
     /// not-yet-resolved "Unknown" bucket last.
     private var grouped: [(country: String, spots: [Spot])] {
-        Dictionary(grouping: spots) { $0.country ?? "" }
+        Dictionary(grouping: liveSpots) { $0.country ?? "" }
             .map { (country: $0.key, spots: $0.value) }
             .sorted { lhs, rhs in
                 if lhs.country.isEmpty != rhs.country.isEmpty { return !lhs.country.isEmpty }
@@ -27,7 +33,7 @@ struct SpotsListView: View {
     var body: some View {
         NavigationStack {
             Group {
-                if spots.isEmpty {
+                if liveSpots.isEmpty {
                     ContentUnavailableView(
                         "No Spots Yet",
                         systemImage: "mappin.and.ellipse",
@@ -36,7 +42,7 @@ struct SpotsListView: View {
                 } else {
                     List {
                         Section {
-                            SpotsMap(spots: spots)
+                            SpotsMap(spots: liveSpots)
                                 .frame(height: 200)
                                 .listRowInsets(EdgeInsets())
                         }
@@ -45,6 +51,7 @@ struct SpotsListView: View {
                                 ForEach(group.spots) { spot in
                                     NavigationLink(value: spot) { SpotRow(spot: spot) }
                                 }
+                                .onDelete { deleteSpots($0, in: group.spots) }
                             }
                         }
                     }
@@ -55,6 +62,20 @@ struct SpotsListView: View {
             }
             .navigationTitle("Spots")
         }
+    }
+
+    /// Swipe-delete a spot. Detaches its sessions/photos first so an orphaned spot
+    /// (its sessions already deleted) removes cleanly instead of choking on a
+    /// dangling relationship — the sessions and photos stay in the log (nullify).
+    /// A spot that still has sessions may be re-created later by the auto-assigner,
+    /// since spots are derived from session locations.
+    private func deleteSpots(_ offsets: IndexSet, in groupSpots: [Spot]) {
+        for spot in offsets.map({ groupSpots[$0] }) {
+            spot.sessions = nil
+            spot.photos = nil
+            modelContext.delete(spot)
+        }
+        try? modelContext.save()
     }
 
     /// Reverse-geocodes the country for any spot missing one, one at a time
