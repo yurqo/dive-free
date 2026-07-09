@@ -190,6 +190,147 @@ struct SyncManagerTests {
         #expect(manager.pendingCount == 0)
     }
 
+    @Test("re-adopting outstanding transfers populates pending and reports the count")
+    func adoptsOutstandingTransfers() throws {
+        let session = makeSession()
+        let data = try JSONEncoder().encode(session)
+        let manager = SyncManager(
+            performTransfer: { _, _ in },
+            outstandingTransfers: { [(id: "transfer-1", data: data)] }
+        )
+        let counts = Mutex<[Int]>([])
+        manager.onPendingCountChange = { newCount in counts.withLock { $0.append(newCount) } }
+
+        #expect(manager.pendingCount == 0)
+        manager.adoptOutstandingTransfers()
+
+        #expect(manager.pendingCount == 1)
+        #expect(counts.withLock { $0 } == [1])
+    }
+
+    @Test("re-adopted entries are not re-sent by retryPending while system-owned")
+    func retryPendingSkipsSystemOwned() throws {
+        let session = makeSession()
+        let data = try JSONEncoder().encode(session)
+        let recorder = TransferRecorder()
+        let manager = SyncManager(
+            performTransfer: { recorder.record($0, $1) },
+            outstandingTransfers: { [(id: "transfer-1", data: data)] }
+        )
+        manager.adoptOutstandingTransfers()
+
+        manager.retryPending()
+        // The OS still owns the queued transfer — no duplicate re-send.
+        #expect(recorder.calls.isEmpty)
+        #expect(manager.pendingCount == 1)
+    }
+
+    @Test("retryPending reclaims a system-owned entry the OS no longer lists")
+    func retryPendingReclaimsDroppedTransfer() throws {
+        let session = makeSession()
+        let data = try JSONEncoder().encode(session)
+        let recorder = TransferRecorder()
+        // The OS lists the transfer at adoption, then drops it without a
+        // didFinish (unpair / daemon restart) — the outstanding list goes empty.
+        let outstanding = Mutex<[(id: String, data: Data)]>([(id: "transfer-1", data: data)])
+        let manager = SyncManager(
+            performTransfer: { recorder.record($0, $1) },
+            outstandingTransfers: { outstanding.withLock { $0 } }
+        )
+        manager.adoptOutstandingTransfers()
+        #expect(manager.pendingCount == 1)
+
+        outstanding.withLock { $0 = [] }
+        manager.retryPending()
+        // Reclaimed and re-sent rather than starved forever.
+        #expect(recorder.calls.count == 1)
+        #expect(recorder.calls[0].id == "transfer-1")
+        #expect(manager.pendingCount == 1)
+
+        // The re-send completes normally.
+        manager.completeTransfer(id: "transfer-1", data: data, error: nil)
+        #expect(manager.pendingCount == 0)
+    }
+
+    @Test("a failed didFinish for a re-adopted entry triggers a re-send")
+    func reAdoptedFailureRetries() throws {
+        struct TransferError: Error {}
+        let session = makeSession()
+        let data = try JSONEncoder().encode(session)
+        let recorder = TransferRecorder()
+        let manager = SyncManager(
+            performTransfer: { recorder.record($0, $1) },
+            outstandingTransfers: { [(id: "transfer-1", data: data)] }
+        )
+        manager.adoptOutstandingTransfers()
+
+        // A prior-launch transfer that finished with an error clears the system's
+        // copy, so the entry becomes ours and is re-sent.
+        manager.completeTransfer(id: "transfer-1", data: data, error: TransferError())
+        #expect(recorder.calls.count == 1)
+        #expect(recorder.calls[0].id == "transfer-1")
+        #expect(manager.pendingCount == 1)
+
+        // Now that it's no longer system-owned, retryPending re-sends it too.
+        manager.retryPending()
+        #expect(recorder.calls.count == 2)
+    }
+
+    @Test("adopting the same transfer twice does not double-count it")
+    func adoptIsIdempotent() throws {
+        let session = makeSession()
+        let data = try JSONEncoder().encode(session)
+        let manager = SyncManager(
+            performTransfer: { _, _ in },
+            outstandingTransfers: { [(id: "transfer-1", data: data)] }
+        )
+        manager.adoptOutstandingTransfers()
+        manager.adoptOutstandingTransfers()
+        #expect(manager.pendingCount == 1)
+    }
+
+    @Test("sendDeletion drops the matching re-adopted entry by stored id, leaving others")
+    func deletionDropsAdoptedEntry() throws {
+        let target = makeSession()
+        let other = makeSession()
+        let targetData = try JSONEncoder().encode(target)
+        let otherData = try JSONEncoder().encode(other)
+        let deleted = Mutex<UUID?>(nil)
+        let manager = SyncManager(
+            performTransfer: { _, _ in },
+            performDeletion: { id in deleted.withLock { $0 = id } },
+            outstandingTransfers: {
+                [(id: "transfer-target", data: targetData), (id: "transfer-other", data: otherData)]
+            }
+        )
+        manager.adoptOutstandingTransfers()
+        #expect(manager.pendingCount == 2)
+
+        // sendDeletion filters by the stored session id (no payload decode) and
+        // drops only the matching entry; the unrelated one stays pending.
+        manager.sendDeletion(target.id)
+        #expect(manager.pendingCount == 1)
+        #expect(deleted.withLock { $0 } == target.id)
+    }
+
+    @Test("confirmed delivery of a re-adopted entry reports the stored session id")
+    func adoptedDeliveryReportsSessionID() throws {
+        let session = makeSession()
+        let data = try JSONEncoder().encode(session)
+        let manager = SyncManager(
+            performTransfer: { _, _ in },
+            outstandingTransfers: { [(id: "transfer-1", data: data)] }
+        )
+        manager.adoptOutstandingTransfers()
+
+        let delivered = Mutex<UUID?>(nil)
+        manager.onSessionDelivered = { id in delivered.withLock { $0 = id } }
+        manager.completeTransfer(id: "transfer-1", data: data, error: nil)
+
+        #expect(delivered.withLock { $0 } == session.id)
+        #expect(manager.pendingCount == 0)
+    }
+
     @Test("custom markers round-trip through the application context")
     func customMarkersSync() {
         let captured = Mutex<[String: Any]?>(nil)
