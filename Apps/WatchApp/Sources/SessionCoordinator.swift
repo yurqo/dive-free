@@ -580,19 +580,55 @@ final class SessionCoordinator {
         UserDefaults.standard.set(Array(ids), forKey: Self.deliveredKey)
     }
 
-    /// Auto-clean: removes old sessions from **this watch** — only ones confirmed
-    /// delivered to the phone, honoring the diver's retention caps. The phone /
-    /// iCloud keep the copy; this frees watch storage, it does NOT delete the
-    /// session everywhere (so no `sendDeletion`). No-op unless retention is on.
+    /// Trims the persisted delivered set to `keeping` (the ids of records still on
+    /// this watch), so it stops growing unbounded. An id with no surviving record
+    /// was pruned or manually deleted and can never be needed again — if the
+    /// session is ever re-sent and re-confirmed, `markDelivered` re-adds it (and a
+    /// re-send needs the record to exist). Preserves the "only grows on genuine
+    /// delivery" invariant: this only removes ids, never adds. No write unless the
+    /// set actually shrinks.
+    private func trimDeliveredIDs(keeping: Set<String>) {
+        let ids = deliveredIDs
+        let trimmed = ids.intersection(keeping)
+        guard trimmed.count != ids.count else { return }
+        UserDefaults.standard.set(Array(trimmed), forKey: Self.deliveredKey)
+    }
+
+    /// Auto-clean entry point: prunes synced sessions per the diver's caps (a no-op
+    /// unless retention is on), then trims the delivered-id set to what's still
+    /// stored. The trim runs unconditionally — even with retention off — so the set
+    /// can't grow unbounded, and it uses the *post-prune* record set so ids for the
+    /// records just pruned (delivered by definition) are dropped in the same pass.
     func pruneForRetention() {
+        // A failed prune-save must also skip the trim: the fetch below would see
+        // the pending (unpersisted) deletions, and trimming against that view
+        // drops delivered ids for records that survive on disk — leaving them
+        // "undelivered" and unprunable forever.
+        guard pruneSyncedSessions() else { return }
+        // A failed fetch must skip the trim too — treating it as "no records"
+        // would wipe the whole delivered set (safe, but needless bookkeeping loss).
+        guard let records = try? modelContext.fetch(FetchDescriptor<SessionRecord>()) else { return }
+        let existing = Set(records.compactMap { $0.modelContext != nil ? $0.id.uuidString : nil })
+        trimDeliveredIDs(keeping: existing)
+    }
+
+    /// Removes old sessions from **this watch** — only ones confirmed delivered to
+    /// the phone, honoring the diver's retention caps. The phone / iCloud keep the
+    /// copy; this frees watch storage, it does NOT delete the session everywhere
+    /// (so no `sendDeletion`). No-op unless retention is on.
+    ///
+    /// Returns `false` only when the deletions could not be persisted (the store
+    /// then still holds them), so the caller knows a fresh fetch won't reflect
+    /// disk. Skipped/no-op passes return `true`.
+    private func pruneSyncedSessions() -> Bool {
         let defaults = UserDefaults.standard
-        guard defaults.bool(forKey: "retentionEnabled") else { return }
+        guard defaults.bool(forKey: "retentionEnabled") else { return true }
         let policy = RetentionPolicy(
             maxDays: defaults.integer(forKey: "retentionMaxDays"),
             maxSessions: defaults.integer(forKey: "retentionMaxSessions"),
             maxSizeBytes: defaults.integer(forKey: "retentionMaxMegabytes") * 1_048_576
         )
-        guard policy.isActive else { return }
+        guard policy.isActive else { return true }
         let records = (try? modelContext.fetch(FetchDescriptor<SessionRecord>())) ?? []
         let delivered = deliveredIDs
         let candidates = records.compactMap { record -> RetentionCandidate? in
@@ -605,7 +641,7 @@ final class SessionCoordinator {
             )
         }
         let toPrune = Set(sessionsToPrune(candidates, policy: policy))
-        guard !toPrune.isEmpty else { return }
+        guard !toPrune.isEmpty else { return true }
         for record in records where record.modelContext != nil && toPrune.contains(record.id) {
             // Free the voice-note files too, then drop only the local record —
             // no sync deletion, so the phone keeps its copy.
@@ -614,7 +650,12 @@ final class SessionCoordinator {
             }
             modelContext.delete(record)
         }
-        try? modelContext.save()
+        do {
+            try modelContext.save()
+            return true
+        } catch {
+            return false
+        }
     }
 
     /// Stored session count + estimated watch footprint (bytes), for the Settings
