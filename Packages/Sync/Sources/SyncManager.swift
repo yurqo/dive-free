@@ -67,8 +67,19 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     static let liveSessionKey = "liveSession"
 
     private let lock = NSLock()
+    /// A payload sent but not yet confirmed delivered. Carries the session id so
+    /// `sendDeletion`/`completeTransfer` need not JSON-decode `data` to identify it.
+    private struct Pending {
+        let sessionID: UUID
+        let data: Data
+        /// True while the OS still owns this transfer's queue slot — set on entries
+        /// re-adopted from `outstandingUserInfoTransfers` at activation. Such entries
+        /// must not be re-`performTransfer`ed (that would enqueue a duplicate); they
+        /// become ours (`false`) once their `didFinish` arrives.
+        var isSystemOwned: Bool
+    }
     /// Payloads sent but not yet confirmed delivered, keyed by transfer id.
-    private var pending: [String: Data] = [:]
+    private var pending: [String: Pending] = [:]
     /// Immediate re-send attempts per payload, to bound retry storms.
     private var attempts: [String: Int] = [:]
     /// Latest application-context entries we tried to send (markers and/or units),
@@ -91,6 +102,11 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     /// inject a stub.
     private let performDeletion: (_ id: UUID) -> Void
 
+    /// The system's still-queued userInfo transfers, as `(id, payload)` pairs.
+    /// Defaults to mapping `WCSession.outstandingUserInfoTransfers`; tests inject a
+    /// stub. Used at activation to re-adopt transfers that outlived a relaunch.
+    private let outstandingTransfers: () -> [(id: String, data: Data)]
+
     /// Sessions queued but not yet confirmed delivered.
     public var pendingCount: Int {
         lock.lock(); defer { lock.unlock() }
@@ -100,7 +116,8 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     public init(
         performTransfer: ((_ id: String, _ data: Data) -> Void)? = nil,
         applyContext: ((_ context: [String: Any]) -> Void)? = nil,
-        performDeletion: ((_ id: UUID) -> Void)? = nil
+        performDeletion: ((_ id: UUID) -> Void)? = nil,
+        outstandingTransfers: (() -> [(id: String, data: Data)])? = nil
     ) {
         // Each default transport guards WCSession.isSupported(): WatchConnectivity
         // imports on iPad (canImport is true) but isn't supported there, and calling
@@ -124,7 +141,28 @@ public final class SyncManager: NSObject, @unchecked Sendable {
             WCSession.default.transferUserInfo([Self.deletedKey: id.uuidString])
             #endif
         }
+        self.outstandingTransfers = outstandingTransfers ?? {
+            #if canImport(WatchConnectivity)
+            guard WCSession.isSupported() else { return [] }
+            // Skip deletion messages: they carry `deletedKey` only, no `payloadKey`.
+            return WCSession.default.outstandingUserInfoTransfers.compactMap {
+                Self.sessionTransfer(from: $0.userInfo)
+            }
+            #else
+            return []
+            #endif
+        }
         super.init()
+    }
+
+    /// Extracts a session-transfer payload from a userInfo dictionary, or `nil`
+    /// for non-session messages (deletions carry `deletedKey` only). Shared by
+    /// outstanding-transfer adoption and `didFinish` so the two can never
+    /// disagree about the wire shape.
+    static func sessionTransfer(from userInfo: [String: Any]) -> (id: String, data: Data)? {
+        guard let id = userInfo[Self.idKey] as? String,
+              let data = userInfo[Self.payloadKey] as? Data else { return nil }
+        return (id, data)
     }
 
     // MARK: - Preferences (phone → watch)
@@ -200,7 +238,10 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     public func send(_ session: DiveSession) throws {
         let data = try encoder.encode(session)
         let id = UUID().uuidString
-        lock.lock(); pending[id] = data; let count = pending.count; lock.unlock()
+        lock.lock()
+        pending[id] = Pending(sessionID: session.id, data: data, isSystemOwned: false)
+        let count = pending.count
+        lock.unlock()
         onPendingCountChange?(count)
         performTransfer(id, data)
     }
@@ -211,9 +252,7 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     /// then sends the (idempotent) deletion via the background-safe transport.
     public func sendDeletion(_ id: UUID) {
         lock.lock()
-        let staleKeys = pending
-            .filter { (try? decoder.decode(DiveSession.self, from: $0.value))?.id == id }
-            .map(\.key)
+        let staleKeys = pending.filter { $0.value.sessionID == id }.map(\.key)
         for key in staleKeys { pending[key] = nil; attempts[key] = nil }
         let count = pending.count
         lock.unlock()
@@ -238,11 +277,19 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     /// `retryPending` instead of looping.
     func completeTransfer(id: String, data: Data, error: Error?) {
         if error == nil {
-            lock.lock(); pending[id] = nil; attempts[id] = nil; let count = pending.count; lock.unlock()
+            lock.lock()
+            let entry = pending[id]
+            pending[id] = nil; attempts[id] = nil
+            let count = pending.count
+            lock.unlock()
             onPendingCountChange?(count)
             // Confirmed on the phone — record the session id so retention can
             // safely prune it from the watch. Only ever fires on genuine success.
-            if let session = try? decoder.decode(DiveSession.self, from: data) {
+            // Prefer the stored id; fall back to decoding only for an untracked
+            // entry (e.g. a transfer that finished before we could re-adopt it).
+            if let sessionID = entry?.sessionID {
+                onSessionDelivered?(sessionID)
+            } else if let session = try? decoder.decode(DiveSession.self, from: data) {
                 onSessionDelivered?(session.id)
             }
             return
@@ -250,6 +297,9 @@ public final class SyncManager: NSObject, @unchecked Sendable {
         lock.lock()
         let count = (attempts[id] ?? 0) + 1
         attempts[id] = count
+        // `didFinish` arrived → the OS no longer owns this transfer's slot; a
+        // re-adopted entry is now ours to retry.
+        pending[id]?.isSystemOwned = false
         let shouldRetry = pending[id] != nil && count <= Self.maxImmediateRetries
         lock.unlock()
         if shouldRetry { performTransfer(id, data) }
@@ -259,11 +309,54 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     /// or the session finishes activating, so a backlog drains promptly. Resets
     /// the per-payload retry budget so a fresh reachability window gets new tries.
     func retryPending() {
+        // Reclaim system-owned (re-adopted) entries the OS no longer lists: their
+        // transfer was dropped without a `didFinish` (unpair, daemon restart), so
+        // waiting for one would starve them forever — badge stuck, session never
+        // re-sent. The snapshot is only taken when a system-owned entry exists,
+        // i.e. after a real activation.
         lock.lock()
-        let items = pending
+        let hasSystemOwned = pending.contains { $0.value.isSystemOwned }
+        lock.unlock()
+        if hasSystemOwned {
+            let stillQueued = Set(outstandingTransfers().map(\.id))
+            lock.lock()
+            for (id, entry) in pending where entry.isSystemOwned && !stillQueued.contains(id) {
+                pending[id]?.isSystemOwned = false
+            }
+            lock.unlock()
+        }
+        lock.lock()
+        // Skip entries the OS still owns: it delivers them itself, and re-sending
+        // would enqueue a duplicate. They rejoin the retry set via a failed
+        // `didFinish` (`completeTransfer`) or the reclaim above.
+        let items = pending.filter { !$0.value.isSystemOwned }
         for id in items.keys { attempts[id] = 0 }
         lock.unlock()
-        for (id, data) in items { performTransfer(id, data) }
+        for (id, entry) in items { performTransfer(id, entry.data) }
+    }
+
+    /// Re-adopts the system's still-queued userInfo transfers into `pending` so a
+    /// relaunch reflects the true backlog (the OS keeps `transferUserInfo` payloads
+    /// across process death, but our in-memory `pending` starts empty). Each
+    /// re-adopted entry is flagged `isSystemOwned` so `retryPending` won't duplicate
+    /// it. Fires `onPendingCountChange` with the corrected count when anything is
+    /// adopted. Called at activation, before `retryPending`.
+    func adoptOutstandingTransfers() {
+        // Decode outside the lock — sessions can be sizeable, and the send/status
+        // paths contend on it.
+        let outstanding = outstandingTransfers().compactMap { entry -> (id: String, adopted: Pending)? in
+            guard let session = try? decoder.decode(DiveSession.self, from: entry.data) else { return nil }
+            return (entry.id, Pending(sessionID: session.id, data: entry.data, isSystemOwned: true))
+        }
+        lock.lock()
+        var changed = false
+        for entry in outstanding where pending[entry.id] == nil {
+            pending[entry.id] = entry.adopted
+            changed = true
+        }
+        let count = pending.count
+        lock.unlock()
+        if changed { onPendingCountChange?(count) }
     }
 
     /// Decodes an incoming payload and forwards it: a deletion (id only) to
@@ -287,6 +380,9 @@ extension SyncManager: WCSessionDelegate {
         error: Error?
     ) {
         if activationState == .activated {
+            // Re-adopt transfers still queued from a prior launch first, so the
+            // pending badge is correct and failed ones can recover.
+            adoptOutstandingTransfers()
             retryPending()
             // Pick up the latest custom markers that arrived while we were off.
             handleApplicationContext(session.receivedApplicationContext)
@@ -321,8 +417,7 @@ extension SyncManager: WCSessionDelegate {
         didFinish userInfoTransfer: WCSessionUserInfoTransfer,
         error: Error?
     ) {
-        let info = userInfoTransfer.userInfo
-        guard let id = info[Self.idKey] as? String, let data = info[Self.payloadKey] as? Data else { return }
+        guard let (id, data) = Self.sessionTransfer(from: userInfoTransfer.userInfo) else { return }
         completeTransfer(id: id, data: data, error: error)
     }
 
