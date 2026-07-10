@@ -15,7 +15,7 @@ Water Lock disables the touchscreen mid-dive, so the active-session UI is driven
 - **On the surface, a screen tap is an equivalent confirm** (`confirmFocused()`, guarded by `!isSubmerged`) — this is the touch fallback when no Action button is assigned, or on a watch without one. Underwater the screen is water-locked, so stray touches are inert.
 - The action **selector** is shown whenever the screen is on (surface and underwater, hidden only in AOD/luminance-reduced) so the diver always sees what the Action button will drop.
 - **Action + side dual-click** → Pause/Resume workout intents → `handleEndGesture()`: while active it arms then confirms End (touch-free underwater end); on the post-dive summary it maps to **Done** (`dismissSummary()`).
-- Submersion is auto-detected via `isSubmerged` (`SessionManager.currentDiveStart != nil`, i.e. depth below the detector's surface threshold) — there is no manual mode toggle.
+- Submersion is auto-detected via `isSubmerged` (`SessionManager.currentDiveStart != nil`, i.e. a dive is in progress) — there is no manual mode toggle. The diver counts as submerged from the moment depth crosses the detector's surface threshold on the way down and **stays** submerged through the shallow band on the way up, until depth reaches 0 m or the surface-exit dwell (`surfaceExitDwellSeconds`) expires — so a brief shallow bounce mid-dive does not flip `isSubmerged`.
 
 `LiveSessionRegistry` (in `AddMarkerIntent.swift`) holds a weak reference to the running coordinator so the Action-button intent routes into the live session rather than a fresh app context. `openAppWhenRun = false` keeps the workout screen foregrounded.
 
