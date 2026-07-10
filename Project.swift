@@ -181,6 +181,7 @@ let widgetExtension = Target.target(
         ],
     ]),
     sources: ["Apps/Widgets/Sources/**"],
+    resources: ["Apps/Widgets/Resources/**"],
     dependencies: [
         .target(name: "Domain"),
     ]
@@ -193,6 +194,11 @@ let project = Project(
     settings: .settings(base: [
         "SWIFT_VERSION": "6.0",
         "SWIFT_STRICT_CONCURRENCY": "complete",
+        // Auto-extract localizable strings from source (Text/Label literals,
+        // String(localized:), LocalizedStringResource, App Intents) into each
+        // target's Localizable.xcstrings at build time, so adding a translation
+        // is a content edit — no code change. Emits *.stringsdata per module.
+        "SWIFT_EMIT_LOC_STRINGS": "YES",
         // The git release tag (vX.Y.Z) is the source of truth for the version: the
         // TestFlight workflow auto-increments the patch from the latest tag on each
         // dispatch. MARKETING_VERSION below is only a *floor / override* — set it
