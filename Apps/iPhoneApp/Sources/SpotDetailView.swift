@@ -23,12 +23,16 @@ struct SpotStats {
 
     /// e.g. "5 sessions · 12 dives · last Jun 2026".
     var summaryLine: String {
+        // `String(localized:)` is a table lookup and does NOT process inflection
+        // markup, so round-trip through `AttributedString` (which resolves the
+        // morphology) to get the inflected plain string per language.
         var parts = [
-            "\(sessionCount) session\(sessionCount == 1 ? "" : "s")",
-            "\(diveCount) dive\(diveCount == 1 ? "" : "s")",
+            String(AttributedString(localized: "^[\(sessionCount) session](inflect: true)").characters),
+            String(AttributedString(localized: "^[\(diveCount) dive](inflect: true)").characters),
         ]
         if let lastDived {
-            parts.append("last \(lastDived.formatted(.dateTime.month(.abbreviated).year()))")
+            let date = lastDived.formatted(.dateTime.month(.abbreviated).year())
+            parts.append(String(localized: "last \(date)"))
         }
         return parts.joined(separator: " · ")
     }
@@ -99,7 +103,7 @@ struct SpotDetailView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(session.startTime.formatted(date: .abbreviated, time: .shortened))
                                 .font(.subheadline)
-                            Text("\(session.dives?.count ?? 0) dive\((session.dives?.count ?? 0) == 1 ? "" : "s")")
+                            Text("^[\(session.dives?.count ?? 0) dive](inflect: true)")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }

@@ -28,7 +28,9 @@ struct TripsView: View {
     /// signalling it's safe to swipe away).
     private func sessionCountText(_ trip: Trip) -> String {
         let n = liveSessionCount(trip)
-        return "\(n) session\(n == 1 ? "" : "s")"
+        // `String(localized:)` doesn't process inflection markup, so round-trip
+        // through `AttributedString` to get the inflected plain string per language.
+        return String(AttributedString(localized: "^[\(n) session](inflect: true)").characters)
     }
 
     var body: some View {

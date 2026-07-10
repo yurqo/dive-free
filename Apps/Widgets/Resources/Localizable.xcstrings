@@ -1,7 +1,333 @@
 {
-  "sourceLanguage" : "en",
-  "strings" : {
-
+  "sourceLanguage": "en",
+  "strings": {
+    "%lld": {},
+    "Dive in progress on Apple Watch": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inmersión en curso en el Apple Watch"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plongée en cours sur l’Apple Watch"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Immersione in corso su Apple Watch"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Watchでダイブ中"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Занурення триває на Apple Watch"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tauchgang läuft auf Apple Watch"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mergulho em andamento no Apple Watch"
+          }
+        }
+      }
+    },
+    "Reconnecting to Apple Watch…": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reconectando con el Apple Watch…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reconnexion à l’Apple Watch…"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Riconnessione all’Apple Watch…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Watchに再接続中…"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Повторне з’єднання з Apple Watch…"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verbindung zur Apple Watch wird wiederhergestellt …"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reconectando ao Apple Watch…"
+          }
+        }
+      }
+    },
+    "^[%lld dive](inflect: true) · max %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "^[%1$lld dive](inflect: true) · max %2$@"
+          }
+        },
+        "es": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%1$lld inmersión · máx %2$@"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%1$lld inmersiones · máx %2$@"
+                }
+              }
+            }
+          }
+        },
+        "fr": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%1$lld plongée · max %2$@"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%1$lld plongées · max %2$@"
+                }
+              }
+            }
+          }
+        },
+        "it": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%1$lld immersione · max %2$@"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%1$lld immersioni · max %2$@"
+                }
+              }
+            }
+          }
+        },
+        "ja": {
+          "variations": {
+            "plural": {
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%1$lldダイブ · 最大 %2$@"
+                }
+              }
+            }
+          }
+        },
+        "uk": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%1$lld занурення · макс %2$@"
+                }
+              },
+              "few": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%1$lld занурення · макс %2$@"
+                }
+              },
+              "many": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%1$lld занурень · макс %2$@"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%1$lld занурення · макс %2$@"
+                }
+              }
+            }
+          }
+        },
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Tauchgang · max. %@"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Tauchgänge · max. %@"
+                }
+              }
+            }
+          }
+        },
+        "pt": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld mergulho · máx. %@"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld mergulhos · máx. %@"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "estimated": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "estimado"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "estimé"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "stimato"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "推定"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "приблизно"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "geschätzt"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "estimado"
+          }
+        }
+      }
+    },
+    "on Apple Watch": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "en el Apple Watch"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "sur l’Apple Watch"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "su Apple Watch"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Watchで"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "на Apple Watch"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "auf Apple Watch"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "no Apple Watch"
+          }
+        }
+      }
+    }
   },
-  "version" : "1.0"
+  "version": "1.0"
 }

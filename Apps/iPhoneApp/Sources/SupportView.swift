@@ -50,7 +50,7 @@ struct SupportView: View {
                     Text("One-off")
                 } footer: {
                     if store.coffeeCount > 0 {
-                        Text("You've bought \(store.coffeeCount) coffee\(store.coffeeCount == 1 ? "" : "s") — cheers! ☕️")
+                        Text("You've bought \(store.coffeeCount) coffee — cheers! ☕️")
                     }
                 }
             }

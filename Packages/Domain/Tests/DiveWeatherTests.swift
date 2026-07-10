@@ -13,13 +13,20 @@ struct DiveWeatherTests {
     }
 
     @Test("maps WMO codes to descriptions")
-    func conditionDescriptions() {
-        #expect(DiveWeather(weatherCode: 0).conditionDescription == "Clear")
-        #expect(DiveWeather(weatherCode: 3).conditionDescription == "Overcast")
-        #expect(DiveWeather(weatherCode: 63).conditionDescription == "Rain")
-        #expect(DiveWeather(weatherCode: 95).conditionDescription == "Thunderstorm")
-        #expect(DiveWeather(weatherCode: 1234).conditionDescription == nil)
-        #expect(DiveWeather().conditionDescription == nil)
+    func conditionDescriptions() throws {
+        // Pin the English catalog so the assertions hold regardless of the host
+        // language (a plain `tuist test` run inherits the machine's language;
+        // without this the strings would resolve to e.g. Ukrainian and fail).
+        let english = try #require(
+            Bundle.module.path(forResource: "en", ofType: "lproj").flatMap(Bundle.init(path:)),
+            "Domain bundle is missing its en.lproj resources"
+        )
+        #expect(DiveWeather(weatherCode: 0).conditionDescription(bundle: english) == "Clear")
+        #expect(DiveWeather(weatherCode: 3).conditionDescription(bundle: english) == "Overcast")
+        #expect(DiveWeather(weatherCode: 63).conditionDescription(bundle: english) == "Rain")
+        #expect(DiveWeather(weatherCode: 95).conditionDescription(bundle: english) == "Thunderstorm")
+        #expect(DiveWeather(weatherCode: 1234).conditionDescription(bundle: english) == nil)
+        #expect(DiveWeather().conditionDescription(bundle: english) == nil)
     }
 
     @Test("round-trips through JSON")

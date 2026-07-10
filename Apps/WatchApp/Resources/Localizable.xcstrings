@@ -1,7 +1,5192 @@
 {
-  "sourceLanguage" : "en",
-  "strings" : {
-
+  "sourceLanguage": "en",
+  "strings": {
+    "%@": {},
+    "%@ %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@ %2$@"
+          }
+        }
+      }
+    },
+    "%lld": {},
+    "%lld waiting to reach your iPhone": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld esperando para llegar a tu iPhone"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld en attente d’envoi vers votre iPhone"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld in attesa di raggiungere l’iPhone"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld件がiPhoneへの送信待ちです"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld очікують надсилання на iPhone"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld warten auf Übertragung zum iPhone"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld aguardando envio para o iPhone"
+          }
+        }
+      }
+    },
+    "%llds": {},
+    "--": {},
+    "100": {},
+    "100 MB": {},
+    "1000 MB": {},
+    "10s": {},
+    "15s": {},
+    "180": {},
+    "1min": {},
+    "200": {},
+    "20s": {},
+    "250 MB": {},
+    "2min": {},
+    "30": {},
+    "30s": {},
+    "360": {},
+    "50": {},
+    "500": {},
+    "500 MB": {},
+    "5s": {},
+    "90": {},
+    "90s": {},
+    "Action + side to end · Action button to cancel.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Acción + lateral para terminar · botón Acción para cancelar."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Action + latéral pour terminer · bouton Action pour annuler."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Azione + laterale per terminare · tasto Azione per annullare."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アクション+サイドで終了・アクションボタンでキャンセル"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Дія + бічна, щоб завершити · кнопка Дії, щоб скасувати."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Action + Seite zum Beenden · Action Button zum Abbrechen."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ação + lateral para encerrar · botão de Ação para cancelar."
+          }
+        }
+      }
+    },
+    "Action button": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Botón Acción"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bouton Action"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tasto Azione"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アクションボタン"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Кнопка Дії"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Action Button"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Botão de Ação"
+          }
+        }
+      }
+    },
+    "After a dive the big timer is your surface recovery, tinted by how long you've rested vs. your last dive: red under 1×, orange under 2×, yellow under 3×, white beyond.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tras una inmersión, el cronómetro grande es tu recuperación en superficie, teñido según cuánto has descansado frente a tu última inmersión: rojo por debajo de 1×, naranja por debajo de 2×, amarillo por debajo de 3× y blanco más allá."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Après une plongée, le grand chrono indique votre récupération en surface, teinté selon la durée de repos par rapport à votre dernière plongée : rouge sous 1×, orange sous 2×, jaune sous 3×, blanc au-delà."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dopo un’immersione il timer grande è il tuo recupero in superficie, colorato in base a quanto hai riposato rispetto all’ultima immersione: rosso sotto 1×, arancione sotto 2×, giallo sotto 3×, bianco oltre."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ダイブ後、大きなタイマーは水面での回復を示し、前回のダイブに対する休息の長さで色が変わります。1×未満は赤、2×未満はオレンジ、3×未満は黄、それ以上は白です。"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Після занурення великий таймер показує відновлення на поверхні, забарвлений залежно від того, скільки ви відпочивали порівняно з попереднім зануренням: червоний до 1×, помаранчевий до 2×, жовтий до 3×, білий далі."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nach einem Tauchgang zeigt der große Timer deine Erholung an der Oberfläche, gefärbt danach, wie lange du dich im Vergleich zum letzten Tauchgang erholt hast: rot unter 1×, orange unter 2×, gelb unter 3×, weiß darüber hinaus."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Depois de um mergulho, o cronômetro grande mostra sua recuperação na superfície, colorido conforme quanto você descansou em relação ao último mergulho: vermelho abaixo de 1×, laranja abaixo de 2×, amarelo abaixo de 3×, branco além disso."
+          }
+        }
+      }
+    },
+    "At the surface, scroll up to Voice Note and confirm to record; confirm again to stop. It attaches to your last marker and auto-stops when you dive.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En la superficie, desplázate hasta Nota de voz y confirma para grabar; confirma de nuevo para detener. Se adjunta a tu último marcador y se detiene sola al sumergirte."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En surface, faites défiler jusqu’à Mémo vocal et confirmez pour enregistrer ; confirmez à nouveau pour arrêter. Il se rattache à votre dernier repère et s’arrête tout seul quand vous plongez."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In superficie, scorri fino a Nota vocale e conferma per registrare; conferma di nuovo per fermarti. Si allega all’ultimo marcatore e si ferma da sola quando ti immergi."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "水面でボイスメモまでスクロールし、確定して録音。もう一度確定で停止します。最後のマーカーに添付され、潜ると自動停止します。"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "На поверхні прокрутіть угору до Голосової нотатки й підтвердьте, щоб записати; підтвердьте ще раз, щоб зупинити. Вона долучається до останньої позначки й зупиняється сама, коли ви занурюєтеся."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "An der Oberfläche nach oben zu Sprachnotiz scrollen und zum Aufnehmen bestätigen; erneut bestätigen zum Stoppen. Sie wird deiner letzten Markierung angehängt und stoppt automatisch, wenn du abtauchst."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Na superfície, role até Nota de voz e confirme para gravar; confirme de novo para parar. Ela é anexada ao seu último marcador e para sozinha quando você mergulha."
+          }
+        }
+      }
+    },
+    "Auto-clean synced": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Limpieza automática de lo sincronizado"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nettoyage auto des synchronisés"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pulizia automatica dei sincronizzati"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "同期済みを自動削除"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Автоочищення синхронізованих"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Synchronisierte autom. löschen"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Limpar sincronizados"
+          }
+        }
+      }
+    },
+    "Automatically remove older sessions from this watch once they're safely on your iPhone. Your dives stay on iPhone and iCloud — this only frees watch space.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Elimina automáticamente las sesiones más antiguas de este reloj una vez que estén a salvo en tu iPhone. Tus inmersiones permanecen en el iPhone y en iCloud; esto solo libera espacio en el reloj."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supprime automatiquement les sessions les plus anciennes de cette montre une fois qu’elles sont bien sur votre iPhone. Vos plongées restent sur l’iPhone et dans iCloud — cela ne libère que l’espace de la montre."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rimuove automaticamente le sessioni più vecchie da questo orologio una volta che sono al sicuro sull’iPhone. Le tue immersioni restano sull’iPhone e su iCloud: questo libera solo spazio sull’orologio."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhoneに安全に保存された後、古いセッションをこの時計から自動的に削除します。ダイブはiPhoneとiCloudに残るので、これは時計の空き容量を増やすだけです。"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Автоматично видаляє старіші сесії з цього годинника, щойно вони безпечно опиняться на iPhone. Ваші занурення залишаються на iPhone та в iCloud — це лише звільняє місце на годиннику."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entfernt ältere Sessions automatisch von dieser Uhr, sobald sie sicher auf deinem iPhone sind. Deine Tauchgänge bleiben auf iPhone und iCloud — das gibt nur Speicher auf der Uhr frei."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove automaticamente sessões antigas deste relógio assim que estiverem seguras no seu iPhone. Seus mergulhos permanecem no iPhone e no iCloud — isso só libera espaço no relógio."
+          }
+        }
+      }
+    },
+    "Cancel": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancelar"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Annuler"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Annulla"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "キャンセル"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Скасувати"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abbrechen"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancelar"
+          }
+        }
+      }
+    },
+    "Celsius": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Celsius"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Celsius"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Celsius"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "摂氏"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Цельсій"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Celsius"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Celsius"
+          }
+        }
+      }
+    },
+    "Confirm Selection": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confirmar selección"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confirmer la sélection"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conferma selezione"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "選択を確定"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Підтвердити вибір"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auswahl bestätigen"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confirmar seleção"
+          }
+        }
+      }
+    },
+    "Crown": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Corona"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couronne"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Corona"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "クラウン"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Головка"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Crown"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Crown"
+          }
+        }
+      }
+    },
+    "Custom": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Personalizado"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Personnalisé"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Personalizzato"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カスタム"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Власний"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eigen"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Personalizado"
+          }
+        }
+      }
+    },
+    "Default marker": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Marcador predeterminado"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Repère par défaut"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Marcatore predefinito"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "デフォルトのマーカー"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Типова позначка"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Standardmarkierung"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Marcador padrão"
+          }
+        }
+      }
+    },
+    "Delete": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eliminar"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supprimer"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Elimina"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "削除"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Видалити"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Löschen"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Excluir"
+          }
+        }
+      }
+    },
+    "Delete Session": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eliminar sesión"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supprimer la session"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Elimina sessione"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "セッションを削除"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Видалити сесію"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Session löschen"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Excluir sessão"
+          }
+        }
+      }
+    },
+    "Delete this session?": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "¿Eliminar esta sesión?"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supprimer cette session ?"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eliminare questa sessione?"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このセッションを削除しますか？"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Видалити цю сесію?"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Session löschen?"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Excluir esta sessão?"
+          }
+        }
+      }
+    },
+    "Depth": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Profundidad"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Profondeur"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Profondità"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "水深"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Глибина"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tiefe"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Profundidade"
+          }
+        }
+      }
+    },
+    "Depth needs an Ultra or Series 10/11. Other watches still log the GPS track and your markers.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La profundidad requiere un Ultra o Series 10/11. Otros relojes igualmente registran el recorrido GPS y tus marcadores."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La profondeur nécessite une Ultra ou Series 10/11. Les autres montres enregistrent tout de même le tracé GPS et vos repères."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La profondità richiede un Ultra o Series 10/11. Gli altri orologi registrano comunque la traccia GPS e i marcatori."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "水深にはUltraまたはSeries 10/11が必要です。その他の時計でもGPSトラックとマーカーは記録されます。"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Для глибини потрібен Ultra або Series 10/11. Інші годинники все одно записують GPS-трек і ваші позначки."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Für die Tiefe brauchst du eine Ultra oder Series 10/11. Andere Uhren erfassen weiterhin GPS-Route und Markierungen."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A profundidade requer um Ultra ou Series 10/11. Outros relógios ainda registram o trajeto GPS e seus marcadores."
+          }
+        }
+      }
+    },
+    "Depth sensor": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sensor de profundidad"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Capteur de profondeur"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sensore di profondità"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "水深センサー"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Датчик глибини"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tiefensensor"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sensor de profundidade"
+          }
+        }
+      }
+    },
+    "Discard": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Descartar"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abandonner"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scarta"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "破棄"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Відкинути"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verwerfen"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Descartar"
+          }
+        }
+      }
+    },
+    "Discard Session": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Descartar sesión"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abandonner la session"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scarta sessione"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "セッションを破棄"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Відкинути сесію"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Session verwerfen"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Descartar sessão"
+          }
+        }
+      }
+    },
+    "Discard this session?": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "¿Descartar esta sesión?"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abandonner cette session ?"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scartare questa sessione?"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このセッションを破棄しますか？"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Відкинути цю сесію?"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Session verwerfen?"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Descartar esta sessão?"
+          }
+        }
+      }
+    },
+    "Discarding": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Descartando"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abandon en cours"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scarto in corso"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "破棄中"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Відкидання"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wird verworfen"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Descartando"
+          }
+        }
+      }
+    },
+    "Distance": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Distancia"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Distance"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Distanza"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "距離"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Відстань"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Distanz"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Distância"
+          }
+        }
+      }
+    },
+    "Dive": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inmersión"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plongée"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Immersione"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ダイブ"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Занурення"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tauchgang"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mergulho"
+          }
+        }
+      }
+    },
+    "Dive #%lld": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inmersión n.º %lld"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plongée n° %lld"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Immersione n. %lld"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ダイブ #%lld"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Занурення №%lld"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tauchgang #%lld"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mergulho nº %lld"
+          }
+        }
+      }
+    },
+    "Dive again": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bucear de nuevo"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Replonger"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Immergiti di nuovo"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "もう一度ダイブ"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Зануритися знову"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erneut tauchen"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mergulhar de novo"
+          }
+        }
+      }
+    },
+    "Dive detection": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Detección de inmersiones"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Détection des plongées"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rilevamento immersioni"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ダイブ検出"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Виявлення занурень"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tauchgang-Erkennung"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Detecção de mergulho"
+          }
+        }
+      }
+    },
+    "Done": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Listo"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terminé"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fine"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "完了"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Готово"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fertig"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Concluído"
+          }
+        }
+      }
+    },
+    "Drops the selected marker while underwater, or confirms the selected menu item on the surface.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Suelta el marcador seleccionado bajo el agua, o confirma el elemento de menú seleccionado en la superficie."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pose le repère sélectionné sous l’eau, ou confirme l’élément de menu sélectionné en surface."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rilascia il marcatore selezionato sott’acqua, o conferma la voce di menu selezionata in superficie."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "水中では選択中のマーカーを記録し、水面では選択中のメニュー項目を確定します。"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ставить вибрану позначку під водою або підтверджує вибраний пункт меню на поверхні."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Setzt unter Wasser die ausgewählte Markierung oder bestätigt an der Oberfläche den ausgewählten Menüpunkt."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Solta o marcador selecionado debaixo d'água, ou confirma o item de menu selecionado na superfície."
+          }
+        }
+      }
+    },
+    "Elapsed": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transcurrido"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Écoulé"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trascorso"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "経過"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Минуло"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verstrichen"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Decorrido"
+          }
+        }
+      }
+    },
+    "End Session": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terminar sesión"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terminer la session"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Termina sessione"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "セッションを終了"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Завершити сесію"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Session beenden"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Encerrar sessão"
+          }
+        }
+      }
+    },
+    "End session?": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "¿Terminar sesión?"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terminer la session ?"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terminare la sessione?"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "セッションを終了しますか？"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Завершити сесію?"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Session beenden?"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Encerrar sessão?"
+          }
+        }
+      }
+    },
+    "Ending": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terminando"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fin en cours"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Termine in corso"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "終了中"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Завершення"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wird beendet"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Encerrando"
+          }
+        }
+      }
+    },
+    "Fahrenheit": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fahrenheit"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fahrenheit"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fahrenheit"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "華氏"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Фаренгейт"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fahrenheit"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fahrenheit"
+          }
+        }
+      }
+    },
+    "Fake device capabilities to preview the non-Ultra flows. Restart the app after changing. Simulator only.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Simula las capacidades del dispositivo para previsualizar los flujos sin Ultra. Reinicia la app tras cambiarlo. Solo en el simulador."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Simule les capacités de l’appareil pour prévisualiser les parcours hors Ultra. Redémarrez l’app après modification. Simulateur uniquement."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Simula le capacità del dispositivo per visualizzare in anteprima i flussi non Ultra. Riavvia l’app dopo la modifica. Solo simulatore."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "デバイスの機能を疑似的に切り替えて、Ultra以外のフローをプレビューします。変更後はアプリを再起動してください。シミュレータ専用です。"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Імітує можливості пристрою для попереднього перегляду сценаріїв без Ultra. Після зміни перезапустіть застосунок. Лише для симулятора."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gerätefähigkeiten simulieren, um die Nicht-Ultra-Abläufe vorzuschauen. Nach der Änderung App neu starten. Nur Simulator."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Simular recursos do dispositivo para pré-visualizar os fluxos sem Ultra. Reinicie o app após alterar. Apenas no simulador."
+          }
+        }
+      }
+    },
+    "Feet": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pies"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pieds"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Piedi"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "フィート"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Фути"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fuß"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pés"
+          }
+        }
+      }
+    },
+    "Freedive": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apnea"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apnée"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apnea"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "フリーダイビング"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Фрідайвінг"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Freitauchen"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apneia"
+          }
+        }
+      }
+    },
+    "GPS": {},
+    "Guide": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Guía"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Guide"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Guida"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ガイド"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Довідник"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anleitung"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Guia"
+          }
+        }
+      }
+    },
+    "Heart rate & temp": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Frecuencia cardíaca y temp."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fréq. cardiaque et temp."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Frequenza cardiaca e temp."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "心拍数と水温"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Пульс і темп."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Puls & Temperatur"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Freq. cardíaca e temp."
+          }
+        }
+      }
+    },
+    "High precision": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alta precisión"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Haute précision"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alta precisione"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "高精度"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Висока точність"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hohe Genauigkeit"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alta precisão"
+          }
+        }
+      }
+    },
+    "How to use?": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "¿Cómo se usa?"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comment l’utiliser ?"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Come si usa?"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使い方は？"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Як користуватися?"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wie funktioniert es?"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Como usar?"
+          }
+        }
+      }
+    },
+    "Imperial": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Imperial"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impérial"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Imperiale"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ヤード・ポンド法"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Імперська"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Imperial"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Imperial"
+          }
+        }
+      }
+    },
+    "Keep days": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Días a conservar"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jours à conserver"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Giorni da conservare"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存日数"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Зберігати днів"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tage behalten"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manter dias"
+          }
+        }
+      }
+    },
+    "Major": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Principal"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Principal"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Principale"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "メジャー"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Основний"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Groß"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Longo"
+          }
+        }
+      }
+    },
+    "Manual dive": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inmersión manual"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plongée manuelle"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Immersione manuale"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "手動ダイブ"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ручне занурення"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manueller Tauchgang"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mergulho manual"
+          }
+        }
+      }
+    },
+    "Map": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mapa"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Carte"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mappa"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "マップ"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Мапа"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Karte"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mapa"
+          }
+        }
+      }
+    },
+    "Mark Moment": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Marcar momento"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Marquer l’instant"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Segna momento"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "瞬間をマーク"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Позначити момент"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Moment markieren"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Marcar momento"
+          }
+        }
+      }
+    },
+    "Markers": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Marcadores"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Repères"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Marcatori"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "マーカー"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Позначки"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Markierungen"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Marcadores"
+          }
+        }
+      }
+    },
+    "Max sessions": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sesiones máx."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sessions max."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sessioni max"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最大セッション数"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Макс. сесій"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Max. Sessions"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Máx. de sessões"
+          }
+        }
+      }
+    },
+    "Max size": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tamaño máx."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Taille max."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dimensione max"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最大サイズ"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Макс. розмір"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Max. Größe"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tamanho máx."
+          }
+        }
+      }
+    },
+    "Meters": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Metros"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mètres"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Metri"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "メートル"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Метри"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Meter"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Metros"
+          }
+        }
+      }
+    },
+    "Metric": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Métrico"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Métrique"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Metrico"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "メートル法"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Метрична"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Metrisch"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Métrico"
+          }
+        }
+      }
+    },
+    "Minor": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Secundario"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Secondaire"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Secondario"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "マイナー"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Додатковий"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Klein"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Curto"
+          }
+        }
+      }
+    },
+    "More accurate dive-spot location and surface track. Drains the battery faster. Applies to your next session.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ubicación del punto de buceo y recorrido en superficie más precisos. Consume la batería más rápido. Se aplica a tu próxima sesión."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Localisation du spot et tracé en surface plus précis. Décharge la batterie plus vite. S’applique à votre prochaine session."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Posizione dello spot e traccia in superficie più precise. Consuma la batteria più in fretta. Vale per la prossima sessione."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ダイブスポットの位置と水面トラックがより正確になります。バッテリーの消費が速くなります。次のセッションから適用されます。"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Точніше визначення місця занурення та поверхневого треку. Швидше розряджає акумулятор. Застосовується до наступної сесії."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Genauere Tauchplatz-Position und Oberflächenroute. Verbraucht den Akku schneller. Gilt ab deiner nächsten Session."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Localização do ponto de mergulho e trajeto de superfície mais precisos. Consome a bateria mais rápido. Vale para a sua próxima sessão."
+          }
+        }
+      }
+    },
+    "No Sessions": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No hay sesiones"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucune session"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nessuna sessione"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "セッションなし"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Немає сесій"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine Sessions"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nenhuma sessão"
+          }
+        }
+      }
+    },
+    "No markers": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sin marcadores"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucun repère"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nessun marcatore"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "マーカーなし"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Немає позначок"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine Markierungen"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sem marcadores"
+          }
+        }
+      }
+    },
+    "No profile": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sin perfil"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucun profil"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nessun profilo"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プロファイルなし"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Немає профілю"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kein Profil"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sem perfil"
+          }
+        }
+      }
+    },
+    "Off": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Desactivado"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Désactivé"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Off"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "オフ"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вимкнено"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aus"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Desligado"
+          }
+        }
+      }
+    },
+    "On watch": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En el reloj"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sur la montre"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sull’orologio"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "時計に保存"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "На годиннику"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auf der Uhr"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No relógio"
+          }
+        }
+      }
+    },
+    "Pick metric, imperial, or a custom mix in Settings — depth, distance, and temperature follow your choice here and on iPhone. Set it on the phone and it syncs to the watch.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Elige métrico, imperial o una mezcla personalizada en Ajustes: la profundidad, la distancia y la temperatura siguen tu elección aquí y en el iPhone. Configúralo en el teléfono y se sincroniza con el reloj."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choisissez métrique, impérial ou un mélange personnalisé dans Réglages — la profondeur, la distance et la température suivent votre choix ici et sur l’iPhone. Réglez-le sur le téléphone et cela se synchronise avec la montre."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scegli metrico, imperiale o un mix personalizzato in Impostazioni: profondità, distanza e temperatura seguono la tua scelta qui e sull’iPhone. Impostalo sul telefono e si sincronizza con l’orologio."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "設定でメートル法、ヤード・ポンド法、またはカスタムの組み合わせを選べます——水深・距離・水温は、ここでもiPhoneでもこの選択に従います。iPhoneで設定すると時計に同期されます。"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Виберіть метричні, імперські чи власну суміш у Налаштуваннях — глибина, відстань і температура слідують вашому вибору тут і на iPhone. Установіть на телефоні, і воно синхронізується з годинником."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wähle in den Einstellungen metrisch, imperial oder eine eigene Mischung — Tiefe, Distanz und Temperatur folgen deiner Wahl hier und auf dem iPhone. Am iPhone eingestellt, synchronisiert es zur Uhr."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Escolha métrico, imperial ou uma mistura personalizada nos Ajustes — profundidade, distância e temperatura seguem sua escolha aqui e no iPhone. Defina no telefone e sincroniza com o relógio."
+          }
+        }
+      }
+    },
+    "Plays a tone underwater at each interval — a distinct double tone at the major mark — so you can track dive time hands-free. Awareness only, not a dive timer.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reproduce un tono bajo el agua en cada intervalo —un doble tono distintivo en la marca principal— para que puedas seguir el tiempo de inmersión con las manos libres. Solo como referencia, no es un cronómetro de buceo."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Émet un son sous l’eau à chaque intervalle — un double son distinct au repère principal — pour suivre le temps de plongée mains libres. À titre indicatif seulement, ce n’est pas un chronomètre de plongée."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Riproduce un tono sott’acqua a ogni intervallo — un doppio tono distinto al segno principale — così puoi seguire il tempo dell’immersione a mani libere. Solo indicativo, non è un timer da immersione."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "各インターバルで水中に音を鳴らし——主要な区切りでははっきりとした二重音——手を使わずにダイブ時間を把握できます。あくまで目安で、ダイブタイマーではありません。"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Відтворює тон під водою на кожному інтервалі — окремий подвійний тон на основній позначці — щоб ви могли стежити за часом занурення без рук. Лише для орієнтації, це не дайв-таймер."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spielt unter Wasser bei jedem Intervall einen Ton — ein deutlicher Doppelton am großen Punkt —, damit du die Tauchzeit freihändig verfolgen kannst. Nur zur Orientierung, kein Tauchtimer."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toca um som debaixo d'água a cada intervalo — um som duplo distinto na marca longa — para você acompanhar o tempo de mergulho sem as mãos. Apenas para orientação, não é um cronômetro de mergulho."
+          }
+        }
+      }
+    },
+    "Pre-selected in the action carousel, and what the Action button drops while you're underwater.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preseleccionado en el carrusel de acciones y lo que suelta el botón Acción mientras estás bajo el agua."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Présélectionné dans le carrousel d’actions et c’est ce que pose le bouton Action lorsque vous êtes sous l’eau."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preselezionato nel carosello delle azioni ed è ciò che il tasto Azione rilascia mentre sei sott’acqua."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アクションのカルーセルであらかじめ選択され、水中でアクションボタンを押したときに記録されるものです。"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Обрана заздалегідь у каруселі дій, і саме її ставить кнопка Дії, поки ви під водою."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Im Aktions-Karussell vorausgewählt und das, was der Action Button unter Wasser setzt."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pré-selecionado no carrossel de ações, e o que o botão de Ação solta enquanto você está debaixo d'água."
+          }
+        }
+      }
+    },
+    "Press the Action + side button together to start a dive the instant you descend, and again to end it — before depth even registers. Auto-detection handles dives otherwise.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pulsa Acción + lateral a la vez para iniciar una inmersión en el instante en que desciendes, y de nuevo para terminarla, antes incluso de que se registre la profundidad. Por lo demás, la detección automática se encarga."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Appuyez sur Action + latéral ensemble pour démarrer une plongée dès que vous descendez, et de nouveau pour la terminer — avant même que la profondeur ne s’enregistre. Sinon, la détection automatique s’en charge."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Premi Azione + laterale insieme per iniziare un’immersione nell’istante in cui scendi, e di nuovo per terminarla — prima ancora che la profondità venga registrata. Altrimenti ci pensa il rilevamento automatico."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アクション+サイドを同時に押すと、潜った瞬間に——水深が記録される前でも——ダイブを開始し、もう一度押すと終了します。それ以外は自動検出が処理します。"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Натисніть Дія + бічна разом, щоб почати занурення тієї миті, коли ви спускаєтеся, і ще раз, щоб завершити його — ще до того, як зафіксується глибина. В інших випадках спрацьовує автоматичне виявлення."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Drücke Action- und Seitentaste zusammen, um einen Tauchgang im Moment des Abtauchens zu starten, und erneut, um ihn zu beenden — noch bevor die Tiefe erfasst wird. Sonst übernimmt die automatische Erkennung."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pressione os botões de Ação + lateral juntos para iniciar um mergulho no instante em que você desce, e de novo para encerrá-lo — antes mesmo de a profundidade ser registrada. Fora isso, a detecção automática cuida dos mergulhos."
+          }
+        }
+      }
+    },
+    "Re-send all to iPhone": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reenviar todo al iPhone"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tout renvoyer vers l’iPhone"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reinvia tutto all’iPhone"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "すべてiPhoneに再送信"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Надіслати все на iPhone знову"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle erneut ans iPhone senden"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reenviar tudo para o iPhone"
+          }
+        }
+      }
+    },
+    "Re-send every session on this watch to your iPhone — use it if some dives didn't show up there.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reenvía al iPhone todas las sesiones de este reloj: úsalo si alguna inmersión no apareció allí."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Renvoyez vers l’iPhone toutes les sessions de cette montre — utile si certaines plongées n’y sont pas apparues."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reinvia all’iPhone tutte le sessioni di questo orologio: usalo se qualche immersione non è comparsa lì."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この時計のすべてのセッションをiPhoneに再送信します。ダイブが表示されない場合に使います。"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Повторно надішліть на iPhone усі сесії з цього годинника — скористайтеся, якщо якісь занурення там не з’явилися."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sendet jede Session dieser Uhr erneut an dein iPhone — nutze es, falls dort manche Tauchgänge nicht auftauchten."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reenvia todas as sessões deste relógio para o seu iPhone — use se alguns mergulhos não apareceram lá."
+          }
+        }
+      }
+    },
+    "Re-send to iPhone": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reenviar al iPhone"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Renvoyer vers l’iPhone"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reinvia all’iPhone"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhoneに再送信"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Надіслати на iPhone знову"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erneut ans iPhone senden"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reenviar para o iPhone"
+          }
+        }
+      }
+    },
+    "Scroll Speed": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Velocidad de desplazamiento"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vitesse de défilement"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Velocità di scorrimento"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スクロール速度"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Швидкість гортання"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scroll-Tempo"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Velocidade de rolagem"
+          }
+        }
+      }
+    },
+    "Scroll speed": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Velocidad de desplazamiento"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vitesse de défilement"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Velocità di scorrimento"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スクロール速度"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Швидкість гортання"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scroll-Tempo"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Velocidade de rolagem"
+          }
+        }
+      }
+    },
+    "Scroll the Crown to End and press the Action button. In the confirm dialog, Action + side ends and the Action button cancels.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gira la corona hasta Terminar y pulsa el botón Acción. En el diálogo de confirmación, Acción + lateral termina y el botón Acción cancela."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tournez la couronne jusqu’à Terminer et appuyez sur le bouton Action. Dans la boîte de dialogue de confirmation, Action + latéral termine et le bouton Action annule."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ruota la corona su Termina e premi il tasto Azione. Nella finestra di conferma, Azione + laterale termina e il tasto Azione annulla."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "クラウンを回して終了に合わせ、アクションボタンを押します。確認ダイアログでは、アクション+サイドで終了、アクションボタンでキャンセルします。"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Прокрутіть головку Digital Crown до Завершити й натисніть кнопку Дії. У діалозі підтвердження Дія + бічна завершує, а кнопка Дії скасовує."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scroll mit der Crown zu „Beenden“ und drück den Action Button. Im Bestätigungsdialog beendet Action + Seite, und der Action Button bricht ab."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gire a Crown até Encerrar e pressione o botão de Ação. Na caixa de confirmação, Ação + lateral encerra e o botão de Ação cancela."
+          }
+        }
+      }
+    },
+    "Sent all to iPhone": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Todo enviado al iPhone"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tout envoyé vers l’iPhone"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tutto inviato all’iPhone"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "すべてiPhoneに送信済み"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Усе надіслано на iPhone"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle ans iPhone gesendet"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tudo enviado para o iPhone"
+          }
+        }
+      }
+    },
+    "Sent to iPhone": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enviado al iPhone"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Envoyé vers l’iPhone"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inviato all’iPhone"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhoneに送信済み"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Надіслано на iPhone"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ans iPhone gesendet"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enviado para o iPhone"
+          }
+        }
+      }
+    },
+    "Sessions": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sesiones"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sessions"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sessioni"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "セッション"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сесії"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sessions"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sessões"
+          }
+        }
+      }
+    },
+    "Set on iPhone. Applies to your next session.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se ajusta en el iPhone. Se aplica a tu próxima sesión."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se règle sur l’iPhone. S’applique à votre prochaine session."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Si imposta sull’iPhone. Vale per la prossima sessione."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhoneで設定します。次のセッションから適用されます。"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Налаштовується на iPhone. Застосовується до наступної сесії."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Am iPhone eingestellt. Gilt ab deiner nächsten Session."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Definido no iPhone. Vale para a sua próxima sessão."
+          }
+        }
+      }
+    },
+    "Set your most-used marker as the default in Settings — it's pre-selected and what the Action button drops underwater.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Configura tu marcador más usado como predeterminado en Ajustes: queda preseleccionado y es lo que suelta el botón Acción bajo el agua."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Définissez votre repère le plus utilisé comme repère par défaut dans Réglages — il est présélectionné et c’est ce que pose le bouton Action sous l’eau."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Imposta il marcatore che usi di più come predefinito in Impostazioni: è preselezionato ed è ciò che il tasto Azione rilascia sott’acqua."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "よく使うマーカーを設定でデフォルトに設定しましょう——あらかじめ選択され、水中でアクションボタンが記録するのがこれです。"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Зробіть найуживанішу позначку типовою в Налаштуваннях — вона обрана заздалегідь, і саме її ставить кнопка Дії під водою."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lege deine meistgenutzte Markierung als Standard in den Einstellungen fest — sie ist vorausgewählt und wird vom Action Button unter Wasser gesetzt."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Defina o marcador que mais usa como padrão nos Ajustes — ele fica pré-selecionado e é o que o botão de Ação solta debaixo d'água."
+          }
+        }
+      }
+    },
+    "Settings": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajustes"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réglages"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impostazioni"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "設定"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Налаштування"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einstellungen"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajustes"
+          }
+        }
+      }
+    },
+    "Simulator": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Simulador"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Simulateur"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Simulatore"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "シミュレータ"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Симулятор"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Simulator"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Simulador"
+          }
+        }
+      }
+    },
+    "Snug strap": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Correa ajustada"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bracelet ajusté"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cinturino aderente"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "バンドをぴったりと"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Щільний ремінець"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enges Armband"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pulseira justa"
+          }
+        }
+      }
+    },
+    "Start": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Iniciar"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Démarrer"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inizia"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "開始"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Почати"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Iniciar"
+          }
+        }
+      }
+    },
+    "Start Session": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Iniciar sesión"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Démarrer la session"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inizia sessione"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "セッションを開始"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Почати сесію"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Session starten"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Iniciar sessão"
+          }
+        }
+      }
+    },
+    "Start a Freedive": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Iniciar una apnea"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Démarrer une apnée"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inizia un’apnea"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "フリーダイビングを開始"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Почати фрідайв"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Freitauchen starten"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Iniciar apneia"
+          }
+        }
+      }
+    },
+    "Started a session by mistake? On the summary after it ends, tap Discard (and confirm) to throw it away — it's removed from the watch and won't appear on your iPhone.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "¿Iniciaste una sesión por error? En el resumen tras terminarla, toca Descartar (y confirma) para tirarla: se elimina del reloj y no aparecerá en tu iPhone."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vous avez démarré une session par erreur ? Sur le récapitulatif après sa fin, touchez Abandonner (et confirmez) pour la jeter — elle est supprimée de la montre et n’apparaîtra pas sur votre iPhone."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hai avviato una sessione per sbaglio? Nel riepilogo dopo la fine, tocca Scarta (e conferma) per eliminarla: viene rimossa dall’orologio e non apparirà sull’iPhone."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "誤ってセッションを開始しましたか？終了後のサマリーで「破棄」をタップして確定すると破棄できます——時計から削除され、iPhoneにも表示されません。"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Почали сесію помилково? У підсумку після її завершення торкніться Відкинути (і підтвердьте), щоб позбутися її — вона видаляється з годинника й не з’явиться на вашому iPhone."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aus Versehen eine Session gestartet? Tippe in der Zusammenfassung nach dem Ende auf „Verwerfen“ (und bestätige), um sie wegzuwerfen — sie wird von der Uhr entfernt und erscheint nicht auf deinem iPhone."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Iniciou uma sessão por engano? No resumo após o término, toque em Descartar (e confirme) para jogá-la fora — ela é removida do relógio e não aparece no seu iPhone."
+          }
+        }
+      }
+    },
+    "Storage": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Almacenamiento"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stockage"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spazio"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ストレージ"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сховище"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Speicher"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Armazenamento"
+          }
+        }
+      }
+    },
+    "Surface": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Superficie"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Surface"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Superficie"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "水面"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Поверхня"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Oberfläche"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Superfície"
+          }
+        }
+      }
+    },
+    "Surface interval": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Intervalo en superficie"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Intervalle de surface"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Intervallo di superficie"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "水面休息"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Поверхневий інтервал"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Oberflächenpause"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Intervalo de superfície"
+          }
+        }
+      }
+    },
+    "Sync": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sincronización"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Synchronisation"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sincronizzazione"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "同期"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Синхронізація"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sync"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sincronização"
+          }
+        }
+      }
+    },
+    "Synced to iPhone": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sincronizado con el iPhone"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Synchronisé avec l’iPhone"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sincronizzato con l’iPhone"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhoneに同期済み"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Синхронізовано з iPhone"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mit iPhone synchronisiert"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sincronizado com o iPhone"
+          }
+        }
+      }
+    },
+    "Syncing to iPhone…": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sincronizando con el iPhone…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Synchronisation avec l’iPhone…"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sincronizzazione con l’iPhone…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhoneに同期中…"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Синхронізація з iPhone…"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wird mit iPhone synchronisiert …"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sincronizando com o iPhone…"
+          }
+        }
+      }
+    },
+    "Syncs from your iPhone. Change it here to override on the watch.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se sincroniza desde tu iPhone. Cámbialo aquí para anularlo en el reloj."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se synchronise depuis votre iPhone. Modifiez-le ici pour le remplacer sur la montre."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Si sincronizza dal tuo iPhone. Modificalo qui per sovrascriverlo sull’orologio."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhoneから同期されます。ここで変更すると時計側で上書きできます。"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Синхронізується з iPhone. Змініть тут, щоб перевизначити на годиннику."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Synchronisiert von deinem iPhone. Ändere es hier, um es auf der Uhr zu überschreiben."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sincroniza do seu iPhone. Altere aqui para substituir no relógio."
+          }
+        }
+      }
+    },
+    "Tap Start, or press the Action button if you've assigned Dive Free to it in Settings → Action Button.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toca Iniciar, o pulsa el botón Acción si le has asignado Dive Free en Ajustes → Botón Acción."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Touchez Démarrer, ou appuyez sur le bouton Action si vous y avez assigné Dive Free dans Réglages → Bouton Action."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tocca Inizia, o premi il tasto Azione se gli hai assegnato Dive Free in Impostazioni → Tasto Azione."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「開始」をタップするか、設定 → アクションボタンでDive Freeを割り当てている場合はアクションボタンを押します。"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Торкніться Почати або натисніть кнопку Дії, якщо ви призначили їй Dive Free у Налаштування → Кнопка Дії."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tippe auf Start oder drück den Action Button, wenn du ihm Dive Free unter Einstellungen → Action Button zugewiesen hast."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toque em Iniciar, ou pressione o botão de Ação se você atribuiu o Dive Free a ele em Ajustes → Botão de Ação."
+          }
+        }
+      }
+    },
+    "Temperature": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Temperatura"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Température"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Temperatura"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "水温"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Температура"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Temperatur"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Temperatura"
+          }
+        }
+      }
+    },
+    "The arrow top-left shows GPS: a spinner while acquiring, then accuracy. Let it fix before you dive to tag your spot — GPS can't track underwater.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La flecha arriba a la izquierda muestra el GPS: un indicador giratorio mientras adquiere y luego la precisión. Deja que fije la posición antes de sumergirte para etiquetar tu punto: el GPS no puede rastrear bajo el agua."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La flèche en haut à gauche indique le GPS : un indicateur d’activité pendant l’acquisition, puis la précision. Laissez-le se caler avant de plonger pour marquer votre spot — le GPS ne fonctionne pas sous l’eau."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La freccia in alto a sinistra mostra il GPS: un indicatore rotante durante l’acquisizione, poi la precisione. Lascia che agganci la posizione prima di immergerti per segnare il tuo spot — il GPS non funziona sott’acqua."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "左上の矢印はGPSを示します。取得中はスピナー、その後は精度が表示されます。スポットを記録するため、潜る前に位置を確定させましょう——GPSは水中では追跡できません。"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Стрілка вгорі ліворуч показує GPS: спінер під час визначення, потім точність. Дайте йому визначити позицію перед зануренням, щоб позначити місце — під водою GPS не працює."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Pfeil oben links zeigt GPS: ein Rädchen beim Suchen, dann die Genauigkeit. Lass es fixieren, bevor du tauchst, um deinen Spot zu markieren — unter Wasser kann GPS nicht orten."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A seta no canto superior esquerdo mostra o GPS: um indicador girando enquanto busca, depois a precisão. Deixe-o fixar antes de mergulhar para marcar seu local — o GPS não rastreia debaixo d'água."
+          }
+        }
+      }
+    },
+    "The screen locks underwater. Turn the Digital Crown to pick a marker, then press the Action button to drop it.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La pantalla se bloquea bajo el agua. Gira la Corona Digital para elegir un marcador y luego pulsa el botón Acción para soltarlo."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L’écran se verrouille sous l’eau. Tournez la Digital Crown pour choisir un repère, puis appuyez sur le bouton Action pour le poser."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lo schermo si blocca sott’acqua. Ruota la Digital Crown per scegliere un marcatore, poi premi il tasto Azione per rilasciarlo."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "画面は水中でロックされます。Digital Crownを回してマーカーを選び、アクションボタンを押して記録します。"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Екран блокується під водою. Покрутіть Digital Crown, щоб вибрати позначку, потім натисніть кнопку Дії, щоб поставити її."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Bildschirm sperrt unter Wasser. Dreh die Digital Crown, um eine Markierung zu wählen, und drück dann den Action Button, um sie zu setzen."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A tela bloqueia debaixo d'água. Gire a Digital Crown para escolher um marcador e pressione o botão de Ação para soltá-lo."
+          }
+        }
+      }
+    },
+    "This removes the session from your watch and iPhone.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esto elimina la sesión de tu reloj y de tu iPhone."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cela supprime la session de votre montre et de votre iPhone."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Questo rimuove la sessione dall’orologio e dall’iPhone."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "セッションが時計とiPhoneから削除されます。"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Це видалить сесію з годинника та iPhone."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das entfernt die Session von deiner Uhr und deinem iPhone."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Isso remove a sessão do seu relógio e do seu iPhone."
+          }
+        }
+      }
+    },
+    "This throws away the session — it won't be kept on your watch or appear on your iPhone.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esto descarta la sesión: no se guardará en el reloj ni aparecerá en el iPhone."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cela abandonne la session — elle ne sera pas conservée sur la montre ni affichée sur l’iPhone."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Questo scarta la sessione: non verrà conservata sull’orologio né apparirà sull’iPhone."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "セッションを破棄します。時計に保存されず、iPhoneにも表示されません。"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Це відкине сесію — вона не збережеться на годиннику й не з’явиться на iPhone."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das wirft die Session weg — sie wird nicht auf deiner Uhr behalten und erscheint nicht auf deinem iPhone."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Isso descarta a sessão — ela não será mantida no seu relógio nem aparecerá no seu iPhone."
+          }
+        }
+      }
+    },
+    "Time": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hora"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heure"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ora"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "時刻"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Час"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zeit"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hora"
+          }
+        }
+      }
+    },
+    "Time cues": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avisos de tiempo"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Repères de temps"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Segnali temporali"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "時間の合図"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сигнали часу"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zeitsignale"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sinais de tempo"
+          }
+        }
+      }
+    },
+    "Toggle Dive": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alternar inmersión"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Basculer la plongée"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Attiva/disattiva immersione"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ダイブを切り替え"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Перемкнути занурення"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tauchgang umschalten"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alternar mergulho"
+          }
+        }
+      }
+    },
+    "Try Again": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reintentar"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réessayer"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Riprova"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "もう一度試す"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Спробувати ще раз"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erneut versuchen"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tentar novamente"
+          }
+        }
+      }
+    },
+    "Turn the Crown to feel each speed before you pick. Slower is easier underwater.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gira la corona para sentir cada velocidad antes de elegir. Más lento es más fácil bajo el agua."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tournez la couronne pour sentir chaque vitesse avant de choisir. Plus lent, c’est plus facile sous l’eau."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ruota la corona per provare ogni velocità prima di scegliere. Più lento è più facile sott’acqua."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "選ぶ前にクラウンを回して、それぞれの速度を試しましょう。水中では遅いほうが扱いやすいです。"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Покрутіть головку Digital Crown, щоб відчути кожну швидкість перед вибором. Повільніше — легше під водою."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dreh die Crown, um jedes Tempo vor der Wahl zu erfühlen. Langsamer ist unter Wasser einfacher."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gire a Crown para sentir cada velocidade antes de escolher. Mais devagar é mais fácil debaixo d'água."
+          }
+        }
+      }
+    },
+    "Turn the Crown to try it": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gira la corona para probarlo"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tournez la couronne pour l’essayer"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ruota la corona per provarlo"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "クラウンを回して試す"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Покрутіть головку Digital Crown, щоб спробувати"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dreh die Crown, um es auszuprobieren"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gire a Crown para experimentar"
+          }
+        }
+      }
+    },
+    "Turn the Crown to unlock, then tap to end.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gira la corona para desbloquear y luego toca para terminar."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tournez la couronne pour déverrouiller, puis touchez pour terminer."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ruota la corona per sbloccare, poi tocca per terminare."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "クラウンを回してロックを解除し、タップして終了します。"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Покрутіть головку Digital Crown, щоб розблокувати, потім торкніться, щоб завершити."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dreh die Crown zum Entsperren, dann tippe zum Beenden."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gire a Crown para desbloquear, depois toque para encerrar."
+          }
+        }
+      }
+    },
+    "Underwater": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bajo el agua"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sous l’eau"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sott’acqua"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "水中"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Під водою"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unter Wasser"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sob a água"
+          }
+        }
+      }
+    },
+    "Units": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unidades"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unités"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unità"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "単位"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Одиниці"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einheiten"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unidades"
+          }
+        }
+      }
+    },
+    "Voice notes": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notas de voz"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mémos vocaux"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Note vocali"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ボイスメモ"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Голосові нотатки"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sprachnotizen"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notas de voz"
+          }
+        }
+      }
+    },
+    "Wear the watch snug — a finger-width above the wrist bone — and tighten the strap before diving. A firm fit keeps the optical sensor reading your heart rate, especially in cold water.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lleva el reloj ceñido —a un dedo por encima del hueso de la muñeca— y ajusta la correa antes de bucear. Un ajuste firme mantiene el sensor óptico leyendo tu frecuencia cardíaca, sobre todo en agua fría."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Portez la montre bien ajustée — à une largeur de doigt au-dessus de l’os du poignet — et serrez le bracelet avant de plonger. Un ajustement ferme maintient la lecture de votre fréquence cardiaque par le capteur optique, surtout en eau froide."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Indossa l’orologio aderente — a un dito sopra l’osso del polso — e stringi il cinturino prima di immergerti. Una calzata salda mantiene il sensore ottico che legge la frequenza cardiaca, soprattutto in acqua fredda."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "時計はぴったりと——手首の骨から指1本分上に——着け、潜る前にバンドを締めましょう。しっかり装着すると、特に冷たい水中でも光学センサーが心拍数を読み取り続けます。"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Носіть годинник щільно — на ширину пальця вище кістки зап’ястя — і затягніть ремінець перед зануренням. Щільне прилягання підтримує роботу оптичного датчика пульсу, особливо в холодній воді."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trage die Uhr eng — eine Fingerbreite über dem Handgelenkknochen — und zieh das Armband vor dem Tauchen fest. Ein fester Sitz hält den optischen Sensor an deinem Puls, besonders im kalten Wasser."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use o relógio justo — a um dedo acima do osso do pulso — e aperte a pulseira antes de mergulhar. Um ajuste firme mantém o sensor óptico lendo sua frequência cardíaca, especialmente em água fria."
+          }
+        }
+      }
+    },
+    "Workout": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entrenamiento"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exercice"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allenamento"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ワークアウト"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Тренування"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Training"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Treino"
+          }
+        }
+      }
+    },
+    "Your dives show up here, and on iPhone.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tus inmersiones aparecen aquí y en el iPhone."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vos plongées apparaissent ici et sur l’iPhone."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le tue immersioni compaiono qui e sull’iPhone."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ダイブはこことiPhoneに表示されます。"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ваші занурення з’являються тут і на iPhone."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deine Tauchgänge erscheinen hier und auf dem iPhone."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Seus mergulhos aparecem aqui e no iPhone."
+          }
+        }
+      }
+    },
+    "Your live heart rate beats on the right (any watch). Water temperature shows on the left on an Ultra while underwater, dimming to the last reading at the surface. A dash means no reading yet.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tu frecuencia cardíaca en directo late a la derecha (en cualquier reloj). La temperatura del agua aparece a la izquierda en un Ultra mientras estás bajo el agua, atenuándose a la última lectura en la superficie. Un guion significa que aún no hay lectura."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Votre fréquence cardiaque en direct bat à droite (sur toutes les montres). La température de l’eau s’affiche à gauche sur un Ultra pendant l’immersion, puis s’estompe sur la dernière valeur en surface. Un tiret signifie qu’il n’y a pas encore de mesure."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La tua frequenza cardiaca in tempo reale batte a destra (su qualsiasi orologio). La temperatura dell’acqua compare a sinistra su un Ultra mentre sei sott’acqua, attenuandosi all’ultima lettura in superficie. Un trattino indica che non c’è ancora una lettura."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "リアルタイムの心拍数は右側に表示されます（どの時計でも）。水温はUltraで水中にいる間、左側に表示され、水面では最後の値に薄く表示されます。ダッシュはまだ計測値がないことを示します。"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ваш пульс наживо пульсує праворуч (на будь-якому годиннику). Температура води показується ліворуч на Ultra, поки ви під водою, і тьмяніє до останнього показника на поверхні. Тире означає, що показника ще немає."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dein Live-Puls schlägt rechts (jede Uhr). Die Wassertemperatur erscheint links auf einer Ultra unter Wasser und dimmt an der Oberfläche auf den letzten Messwert. Ein Strich bedeutet, dass noch kein Messwert vorliegt."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sua frequência cardíaca ao vivo pulsa à direita (qualquer relógio). A temperatura da água aparece à esquerda num Ultra enquanto submerso, esmaecendo para a última leitura na superfície. Um traço significa que ainda não há leitura."
+          }
+        }
+      }
+    },
+    "^[%lld marker](inflect: true)": {
+      "localizations": {
+        "es": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld marcador"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld marcadores"
+                }
+              }
+            }
+          }
+        },
+        "fr": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld repère"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld repères"
+                }
+              }
+            }
+          }
+        },
+        "it": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld marcatore"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld marcatori"
+                }
+              }
+            }
+          }
+        },
+        "ja": {
+          "variations": {
+            "plural": {
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lldマーカー"
+                }
+              }
+            }
+          }
+        },
+        "uk": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld позначка"
+                }
+              },
+              "few": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld позначки"
+                }
+              },
+              "many": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld позначок"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld позначки"
+                }
+              }
+            }
+          }
+        },
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Markierung"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Markierungen"
+                }
+              }
+            }
+          }
+        },
+        "pt": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld marcador"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld marcadores"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "📍%lld": {}
   },
-  "version" : "1.0"
+  "version": "1.0"
 }
