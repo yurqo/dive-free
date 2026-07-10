@@ -11,10 +11,11 @@ compatibility_date = "2026-06-01"
 pattern = "strava.divefree.software-engineer.ing"
 custom_domain = true
 
-# Public site host for the App Store privacy-policy page (GET /privacy only).
-# The Worker routes by host, so /token & /refresh do NOT answer here — they're
-# on the strava.* host above. Requires the zone on this account and no
-# pre-existing DNS record for this hostname.
+# Public site host: App Store static pages (GET /privacy, GET /support) plus the
+# Live Activity push-to-start relay (POST /live-activity/start, #18). The Worker
+# routes by host, so /token & /refresh do NOT answer here — they're on the
+# strava.* host above. Requires the zone on this account and no pre-existing DNS
+# record for this hostname.
 [[routes]]
 pattern = "divefree.software-engineer.ing"
 custom_domain = true
@@ -26,3 +27,9 @@ STRAVA_TOKEN_URL = "https://www.strava.com/oauth/token"
 # Secrets are NOT stored here. Set them once and they persist across deploys:
 #   npx wrangler secret put STRAVA_CLIENT_ID
 #   npx wrangler secret put STRAVA_CLIENT_SECRET
+# Live Activity push-to-start (#18) — APNs auth for POST /live-activity/start.
+# PIPE the .p8 file into APNS_AUTH_KEY; the interactive prompt only reads one line,
+# so a pasted multiline PEM stores just the header (→ 503 bad_key_material):
+#   npx wrangler secret put APNS_AUTH_KEY < AuthKey_XXXXXXXXXX.p8
+#   npx wrangler secret put APNS_KEY_ID     # 10-char Key ID of that .p8
+#   npx wrangler secret put APPLE_TEAM_ID   # 10-char Apple Developer Team ID

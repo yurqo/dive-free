@@ -47,6 +47,10 @@ struct DiveFreeApp: App {
         let sync = SyncManager()
         let liveSession = LiveSessionMonitor()
         Self.configureSync(sync, liveSession: liveSession, container: container)
+        // Observe the Live Activity push-to-start token (iOS 17.2+, #18 stage 2)
+        // from init so a background WC launch captures/rotates it too. Persists the
+        // latest token for the background push-to-start fallback in LiveSessionMonitor.
+        if #available(iOS 17.2, *) { PushToStartRegistrar.start() }
         _sync = State(initialValue: sync)
         _liveSession = State(initialValue: liveSession)
     }

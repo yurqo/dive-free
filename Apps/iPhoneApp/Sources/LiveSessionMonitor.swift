@@ -20,11 +20,14 @@ import Domain
 ///
 /// Closed/background phone (#18): a Live Activity can't be *started* from the
 /// background (`Activity.request` needs the foreground without a push backend), so
-/// when the first snapshot of a session arrives and no activity starts, we post a
-/// single local notification ("session running on your watch"). Tapping it opens
-/// the app; the next per-snapshot retry then starts the real Live Activity and the
-/// notification is removed. The notification is likewise removed when the session
-/// ends, is dismissed, or the activity otherwise takes over.
+/// when the first snapshot of a session arrives and no activity starts, we try two
+/// things (once per session each): on iOS 17.2+ with a stored push-to-start token
+/// we ask the Worker to APNs-start the Live Activity (`LiveSessionPushTrigger`);
+/// and — as the fallback when that isn't possible or the push fails — we post a
+/// single local notification ("session running on your watch"). Tapping the
+/// notification opens the app; the next per-snapshot retry then starts the real
+/// Live Activity and the notification is removed. The notification is likewise
+/// removed when the session ends, is dismissed, or the activity otherwise takes over.
 @MainActor
 @Observable
 final class LiveSessionMonitor {
@@ -36,15 +39,53 @@ final class LiveSessionMonitor {
     @ObservationIgnored private var dismissedStart: Date?
     @ObservationIgnored private var watchdog: Task<Void, Never>?
     @ObservationIgnored private var activity: Activity<DiveActivityAttributes>?
+    /// Long-lived observer of `activityUpdates` that adopts push-to-start activities
+    /// (created outside our `Activity.request` path) as they appear (see FIX 1b).
+    @ObservationIgnored private var activityObserver: Task<Void, Never>?
     /// Once-per-session latch for the background fallback notification.
     @ObservationIgnored private var notificationLatch = LiveSessionNotificationLatch()
+    /// Separate once-per-session latch for the push-to-start trigger — an attempt
+    /// per session, independent of the notification latch, so a session fires the
+    /// APNs trigger at most once regardless of the ~2 s snapshot cadence.
+    @ObservationIgnored private var pushLatch = LiveSessionNotificationLatch()
+    /// Session start + wall-clock time of the most recent APNs trigger the Worker
+    /// accepted (2xx). Used to suppress the fallback notification for a short grace
+    /// window while the pushed Live Activity is still on its way (see FIX 2).
+    @ObservationIgnored private var pushAccepted: (start: Date, at: Date)?
+    /// How long after a 2xx push trigger we withhold the fallback notification: the
+    /// pushed activity typically arrives (and is adopted) within a second or two;
+    /// after the window, no activity means the notification is the right fallback.
+    private static let pushGrace: TimeInterval = 10
     @ObservationIgnored private let notifier: LiveSessionNotifier
+    @ObservationIgnored private let pushTrigger: LiveSessionPushTrigger
     @ObservationIgnored private let log = Logger(subsystem: "org.yurko.divefree", category: "LiveSession")
 
-    init(notifier: LiveSessionNotifier = SystemLiveSessionNotifier()) {
+    init(
+        notifier: LiveSessionNotifier = SystemLiveSessionNotifier(),
+        pushTrigger: LiveSessionPushTrigger = WorkerLiveSessionPushTrigger()
+    ) {
         self.notifier = notifier
+        self.pushTrigger = pushTrigger
         // Adopt an activity that outlived a previous launch so we can update/end it.
         activity = Activity<DiveActivityAttributes>.activities.first
+        observeActivityUpdates()
+    }
+
+    /// Observes Live Activities that start OUTSIDE our `Activity.request` path —
+    /// namely push-to-start (FIX 1b): APNs creates the activity directly in this
+    /// (usually backgrounded) process, so `updateActivity` never sees it and would
+    /// otherwise re-`request` a duplicate the next time the app foregrounds. Apple
+    /// recommends watching `activityUpdates` for exactly this. Runs for the process
+    /// lifetime on a background task, hopping to the main actor to adopt each one.
+    private func observeActivityUpdates() {
+        activityObserver = Task.detached { [weak self] in
+            for await activity in Activity<DiveActivityAttributes>.activityUpdates {
+                // `Activity` isn't Sendable; box it for the main-actor hop (same
+                // pattern as `SendableActivity` elsewhere).
+                let box = SendableActivity(activity)
+                await MainActor.run { self?.adopt(box.value) }
+            }
+        }
     }
 
     /// Applies an incoming snapshot: end on the terminal one, otherwise show and
@@ -59,11 +100,12 @@ final class LiveSessionMonitor {
         self.snapshot = snapshot
         // If a Live Activity is (or just became) live, it covers the session and
         // any earlier fallback notification is removed; otherwise — background or
-        // activities disabled — post the once-per-session notification instead.
+        // activities disabled — run the background-start fallbacks (push-to-start,
+        // then local notification).
         if updateActivity(with: snapshot) {
             clearNotification(for: snapshot.startTime)
         } else {
-            postNotificationIfNeeded(for: snapshot)
+            startInBackground(for: snapshot)
         }
         startWatchdog()
     }
@@ -86,6 +128,7 @@ final class LiveSessionMonitor {
         snapshot = nil
         endActivity()
         clearNotification(for: start)
+        endPushSession()
         watchdog?.cancel()
         watchdog = nil
     }
@@ -98,8 +141,19 @@ final class LiveSessionMonitor {
         snapshot = nil
         endActivity()
         clearNotification(for: notificationStart)
+        endPushSession()
         watchdog?.cancel()
         watchdog = nil
+    }
+
+    /// Terminal-only reset of the push-to-start state (latch + grace record). Kept
+    /// out of the per-snapshot `clearNotification` path so a Live Activity the user
+    /// swiped away mid-session isn't re-pushed ~2 s later (FIX 3): the push fires
+    /// at most once per session, released only when the session genuinely ends
+    /// (terminal snapshot / `dismiss()` / watchdog).
+    private func endPushSession() {
+        pushLatch.clear()
+        pushAccepted = nil
     }
 
     /// Dismisses the display on its own if a session goes silent past `maxAge`
@@ -151,6 +205,12 @@ final class LiveSessionMonitor {
             }
             self.activity = nil
         }
+        // FIX 1a: before requesting a fresh activity, adopt any already-running one
+        // we don't yet track. Push-to-start creates activities OUTSIDE this request
+        // path (APNs, no foreground) and `activityUpdates` may not have delivered it
+        // to our observer yet — re-scanning here keeps a still-alive background
+        // process from `Activity.request`-ing a duplicate on top of the pushed one.
+        if adoptRunningActivity() { return true }
         do {
             // May fail if the app is in the background (starting a Live Activity
             // needs the foreground without a push backend) — the fallback
@@ -163,6 +223,41 @@ final class LiveSessionMonitor {
         }
     }
 
+    /// Scans `Activity.activities` for a genuinely-live Live Activity we're not yet
+    /// tracking (a push-to-start one) and adopts it, refreshing it to the current
+    /// snapshot. Returns whether an activity is live afterwards. A no-op that
+    /// returns `true` when we already track a live activity.
+    @discardableResult
+    private func adoptRunningActivity() -> Bool {
+        if let activity, activity.activityState == .active || activity.activityState == .stale {
+            return true
+        }
+        guard let existing = Activity<DiveActivityAttributes>.activities.first(where: {
+            $0.activityState == .active || $0.activityState == .stale
+        }) else { return false }
+        adopt(existing)
+        return true
+    }
+
+    /// Adopts `activity` (from the `activityUpdates` observer or `adoptRunningActivity`)
+    /// as the session's Live Activity, unless we already track a live one. A pushed
+    /// activity is frozen at its trigger-time content, so we immediately push the
+    /// latest snapshot and remove any fallback notification now that a real activity
+    /// covers the session.
+    private func adopt(_ activity: Activity<DiveActivityAttributes>) {
+        guard activity.activityState == .active || activity.activityState == .stale else { return }
+        if let current = self.activity,
+           current.activityState == .active || current.activityState == .stale {
+            return
+        }
+        self.activity = activity
+        guard let snapshot else { return }
+        let box = SendableActivity(activity)
+        let content = content(for: snapshot)
+        Task { await box.value.update(content) }
+        clearNotification(for: snapshot.startTime)
+    }
+
     private func endActivity() {
         guard let activity else { return }
         self.activity = nil
@@ -170,20 +265,71 @@ final class LiveSessionMonitor {
         Task { await box.value.end(nil, dismissalPolicy: .immediate) }
     }
 
-    // MARK: - Background fallback notification
+    // MARK: - Background start fallbacks (push-to-start + notification)
+
+    /// A Live Activity couldn't be started locally (background, or activities
+    /// disabled). Try to surface the session anyway.
+    ///
+    /// Order: on iOS 17.2+ with a stored push-to-start token, ask the Worker to
+    /// APNs-start the Live Activity (auto Dynamic Island, no foreground) — once per
+    /// session. If that succeeds, iOS shows the real Live Activity and we skip the
+    /// notification. If push isn't possible (older OS / no token yet) or the trigger
+    /// fails, fall back to the once-per-session local notification (stage 1).
+    private func startInBackground(for snapshot: LiveSessionSnapshot) {
+        // Only a fallback for when the app can't show the live banner. If we're
+        // foreground-active the user is already watching the in-app banner, and
+        // `updateActivity` also returns false while foregrounded when Live
+        // Activities are disabled in Settings — starting via push or posting a
+        // "open DiveFree" notification then would be redundant. Skip (and don't
+        // latch, so a later background snapshot can still act).
+        guard UIApplication.shared.applicationState != .active else { return }
+
+        // Push-to-start when available: one APNs attempt per session. On failure we
+        // fall through to the notification from inside the task. The latch is
+        // marked here (not per-attempt) so we never spam APNs at the snapshot cadence.
+        if #available(iOS 17.2, *),
+           let credential = PushToStartStore.current(),
+           pushLatch.markPosted(for: snapshot.startTime) {
+            let pushTrigger = pushTrigger
+            Task { @MainActor in
+                let started = await pushTrigger.trigger(
+                    snapshot: snapshot, token: credential.token, env: credential.env
+                )
+                if started {
+                    // FIX 2: the Worker accepted the relay — a real (pushed) Live
+                    // Activity is on its way. Record the acceptance so the very next
+                    // ~2 s snapshot (which still sees no activity, as adoption hasn't
+                    // happened yet) doesn't post the fallback notification on top of it.
+                    self.pushAccepted = (start: snapshot.startTime, at: Date())
+                } else {
+                    self.postNotificationIfNeeded(for: snapshot)
+                }
+            }
+            return
+        }
+        postNotificationIfNeeded(for: snapshot)
+    }
 
     /// Posts the once-per-session fallback notification, latching so the ~2 s
     /// snapshot cadence can't repost it. Requests provisional (silent) permission
     /// lazily here — the first time a notification would actually post, never at
     /// launch — so a reviewer sees no prompt.
     private func postNotificationIfNeeded(for snapshot: LiveSessionSnapshot) {
-        // Only a fallback for when the app can't show the live banner. If we're
-        // foreground-active the user is already watching the in-app banner, and
-        // `updateActivity` also returns false while foregrounded when Live
-        // Activities are disabled in Settings — posting "open DiveFree to follow
-        // it live" then would fire on top of the screen they're looking at. Skip
-        // (and don't latch, so a later background snapshot can still post).
+        // Re-check foregroundedness: `startInBackground` already guards, but a
+        // failed push-to-start reaches here from an async task, by which point the
+        // user may have opened the app — the in-app banner then covers it, so don't
+        // post (and don't latch, so a later background snapshot can still post).
         guard UIApplication.shared.applicationState != .active else { return }
+        // FIX 2: within the grace window after a 2xx push trigger for THIS session,
+        // the pushed Live Activity is still arriving (adoption hasn't won yet) — the
+        // notification would land on top of it. Skip WITHOUT latching so that, once
+        // the window passes with still no activity, a later snapshot posts the
+        // (correct) fallback exactly once.
+        if let pushAccepted,
+           pushAccepted.start == snapshot.startTime,
+           Date().timeIntervalSince(pushAccepted.at) < Self.pushGrace {
+            return
+        }
         guard notificationLatch.markPosted(for: snapshot.startTime) else { return }
         let id = LiveSessionNotificationLatch.identifier(for: snapshot.startTime)
         let notifier = notifier
@@ -208,6 +354,10 @@ final class LiveSessionMonitor {
     /// idempotent and safe on the cheap per-snapshot "activity took over" path.
     private func clearNotification(for startTime: Date?) {
         notificationLatch.clear()
+        // NB: deliberately does NOT touch `pushLatch` (FIX 3). This runs on every
+        // activity-live snapshot; clearing the push latch here would re-push a Live
+        // Activity the user swiped away ~2 s later, overriding an explicit dismissal.
+        // The push latch is released only when the session ends — see `endPushSession`.
         guard let startTime else { return }
         notifier.remove(id: LiveSessionNotificationLatch.identifier(for: startTime))
     }
