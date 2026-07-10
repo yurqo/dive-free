@@ -5,7 +5,7 @@ import Domain
 
 @Suite("SyncManager")
 struct SyncManagerTests {
-    private func makeSession(id: UUID = UUID()) -> DiveSession {
+    private func makeSession(id: UUID = UUID(), locationName: String? = nil) -> DiveSession {
         DiveSession(
             id: id,
             startTime: Date(timeIntervalSince1970: 0),
@@ -17,7 +17,8 @@ struct SyncManagerTests {
                     maxDepthMeters: 9.0
                 )
             ],
-            location: GeoPoint(latitude: 40.0, longitude: -70.0)
+            location: GeoPoint(latitude: 40.0, longitude: -70.0),
+            locationName: locationName
         )
     }
 
@@ -200,6 +201,160 @@ struct SyncManagerTests {
 
         manager.sendDeletion(session.id)
         #expect(manager.pendingCount == 0)
+    }
+
+    @Test("sendDeletion cancels the OS-queued transfers for the dropped session")
+    func deletionCancelsQueuedTransfer() throws {
+        let recorder = TransferRecorder()
+        let cancelled = Mutex<Set<String>?>(nil)
+        let manager = SyncManager(
+            performTransfer: { recorder.record($0, $1) },
+            performDeletion: { _ in },
+            cancelTransfers: { ids in cancelled.withLock { $0 = ids } }
+        )
+        let session = makeSession()
+        try manager.send(session)
+        let sentID = recorder.calls[0].id
+
+        manager.sendDeletion(session.id)
+        // The dropped entry's transfer id is handed to the cancel seam so the OS's
+        // still-queued copy can't be re-adopted after a relaunch.
+        #expect(cancelled.withLock { $0 } == [sentID])
+    }
+
+    @Test("a deletion for a session with no pending entry cancels nothing")
+    func deletionWithoutPendingCancelsNothing() {
+        let cancelled = Mutex<Set<String>?>(nil)
+        let manager = SyncManager(
+            performTransfer: { _, _ in },
+            performDeletion: { _ in },
+            cancelTransfers: { ids in cancelled.withLock { $0 = ids } }
+        )
+
+        manager.sendDeletion(UUID())
+        #expect(cancelled.withLock { $0 } == [])
+    }
+
+    @Test("re-sending a session already pending reuses its entry and nudges the transfer")
+    func resendDedupesNotSystemOwned() throws {
+        let recorder = TransferRecorder()
+        let manager = SyncManager(performTransfer: { recorder.record($0, $1) })
+        let counts = Mutex<[Int]>([])
+        manager.onPendingCountChange = { newCount in counts.withLock { $0.append(newCount) } }
+        let session = makeSession()
+
+        try manager.send(session)
+        try manager.send(session)               // same id → dedupe
+
+        #expect(manager.pendingCount == 1)       // not double-counted
+        #expect(recorder.calls.count == 2)       // original + manual nudge of the same entry
+        #expect(recorder.calls[0].id == recorder.calls[1].id)
+        #expect(counts.withLock { $0 } == [1])   // count fired only once
+    }
+
+    @Test("re-sending a system-owned session does not enqueue a duplicate transfer")
+    func resendDedupesSystemOwned() throws {
+        let session = makeSession()
+        let data = try JSONEncoder().encode(session)
+        let recorder = TransferRecorder()
+        let manager = SyncManager(
+            performTransfer: { recorder.record($0, $1) },
+            outstandingTransfers: { [(id: "transfer-1", data: data)] }
+        )
+        // Adoption leaves a system-owned entry for this session id.
+        manager.adoptOutstandingTransfers()
+        #expect(manager.pendingCount == 1)
+
+        // The OS still owns the queued transfer — re-sending must not duplicate it.
+        try manager.send(session)
+        #expect(manager.pendingCount == 1)
+        #expect(recorder.calls.isEmpty)
+    }
+
+    @Test("re-sending an already-pending session nudges with the fresh payload, not the stale one")
+    func resendNudgeUsesFreshPayload() throws {
+        let recorder = TransferRecorder()
+        let manager = SyncManager(performTransfer: { recorder.record($0, $1) })
+        let id = UUID()
+        // Same session id, but the second value carries a backfilled locationName —
+        // the fresh encode must win over the payload stored on the first send.
+        let first = makeSession(id: id)
+        let second = makeSession(id: id, locationName: "Blue Hole")
+
+        try manager.send(first)
+        try manager.send(second)                 // same id → dedupe nudge
+
+        #expect(manager.pendingCount == 1)        // not double-counted
+        #expect(recorder.calls.count == 2)        // original + nudge of the same entry
+        #expect(recorder.calls[1].id == recorder.calls[0].id)
+        // The nudge carries the newest payload (locationName set), not the stale one.
+        let nudged = try JSONDecoder().decode(DiveSession.self, from: recorder.calls[1].data)
+        let original = try JSONDecoder().decode(DiveSession.self, from: recorder.calls[0].data)
+        #expect(nudged.locationName == "Blue Hole")
+        #expect(original.locationName == nil)
+    }
+
+    @Test("after sendDeletion, re-sending the same session id is a no-op (tombstoned)")
+    func sendAfterDeletionIsTombstoned() throws {
+        let recorder = TransferRecorder()
+        let manager = SyncManager(performTransfer: { recorder.record($0, $1) }, performDeletion: { _ in })
+        let session = makeSession()
+
+        manager.sendDeletion(session.id)
+        try manager.send(session)                 // must not re-queue a deleted session
+
+        #expect(recorder.calls.isEmpty)
+        #expect(manager.pendingCount == 0)
+    }
+
+    @Test("retryPending does not re-send a session deleted after it became retryable")
+    func retryPendingSkipsDeletedSession() throws {
+        struct TransferError: Error {}
+        let session = makeSession()
+        let data = try JSONEncoder().encode(session)
+        let recorder = TransferRecorder()
+        let manager = SyncManager(
+            performTransfer: { recorder.record($0, $1) },
+            performDeletion: { _ in },
+            outstandingTransfers: { [(id: "transfer-1", data: data)] }
+        )
+        // Adopt, then a failed didFinish hands the entry to us (retryable, ours).
+        manager.adoptOutstandingTransfers()
+        manager.completeTransfer(id: "transfer-1", data: data, error: TransferError())
+        #expect(recorder.calls.count == 1)        // the owned retry
+
+        // Delete it, then a reachability-driven resync must not re-deliver it.
+        manager.sendDeletion(session.id)
+        manager.retryPending()
+        #expect(recorder.calls.count == 1)        // no further transfer for it
+        #expect(manager.pendingCount == 0)
+    }
+
+    @Test("completeTransfer for an untracked id leaves no stale attempts, preserving the retry budget")
+    func staleCompletionDoesNotLeakAttempts() throws {
+        struct TransferError: Error {}
+        let session = makeSession()
+        let data = try JSONEncoder().encode(session)
+        let recorder = TransferRecorder()
+        let manager = SyncManager(
+            performTransfer: { recorder.record($0, $1) },
+            outstandingTransfers: { [(id: "transfer-1", data: data)] }
+        )
+
+        // A didFinish(error:) for an id we're not tracking (a cancelled/untracked
+        // transfer) must not stash an attempts counter — there's nothing to retry.
+        manager.completeTransfer(id: "transfer-1", data: data, error: TransferError())
+        #expect(recorder.calls.isEmpty)           // not in pending → no retry
+
+        // Adopt the same id, then repeatedly fail it. If the untracked call had
+        // leaked attempts[transfer-1] = 1, the budget would be one short.
+        manager.adoptOutstandingTransfers()
+        for _ in 0..<10 {
+            manager.completeTransfer(id: "transfer-1", data: data, error: TransferError())
+        }
+        // The full immediate-retry budget (5) is available: 5 re-sends, then it
+        // stops. A leaked prior attempt would have cut this to 4.
+        #expect(recorder.calls.count == 5)
     }
 
     @Test("re-adopting outstanding transfers populates pending and reports the count")

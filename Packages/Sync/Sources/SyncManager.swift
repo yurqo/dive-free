@@ -77,7 +77,11 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     /// `sendDeletion`/`completeTransfer` need not JSON-decode `data` to identify it.
     private struct Pending {
         let sessionID: UUID
-        let data: Data
+        /// The latest encoded payload for this session. Mutable so a dedupe nudge
+        /// (`send` of an already-pending session) can refresh it — watch sessions
+        /// mutate after save (e.g. the geocode backfill sets `locationName`, part of
+        /// the Codable payload), and the fresh encode must win over the stale one.
+        var data: Data
         /// True while the OS still owns this transfer's queue slot — set on entries
         /// re-adopted from `outstandingUserInfoTransfers` at activation. Such entries
         /// must not be re-`performTransfer`ed (that would enqueue a duplicate); they
@@ -88,6 +92,13 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     private var pending: [String: Pending] = [:]
     /// Immediate re-send attempts per payload, to bound retry storms.
     private var attempts: [String: Int] = [:]
+    /// Session ids deleted this launch. A tombstone closes the snapshot window in
+    /// `retryPending`/`completeTransfer` (which snapshot under the lock but
+    /// `performTransfer` after unlocking): a deletion that lands in between must not
+    /// let the deleted session's payload be re-enqueued *after* the deletion message
+    /// and resurrected on the phone. In-memory / process-lifetime; growth is bounded
+    /// by the user's deletions (rare), so no eviction is needed.
+    private var deletedSessionIDs: Set<UUID> = []
     /// Latest application-context entries we tried to send (markers and/or units),
     /// re-applied on activation. `updateApplicationContext` replaces the whole
     /// dictionary, so both kinds of state must travel together.
@@ -107,6 +118,13 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     /// Sends a session deletion. Defaults to `WCSession.transferUserInfo`; tests
     /// inject a stub.
     private let performDeletion: (_ id: UUID) -> Void
+
+    /// Cancels the OS's still-queued userInfo transfers whose transfer id is in
+    /// the set. Defaults to filtering `WCSession.outstandingUserInfoTransfers` by
+    /// matching `Self.idKey` and calling `cancel()`; tests inject a stub. Used by
+    /// `sendDeletion` so a deleted session's not-yet-delivered payload can't be
+    /// re-adopted after a relaunch and resurrected.
+    private let cancelTransfers: (_ ids: Set<String>) -> Void
 
     /// The system's still-queued userInfo transfers, as `(id, payload)` pairs.
     /// Defaults to mapping `WCSession.outstandingUserInfoTransfers`; tests inject a
@@ -129,6 +147,7 @@ public final class SyncManager: NSObject, @unchecked Sendable {
         performTransfer: ((_ id: String, _ data: Data) -> Void)? = nil,
         applyContext: ((_ context: [String: Any]) -> Void)? = nil,
         performDeletion: ((_ id: UUID) -> Void)? = nil,
+        cancelTransfers: ((_ ids: Set<String>) -> Void)? = nil,
         outstandingTransfers: (() -> [(id: String, data: Data)])? = nil,
         performFileTransfer: ((_ url: URL, _ metadata: [String: Any]) -> Void)? = nil
     ) {
@@ -152,6 +171,15 @@ public final class SyncManager: NSObject, @unchecked Sendable {
             #if canImport(WatchConnectivity)
             guard WCSession.isSupported() else { return }
             WCSession.default.transferUserInfo([Self.deletedKey: id.uuidString])
+            #endif
+        }
+        self.cancelTransfers = cancelTransfers ?? { ids in
+            #if canImport(WatchConnectivity)
+            guard WCSession.isSupported() else { return }
+            for transfer in WCSession.default.outstandingUserInfoTransfers
+            where (transfer.userInfo[Self.idKey] as? String).map(ids.contains) == true {
+                transfer.cancel()
+            }
             #endif
         }
         self.outstandingTransfers = outstandingTransfers ?? {
@@ -254,10 +282,41 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     }
 
     /// Encodes and queues a session for delivery to the counterpart device.
+    ///
+    /// Tombstoned session ids early-return: a session deleted this launch must
+    /// never be re-queued (including via a resync), or it would resurrect on the
+    /// phone after its deletion message.
+    ///
+    /// Deduped by session id: a session already queued (e.g. re-adopted after a
+    /// relaunch, or re-sent via "Re-send all") must not spawn a second pending
+    /// entry — that would count the same session twice in the badge and enqueue a
+    /// duplicate OS transfer. When an entry already exists we refresh its stored
+    /// payload with the fresh encode (watch sessions mutate after save — e.g. the
+    /// geocode backfill sets `locationName` — so the newest bytes must win) and
+    /// reuse it instead of inserting a new one (and don't fire the count callback):
+    /// - **system-owned** (the OS still holds the transfer's slot from a prior
+    ///   launch): refresh the stored payload only — the OS will deliver it, and
+    ///   re-sending would duplicate it; the fresh bytes go out on a later
+    ///   reclaim/retry.
+    /// - **ours**: refresh the stored payload, then re-`performTransfer` the
+    ///   *existing* id with the fresh data as a manual nudge, leaving `attempts`
+    ///   untouched (this isn't a fresh reachability window).
     public func send(_ session: DiveSession) throws {
         let data = try encoder.encode(session)
-        let id = UUID().uuidString
         lock.lock()
+        if deletedSessionIDs.contains(session.id) {
+            lock.unlock()
+            return
+        }
+        if let existing = pending.first(where: { $0.value.sessionID == session.id }) {
+            let existingID = existing.key
+            let isSystemOwned = existing.value.isSystemOwned
+            pending[existingID]?.data = data
+            lock.unlock()
+            if !isSystemOwned { performTransfer(existingID, data) }
+            return
+        }
+        let id = UUID().uuidString
         pending[id] = Pending(sessionID: session.id, data: data, isSystemOwned: false)
         let count = pending.count
         lock.unlock()
@@ -268,14 +327,26 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     /// Tells the counterpart device to delete a session by id. First drops any
     /// not-yet-delivered send for that session, so a reachability-driven retry
     /// can't re-deliver it *after* the deletion and resurrect it on the phone;
-    /// then sends the (idempotent) deletion via the background-safe transport.
+    /// then sends the (idempotent) deletion via the background-safe transport. This
+    /// closes the resurrection path up to a negligible in-flight window: the
+    /// tombstone (`deletedSessionIDs`) blocks any later re-queue via `send`/
+    /// `retryPending`/`completeTransfer`, leaving only the sub-millisecond TOCTOU
+    /// between a concurrent retry's final tombstone check and its `WCSession` call.
+    ///
+    /// Dropping the in-memory entry can't stop the OS's still-queued
+    /// `transferUserInfo` copy, so `cancelTransfers` cancels the dropped transfer
+    /// ids at the OS level too — otherwise a relaunch could re-adopt the payload
+    /// (it would still be in `outstandingUserInfoTransfers`) and resurrect the
+    /// deleted session. Called after releasing the lock, matching the other seams.
     public func sendDeletion(_ id: UUID) {
         lock.lock()
+        deletedSessionIDs.insert(id)
         let staleKeys = pending.filter { $0.value.sessionID == id }.map(\.key)
         for key in staleKeys { pending[key] = nil; attempts[key] = nil }
         let count = pending.count
         lock.unlock()
         onPendingCountChange?(count)
+        cancelTransfers(Set(staleKeys))
         performDeletion(id)
     }
 
@@ -313,12 +384,24 @@ public final class SyncManager: NSObject, @unchecked Sendable {
             return
         }
         lock.lock()
+        // Only track attempts for an entry still in `pending`. If it was dropped
+        // (by `sendDeletion`) or was never tracked (an untracked/cancelled
+        // transfer's `didFinish`), there's nothing to retry — so don't leak a
+        // stale `attempts` counter; clear any left behind instead.
+        guard let entry = pending[id] else {
+            attempts[id] = nil
+            lock.unlock()
+            return
+        }
         let count = (attempts[id] ?? 0) + 1
         attempts[id] = count
         // `didFinish` arrived → the OS no longer owns this transfer's slot; a
         // re-adopted entry is now ours to retry.
         pending[id]?.isSystemOwned = false
-        let shouldRetry = pending[id] != nil && count <= Self.maxImmediateRetries
+        // Never re-enqueue a tombstoned (deleted-this-launch) session: a deletion
+        // that landed after this transfer's snapshot must win.
+        let shouldRetry = !deletedSessionIDs.contains(entry.sessionID)
+            && count <= Self.maxImmediateRetries
         lock.unlock()
         if shouldRetry { performTransfer(id, data) }
     }
@@ -368,8 +451,13 @@ public final class SyncManager: NSObject, @unchecked Sendable {
         lock.lock()
         // Skip entries the OS still owns: it delivers them itself, and re-sending
         // would enqueue a duplicate. They rejoin the retry set via a failed
-        // `didFinish` (`completeTransfer`) or the reclaim above.
-        let items = pending.filter { !$0.value.isSystemOwned }
+        // `didFinish` (`completeTransfer`) or the reclaim above. Also skip
+        // tombstoned (deleted-this-launch) sessions — normally already dropped from
+        // `pending` by `sendDeletion`, but the tombstone closes the snapshot window
+        // if a deletion lands mid-retry.
+        let items = pending.filter {
+            !$0.value.isSystemOwned && !deletedSessionIDs.contains($0.value.sessionID)
+        }
         for id in items.keys { attempts[id] = 0 }
         lock.unlock()
         for (id, entry) in items { performTransfer(id, entry.data) }

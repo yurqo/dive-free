@@ -221,9 +221,10 @@ final class SessionCoordinator {
     ///
     /// `stop()` already queued the session's payload to the phone; the deletion is
     /// a separate message delivered after it (FIFO), so once both land the phone
-    /// ends up without the session. Until `sendDeletion` also cancels the OS
-    /// transfer (next work item), a relaunch that re-adopts the not-yet-delivered
-    /// payload before the deletion arrives is a remaining edge.
+    /// ends up without the session. `sendDeletion` also cancels the still-queued OS
+    /// transfer (so a relaunch can't re-adopt the not-yet-delivered payload) and
+    /// tombstones the id (so no resync/retry re-queues it), closing the
+    /// resurrection path up to a negligible in-flight window.
     func discardSummary() {
         guard case .summary(let session) = state else { return }
         WKInterfaceDevice.current().play(.success)
