@@ -19,11 +19,29 @@ the privacy policy and support page on the public apex `divefree.software-engine
 | strava.* | `POST /refresh` | `grant_type=refresh_token` refresh with Strava       |
 | apex     | `GET /privacy`  | HTML privacy policy for the App Store listing        |
 | apex     | `GET /support`  | HTML support page for the App Store listing          |
+| apex     | `GET /app-config` | `{ "supportEnabled": bool }` — tip-jar kill-switch |
 | apex     | `POST /live-activity/start` | APNs push-to-start a dive Live Activity (#18) |
 
 `/token` and `/refresh` return Strava's JSON (`access_token`, `refresh_token`,
 `expires_at`, …) and status code verbatim; `/privacy` returns HTML. A request to
 the wrong host (e.g. `/privacy` on `strava.*`) gets a 404.
+
+### `GET /app-config` (in-app tip-jar kill-switch)
+
+The app fetches this at launch (background, short timeout), caches the result in
+`UserDefaults`, and **ANDs** it with the App Store Connect product availability —
+so the "Support DiveFree" tip jar stays hidden until BOTH the products are live
+*and* this returns `true`. Reads the non-secret `SUPPORT_ENABLED` var (declared in
+`wrangler.toml [vars]`, default `"false"`; override it in the Cloudflare dashboard
+to flip the feature on without a code deploy):
+
+```jsonc
+{ "supportEnabled": false }   // when SUPPORT_ENABLED !== "true"
+```
+
+Served with `Cache-Control: public, max-age=3600`, so a dashboard toggle
+propagates within the hour. On any fetch failure the app keeps its last cached
+value (defaulting to off), so a transient outage never flips the UI on.
 
 ### `POST /live-activity/start` (Live Activity push-to-start, #18 stage 2)
 

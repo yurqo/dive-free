@@ -25,6 +25,10 @@ struct DiveFreeApp: App {
     @State private var photoPager = PhotoPagerPresenter()
     @State private var photoSuggestions = PhotoSuggestionPresenter()
     @State private var cloudSync = CloudKitSyncMonitor()
+    /// Optional "Support DiveFree" tip jar. Ships dark: it self-activates only when
+    /// the App Store Connect products are live AND the remote kill-switch is on
+    /// (see `SupportStore`). `start()` runs at launch, background priority.
+    @State private var support = SupportStore()
     @State private var strava = StravaAuthManager(
         store: KeychainTokenStore(),
         webAuth: ASWebAuthenticationProvider()
@@ -187,8 +191,13 @@ struct DiveFreeApp: App {
                 .environment(photoPager)
                 .environment(photoSuggestions)
                 .environment(cloudSync)
+                .environment(support)
                 .environment(\.syncManager, sync)
                 .unitsAware()
+                // Fetch the remote kill-switch + StoreKit products at launch, off
+                // the main path. Best-effort — a miss leaves the tip jar on its
+                // cached (default hidden) state.
+                .task(priority: .background) { await support.start() }
                 .onAppear {
                     // Surface CloudKit sync status + errors (the diagnostic for
                     // cross-device photo sync). UI-only, so it can stay here — the

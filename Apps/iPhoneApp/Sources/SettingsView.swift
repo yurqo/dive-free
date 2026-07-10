@@ -6,6 +6,7 @@ import Strava
 /// Account settings: units, Strava connection, custom markers.
 struct SettingsView: View {
     @Environment(StravaAuthManager.self) private var strava
+    @Environment(SupportStore.self) private var support
     @Environment(\.syncManager) private var sync
     @State private var isConnecting = false
     @State private var errorMessage: String?
@@ -77,6 +78,21 @@ struct SettingsView: View {
                     CustomMarkersView()
                 } label: {
                     Label("Custom Markers", systemImage: "mappin.and.ellipse")
+                }
+            }
+
+            // The tip jar appears only when both gates pass (products live in App
+            // Store Connect AND the remote kill-switch is on) — the feature ships
+            // dark and self-activates without an app update.
+            if support.visibility.showPurchaseUI {
+                Section {
+                    NavigationLink {
+                        SupportView()
+                    } label: {
+                        Label("Support DiveFree", systemImage: "cup.and.saucer")
+                    }
+                } footer: {
+                    Text("DiveFree is free. If you'd like, you can leave a tip to keep it going.")
                 }
             }
         }
@@ -163,4 +179,5 @@ struct SettingsView: View {
     }
     .environment(StravaAuthManager(store: InMemoryTokenStore(), webAuth: ASWebAuthenticationProvider()))
     .environment(CloudKitSyncMonitor())
+    .environment(SupportStore())
 }

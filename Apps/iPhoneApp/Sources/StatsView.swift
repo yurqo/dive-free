@@ -11,6 +11,10 @@ import Persistence
 struct StatsView: View {
     @Query private var sessions: [SessionRecord]
     @Query private var spots: [Spot]
+    /// Drives the optional supporter badge + Coffee/Supporter achievements. Shown
+    /// only when the tip-jar gates pass, or the diver already has purchases (a past
+    /// supporter keeps their badge) — see `SupportStore.visibility`.
+    @Environment(SupportStore.self) private var support
 
     /// Aggregation is expensive (it faults every session's dives relationship), so
     /// it's cached here and recomputed only on appear and when `fingerprint`
@@ -161,7 +165,7 @@ struct StatsView: View {
     }
 
     private func badges(_ stats: DiveStats) -> [(name: String, icon: String, unlocked: Bool)] {
-        [
+        var badges: [(name: String, icon: String, unlocked: Bool)] = [
             ("10 Dives", "drop.fill", stats.totalDives >= 10),
             ("50 Dives", "drop.fill", stats.totalDives >= 50),
             ("100 Dives", "drop.fill", stats.totalDives >= 100),
@@ -170,6 +174,19 @@ struct StatsView: View {
             ("3 Countries", "globe", stats.countriesVisited >= 3),
             ("10 Days", "calendar", stats.daysDiving >= 10),
         ]
+        // Supporter badge + Coffee/Supporter achievements (tip jar). Gated the same
+        // way as the purchase UI, but also shown to anyone who already has purchases
+        // so a past supporter keeps their badge if the feature is later disabled.
+        if support.visibility.showPassportSupport {
+            let coffee = support.coffeeCount
+            let months = support.supporterMonths
+            badges += [
+                ("Supporter", "heart.fill", support.isSupporter),
+                (coffee > 0 ? "Coffee ×\(coffee)" : "Coffee", "cup.and.saucer.fill", coffee > 0),
+                (months > 0 ? "\(months) mo Supporter" : "Supporter Months", "calendar.badge.clock", months > 0),
+            ]
+        }
+        return badges
     }
 
     private func statRow(_ label: String, _ value: String) -> some View {
