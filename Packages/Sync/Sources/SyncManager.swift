@@ -18,8 +18,12 @@ import WatchConnectivity
 /// seam, keeping the queue/retry/status logic unit-testable without a real
 /// `WCSession`.
 public final class SyncManager: NSObject, @unchecked Sendable {
-    /// Called on the phone when a session arrives from the watch.
-    public var onReceiveSession: (@Sendable (DiveSession) -> Void)?
+    /// Called on the phone when a session arrives from the watch. `isResync` is
+    /// `true` when the watch marked this an *explicit* re-send ("Re-send to
+    /// iPhone"/"Re-send all"): a deliberate recovery that must override an earlier
+    /// accidental swipe-delete, so the receiver clears its deletion tombstone before
+    /// importing. Absent on the wire (older watches) → `false`, i.e. a normal send.
+    public var onReceiveSession: (@Sendable (DiveSession, _ isResync: Bool) -> Void)?
 
     /// Called on the phone when the watch deletes a session (by id), so the phone
     /// drops its copy too. WatchConnectivity only *sends* sessions, so a deletion
@@ -75,6 +79,10 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     static let fileNameKey = "fileName"
     static let deletedKey = "deletedSessionID"
     static let liveSessionKey = "liveSession"
+    /// Envelope flag on a session transfer marking it an *explicit* re-send, so the
+    /// receiver clears its deletion tombstone before importing. Absent → a normal
+    /// send (keeps older watches, which never set it, compatible).
+    static let resyncKey = "isResync"
 
     private let lock = NSLock()
     /// A payload sent but not yet confirmed delivered. Carries the session id so
@@ -115,6 +123,14 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     /// tests inject a stub.
     private let performTransfer: (_ id: String, _ data: Data) -> Void
 
+    /// Hands an *explicit-resync* payload to the transport — same wire shape as
+    /// `performTransfer` but with the `resyncKey` envelope flag set, so the phone
+    /// clears its deletion tombstone before importing. Kept a *separate* seam from
+    /// `performTransfer` (rather than adding a flag parameter) so the normal
+    /// send/retry path and all its stubs stay untouched; only `send(isResync: true)`
+    /// routes here. Defaults to `WCSession.transferUserInfo`; tests inject a stub.
+    private let performResyncTransfer: (_ id: String, _ data: Data) -> Void
+
     /// Replaces the shared application context (latest-wins). Defaults to
     /// `WCSession.updateApplicationContext`; tests inject a stub.
     private let applyContext: (_ context: [String: Any]) -> Void
@@ -149,6 +165,7 @@ public final class SyncManager: NSObject, @unchecked Sendable {
 
     public init(
         performTransfer: ((_ id: String, _ data: Data) -> Void)? = nil,
+        performResyncTransfer: ((_ id: String, _ data: Data) -> Void)? = nil,
         applyContext: ((_ context: [String: Any]) -> Void)? = nil,
         performDeletion: ((_ id: UUID) -> Void)? = nil,
         cancelTransfers: ((_ ids: Set<String>) -> Void)? = nil,
@@ -163,6 +180,14 @@ public final class SyncManager: NSObject, @unchecked Sendable {
             #if canImport(WatchConnectivity)
             guard WCSession.isSupported() else { return }
             WCSession.default.transferUserInfo([Self.payloadKey: data, Self.idKey: id])
+            #endif
+        }
+        self.performResyncTransfer = performResyncTransfer ?? { id, data in
+            #if canImport(WatchConnectivity)
+            guard WCSession.isSupported() else { return }
+            WCSession.default.transferUserInfo(
+                [Self.payloadKey: data, Self.idKey: id, Self.resyncKey: true]
+            )
             #endif
         }
         self.applyContext = applyContext ?? { context in
@@ -314,11 +339,25 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     ///   launch): refresh the stored payload only — the OS will deliver it, and
     ///   re-sending would duplicate it; the fresh bytes go out on a later
     ///   reclaim/retry.
-    /// - **ours**: refresh the stored payload, then re-`performTransfer` the
-    ///   *existing* id with the fresh data as a manual nudge, leaving `attempts`
-    ///   untouched (this isn't a fresh reachability window).
-    public func send(_ session: DiveSession) throws {
+    /// - **ours**: refresh the stored payload, then re-transfer the *existing* id
+    ///   with the fresh data as a manual nudge, leaving `attempts` untouched (this
+    ///   isn't a fresh reachability window).
+    ///
+    /// `isResync` marks an *explicit* re-send (watch "Re-send"/"Re-send all"). When
+    /// true the wire payload carries the `resyncKey` envelope flag so the phone
+    /// clears its deletion tombstone before importing — the deliberate recovery of a
+    /// session the user accidentally swipe-deleted. The flag reaches the wire on
+    /// **both** the fresh-send and the dedupe *nudge* path (an already-pending,
+    /// ours entry) by routing them through `performResyncTransfer` instead of
+    /// `performTransfer`. It does *not* ride the OS-driven retry paths
+    /// (`retryPending`/`completeTransfer`), which always use `performTransfer`: a
+    /// resync that fails its first hop retries as a plain send, but resyncs are
+    /// user-initiated with the phone typically reachable, and the button can be
+    /// tapped again — so the residual gap is acceptable and keeps the pending/retry
+    /// machinery flag-free.
+    public func send(_ session: DiveSession, isResync: Bool = false) throws {
         let data = try encoder.encode(session)
+        let transfer = isResync ? performResyncTransfer : performTransfer
         lock.lock()
         if deletedSessionIDs.contains(session.id) {
             lock.unlock()
@@ -329,7 +368,7 @@ public final class SyncManager: NSObject, @unchecked Sendable {
             let isSystemOwned = existing.value.isSystemOwned
             pending[existingID]?.data = data
             lock.unlock()
-            if !isSystemOwned { performTransfer(existingID, data) }
+            if !isSystemOwned { transfer(existingID, data) }
             return
         }
         let id = UUID().uuidString
@@ -337,7 +376,7 @@ public final class SyncManager: NSObject, @unchecked Sendable {
         let count = pending.count
         lock.unlock()
         onPendingCountChange?(count)
-        performTransfer(id, data)
+        transfer(id, data)
     }
 
     /// Tells the counterpart device to delete a session by id. First drops any
@@ -512,7 +551,9 @@ public final class SyncManager: NSObject, @unchecked Sendable {
         }
         guard let data = userInfo[Self.payloadKey] as? Data,
               let decoded = try? decoder.decode(DiveSession.self, from: data) else { return }
-        onReceiveSession?(decoded)
+        // Absent flag (older watches) decodes as a normal send.
+        let isResync = userInfo[Self.resyncKey] as? Bool ?? false
+        onReceiveSession?(decoded, isResync)
     }
 }
 

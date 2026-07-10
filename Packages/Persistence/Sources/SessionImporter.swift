@@ -17,10 +17,20 @@ public struct SessionImporter {
     /// whether it changed the marker. Defaults to a no-op so callers that don't
     /// store voice notes (or tests) needn't supply it.
     private let mirrorAudio: @MainActor (MarkerRecord) -> Bool
+    /// Returns whether a session id has been deleted on this device and must not be
+    /// re-imported. Injected by the app (backed by a UserDefaults tombstone list) so
+    /// Persistence stays UserDefaults-free and testable; defaults to a no-op so
+    /// callers that don't tombstone (or tests) needn't supply it.
+    private let isTombstoned: @MainActor (UUID) -> Bool
 
-    public init(context: ModelContext, mirrorAudio: @MainActor @escaping (MarkerRecord) -> Bool = { _ in false }) {
+    public init(
+        context: ModelContext,
+        mirrorAudio: @MainActor @escaping (MarkerRecord) -> Bool = { _ in false },
+        isTombstoned: @MainActor @escaping (UUID) -> Bool = { _ in false }
+    ) {
         self.context = context
         self.mirrorAudio = mirrorAudio
+        self.isTombstoned = isTombstoned
     }
 
     /// Inserts the session unless one with the same id already exists.
@@ -28,6 +38,10 @@ public struct SessionImporter {
     @discardableResult
     public func importSession(_ session: DiveSession) throws -> Bool {
         let id = session.id
+        // Skip a session the user already deleted on this device: a late WCSession
+        // re-delivery (a retry/relaunch requeued after the deletion) would otherwise
+        // resurrect it. CloudKit deletes are out of scope — CloudKit handles its own.
+        guard !isTombstoned(id) else { return false }
         var descriptor = FetchDescriptor<SessionRecord>(predicate: #Predicate { $0.id == id })
         descriptor.fetchLimit = 1
         guard try context.fetch(descriptor).isEmpty else { return false }

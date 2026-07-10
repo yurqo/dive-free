@@ -160,7 +160,7 @@ struct SyncManagerTests {
         let data = try JSONEncoder().encode(original)
 
         let received = Mutex<DiveSession?>(nil)
-        manager.onReceiveSession = { session in received.withLock { $0 = session } }
+        manager.onReceiveSession = { session, _ in received.withLock { $0 = session } }
         manager.handleReceived([SyncManager.payloadKey: data, SyncManager.idKey: original.id.uuidString])
 
         #expect(received.withLock { $0 } == original)
@@ -170,7 +170,7 @@ struct SyncManagerTests {
     func ignoresGarbage() {
         let manager = SyncManager(performTransfer: { _, _ in })
         let received = Mutex<DiveSession?>(nil)
-        manager.onReceiveSession = { session in received.withLock { $0 = session } }
+        manager.onReceiveSession = { session, _ in received.withLock { $0 = session } }
 
         manager.handleReceived([:])
         manager.handleReceived([SyncManager.payloadKey: Data([0x00, 0x01])])
@@ -183,7 +183,7 @@ struct SyncManagerTests {
         let deleted = Mutex<UUID?>(nil)
         let received = Mutex<DiveSession?>(nil)
         manager.onDeleteSession = { id in deleted.withLock { $0 = id } }
-        manager.onReceiveSession = { session in received.withLock { $0 = session } }
+        manager.onReceiveSession = { session, _ in received.withLock { $0 = session } }
 
         let id = UUID()
         manager.handleReceived([SyncManager.deletedKey: id.uuidString])
@@ -292,6 +292,64 @@ struct SyncManagerTests {
         let original = try JSONDecoder().decode(DiveSession.self, from: recorder.calls[0].data)
         #expect(nudged.locationName == "Blue Hole")
         #expect(original.locationName == nil)
+    }
+
+    @Test("an explicit resync routes through the resync transport (carrying the envelope flag)")
+    func resyncUsesResyncTransport() throws {
+        let normal = TransferRecorder()
+        let resync = TransferRecorder()
+        let manager = SyncManager(
+            performTransfer: { normal.record($0, $1) },
+            performResyncTransfer: { resync.record($0, $1) }
+        )
+
+        try manager.send(makeSession())                  // normal send
+        try manager.send(makeSession(), isResync: true)  // explicit resync
+
+        #expect(normal.calls.count == 1)
+        #expect(resync.calls.count == 1)                 // resync rode the resync transport
+    }
+
+    @Test("a resync nudge of an already-pending session still rides the resync transport")
+    func resyncNudgeUsesResyncTransport() throws {
+        let normal = TransferRecorder()
+        let resync = TransferRecorder()
+        let manager = SyncManager(
+            performTransfer: { normal.record($0, $1) },
+            performResyncTransfer: { resync.record($0, $1) }
+        )
+        let session = makeSession()
+
+        try manager.send(session)                         // normal send → pending
+        try manager.send(session, isResync: true)         // same id → dedupe nudge, as a resync
+
+        #expect(manager.pendingCount == 1)                // not double-counted
+        #expect(normal.calls.count == 1)                  // original send only
+        #expect(resync.calls.count == 1)                  // the nudge rode the resync transport
+        #expect(normal.calls[0].id == resync.calls[0].id) // same pending entry
+    }
+
+    @Test("the resync envelope flag decodes on receive; absent decodes false")
+    func receiveDecodesResyncFlag() throws {
+        let manager = SyncManager(performTransfer: { _, _ in })
+        let session = makeSession()
+        let data = try JSONEncoder().encode(session)
+        let flags = Mutex<[Bool]>([])
+        manager.onReceiveSession = { _, isResync in flags.withLock { $0.append(isResync) } }
+
+        // Wire shape the default resync transport produces.
+        manager.handleReceived([
+            SyncManager.payloadKey: data,
+            SyncManager.idKey: session.id.uuidString,
+            SyncManager.resyncKey: true,
+        ])
+        // Normal send (older watch): no resyncKey → false.
+        manager.handleReceived([
+            SyncManager.payloadKey: data,
+            SyncManager.idKey: session.id.uuidString,
+        ])
+
+        #expect(flags.withLock { $0 } == [true, false])
     }
 
     @Test("after sendDeletion, re-sending the same session id is a no-op (tombstoned)")
