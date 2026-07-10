@@ -15,15 +15,18 @@ struct SessionManagerTests {
     /// while the context is still in use causes a crash.
     private func makeManager(
         profile: [Double] = [0, 2, 5, 8, 5, 2, 0],
-        location: GeoPoint? = nil
+        location: GeoPoint? = nil,
+        dwell: TimeInterval = 3,
+        provider: DepthProvider? = nil,
+        config: DiveDetectionConfig? = nil
     ) throws -> (manager: SessionManager, store: DiveStore) {
         let store = try DiveStore(inMemory: true)
         let sensors = SensorManager(
-            provider: MockDepthProvider(interval: 0.01, profile: profile)
+            provider: provider ?? MockDepthProvider(interval: 0.01, profile: profile)
         )
         // minimumDiveDuration: 0 — the mock burst is well under the default 3 s,
         // so at least one dive gets detected during the 100 ms sleep in persistsSession.
-        let detector = DiveDetector(config: DiveDetectionConfig(minimumDiveDuration: 0))
+        let detector = DiveDetector(config: config ?? DiveDetectionConfig(surfaceExitDwellSeconds: dwell, minimumDiveDuration: 0))
         let manager = SessionManager(
             sensors: sensors,
             detector: detector,
@@ -216,6 +219,84 @@ struct SessionManagerTests {
         #expect(manager.maxDepthMeters == 0)
     }
 
+    @Test("a shallow surface bounce keeps the session a single dive")
+    func bounceStaysOneDive() async throws {
+        // Deep → 0.8 m bounce (well under the dwell) → deep → surface, played once.
+        let profile = [0] + Array(repeating: 4.0, count: 8)
+            + [0.8, 0.8] + Array(repeating: 4.0, count: 8) + [0]
+        let (manager, store) = try makeManager(
+            dwell: 0.5,
+            provider: ScriptedDepthProvider(profile: profile, interval: 0.02)
+        )
+        defer { _ = store }
+
+        try await manager.startSession()
+        // Poll until the scripted profile has fully played and detection settled.
+        for _ in 0..<200 where manager.currentDepthMeters != 0 || manager.diveCount == 0 {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(manager.diveCount == 1)           // the bounce merged, not split
+        #expect(manager.currentDiveStart == nil)  // ended at the 0 m surface sample
+        try manager.stopSession()
+    }
+
+    @Test("a shallow hang past the dwell ends the dive at the crossing")
+    func shallowHangEndsAtCrossing() async throws {
+        // Deep, then a long 0.5 m hang that never reaches 0 m; the dwell must expire
+        // and end the dive at the crossing (its last sample is a deep one).
+        let profile = [0] + Array(repeating: 4.0, count: 8)
+            + Array(repeating: 0.5, count: 40)
+        let (manager, store) = try makeManager(
+            dwell: 0.3,
+            provider: ScriptedDepthProvider(profile: profile, interval: 0.02)
+        )
+        defer { _ = store }
+
+        try await manager.startSession()
+        for _ in 0..<300 where manager.currentDiveStart != nil || manager.diveCount == 0 {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(manager.diveCount == 1)
+        #expect(manager.currentDiveStart == nil)  // dwell expired → surfaced
+        // The single dive ends at the crossing: its last sample is still deep,
+        // the shallow hang is excluded.
+        #expect(manager.dives.first?.samples.last.map { $0.depthMeters > 1 } == true)
+        try manager.stopSession()
+    }
+
+    @Test("a shallow hang does not phantom-confirm a dive the detector won't log")
+    func shallowHangDoesNotPhantomConfirm() async throws {
+        // A tier at 1.0 m / 1.0 s. The diver dips just past 1 m for a few fast samples
+        // (deep span well under 1 s → the detector never logs it), then hangs shallow
+        // at 0.5 m with a long dwell so the dive stays open. `currentDiveConfirmed`
+        // must freeze the elapsed at the shallow crossing: it stays false even as
+        // wall-clock time keeps passing during the hang. (Without the freeze it would
+        // flip true once Date() - start crosses 1 s, locking in a dive never logged.)
+        let profile = [0] + Array(repeating: 1.2, count: 4) + Array(repeating: 0.5, count: 30)
+        let (manager, store) = try makeManager(
+            provider: ScriptedDepthProvider(profile: profile, interval: 0.03),
+            config: DiveDetectionConfig(
+                surfaceExitDwellSeconds: 5,
+                thresholds: [.init(minimumDepthMeters: 1.0, minimumDuration: 1.0)]
+            )
+        )
+        defer { _ = store }
+
+        try await manager.startSession()
+        // Let the scripted profile finish; the dive is then held open in the shallow
+        // band (dwell is 5 s and no more samples arrive to expire it).
+        for _ in 0..<200 where manager.currentDiveStart == nil {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(manager.currentDiveStart != nil)
+        // Wait past the tier's 1 s duration in wall-clock terms — long enough that the
+        // un-frozen elapsed would have confirmed.
+        try await Task.sleep(for: .milliseconds(1200))
+        #expect(manager.currentDiveConfirmed == false)
+        #expect(manager.diveCount == 0)   // detector never logs the sub-second deep spike
+        try manager.stopSession()
+    }
+
     @Test("captured surface location is attached to the stopped session")
     func capturesLocation() async throws {
         let spot = GeoPoint(latitude: 20.5, longitude: -87.0)
@@ -271,4 +352,29 @@ struct SessionManagerTests {
 private struct StubLocationProvider: LocationProviding {
     let point: GeoPoint?
     func currentLocation() async -> GeoPoint? { point }
+}
+
+/// Emits a depth profile **once** (unlike `MockDepthProvider`, which loops), at a
+/// real cadence so wall-clock and sample timestamps agree — lets the live
+/// surface-exit dwell in `SessionManager` be exercised deterministically without
+/// a second pass re-opening dives.
+private struct ScriptedDepthProvider: DepthProvider {
+    let profile: [Double]
+    let interval: Double
+    func start() async throws {}
+    func stop() {}
+    func depthStream() -> AsyncStream<DepthSample> {
+        let profile = profile, interval = interval
+        return AsyncStream { continuation in
+            let task = Task {
+                for depth in profile {
+                    if Task.isCancelled { break }
+                    continuation.yield(DepthSample(timestamp: Date(), depthMeters: depth))
+                    try? await Task.sleep(for: .seconds(interval))
+                }
+                continuation.finish()
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
 }

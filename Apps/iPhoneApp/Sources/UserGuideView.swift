@@ -251,7 +251,7 @@ private enum UserGuide {
         systemImage: "waveform.path.ecg",
         intro: [
             .text("Dive Free records depth continuously and works out where one dive ends and the next begins, so your log matches what you actually did."),
-            .bullet("A **dive** starts when you drop below the surface and ends when you come back up."),
+            .bullet("A **dive** starts when you drop below the surface and ends when you come back up — the instant you break the surface, or after a few seconds resting shallower than 1 m."),
             .bullet("The gap between dives is your **surface interval** — your recovery time."),
         ],
         details: [
@@ -259,7 +259,7 @@ private enum UserGuide {
             .text("So genuine dives register but brief surface bobbing doesn't, detection is **tiered** — the deeper you go, the sooner it counts. A dive is logged as soon as it meets any one of these:"),
             .bullet("A quick drop to about **2 m** registers within a couple of seconds — for duck dives."),
             .bullet("A dive to about **1.5 m** registers after about **3 seconds**."),
-            .bullet("A shallow dive past **1 m** registers if you stay down about **10 seconds** — so pool and shallow snorkel dives are logged, while a brief bob at the surface isn't."),
+            .bullet("A shallow dive past **1 m** registers if you stay down about **5 seconds** — so pool and shallow snorkel dives are logged, while a brief bob at the surface isn't."),
             .subheading("The descent countdown"),
             .text("As you go under, the depth and a small greyed **countdown** appear beside the surface icon on the watch, showing how long until the dive registers — it shrinks as you go deeper. When it reaches zero the screen switches to your live dive time. It's handy in shallow water, where you can watch a dive lock in."),
             .subheading("Manual dives"),

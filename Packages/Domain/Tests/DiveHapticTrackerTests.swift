@@ -4,10 +4,20 @@ import Testing
 
 @Suite("DiveHapticTracker")
 struct DiveHapticTrackerTests {
+    private static let epoch = Date(timeIntervalSinceReferenceDate: 0)
+
     /// Drives the tracker through a depth profile and collects all events.
-    private func run(_ depths: [Double], config: DiveHapticConfig = .default) -> [DiveHapticEvent] {
+    /// Samples are spaced `spacing` seconds apart from a fixed epoch (default 1 s),
+    /// so time-based dwell logic is exercised deterministically.
+    private func run(
+        _ depths: [Double],
+        config: DiveHapticConfig = .default,
+        spacing: TimeInterval = 1
+    ) -> [DiveHapticEvent] {
         var tracker = DiveHapticTracker(config: config)
-        return depths.flatMap { tracker.update(depthMeters: $0) }
+        return depths.enumerated().flatMap { index, depth in
+            tracker.update(depthMeters: depth, at: Self.epoch.addingTimeInterval(Double(index) * spacing))
+        }
     }
 
     @Test("emits diveStart when depth crosses surface threshold going down")
@@ -85,5 +95,50 @@ struct DiveHapticTrackerTests {
     func twoDives() {
         let events = run([0, 2, 0, 0, 3, 0])
         #expect(events == [.diveStart, .surface, .diveStart, .surface])
+    }
+
+    @Test("a shallow bounce shorter than the dwell fires neither a surface nor a second diveStart")
+    func shallowBounceDoesNotDoubleFire() {
+        // Deep → 0.8 m (below the 1 m threshold but above 0) → deep → surface.
+        // The shallow band lasts ~1 s (t=2..t=3), under the 3 s dwell, so the diver
+        // stays "submerged" through the bounce: one diveStart / surface pair fires
+        // for the whole dive.
+        let events = run([0, 2, 0.8, 0.8, 2, 0])
+        #expect(events == [.diveStart, .surface])
+    }
+
+    @Test("a shallow hang past the dwell fires surface without any 0 m reading, then a re-descent fires a fresh diveStart")
+    func shallowHangEndsDiveAndReDescendRestarts() {
+        // Regression (#16 follow-up): repeated dives whose wrist never fully clears
+        // the water (depth stays ~0.1–0.9 m, never ≤ 0.05 m). Hanging in the shallow
+        // band ≥ the 3 s dwell must fire `surface`; the next descent past 1 m must
+        // fire a fresh `diveStart`. Samples are 1 s apart.
+        //  t: 0    1    2    3    4    5    6    7
+        //     0    2    0.5  0.5  0.5  0.5  2    0
+        // Shallow from t=2; at t=5 the 3 s dwell expires → surface (no 0 m seen).
+        let events = run([0, 2, 0.5, 0.5, 0.5, 0.5, 2, 0])
+        #expect(events == [.diveStart, .surface, .diveStart, .surface])
+    }
+
+    @Test("reaching 0 m ends the dive immediately without waiting for the dwell")
+    func zeroMetersEndsImmediately() {
+        // Deep → 0 m on the very next sample (1 s later, far under the 3 s dwell).
+        // The 0 m rule ends the dive at once. (3 m avoids a 5 m milestone.)
+        let events = run([0, 3, 0])
+        #expect(events == [.diveStart, .surface])
+    }
+
+    @Test("no spurious 0 m milestone on the way up through the shallow band")
+    func noZeroMilestoneOnAscent() {
+        // Per-metre milestones (as configured on the watch). Ascending through the
+        // 1 m band shouldn't announce a "0 m" milestone before the surface event.
+        let config = DiveHapticConfig(milestoneIntervalMeters: 1.0)
+        let events = run([0, 2.5, 1.5, 0.8, 0], config: config)
+        #expect(events == [
+            .diveStart,
+            .descendMilestone(depthMeters: 2),
+            .ascendMilestone(depthMeters: 1),
+            .surface
+        ])
     }
 }
