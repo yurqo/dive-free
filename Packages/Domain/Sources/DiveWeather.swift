@@ -33,21 +33,30 @@ public struct DiveWeather: Codable, Sendable, Equatable {
     }
 
     /// Human-readable summary of the WMO weather code, or `nil` if absent/unknown.
+    /// A display string (never persisted or synced — only `weatherCode` is
+    /// stored), so it's localized against `Bundle.module` (Domain's own bundle).
     public var conditionDescription: String? {
+        conditionDescription(bundle: .module)
+    }
+
+    /// Testing seam: resolves the description against an explicit bundle so unit
+    /// tests can pin a known localization (e.g. `en.lproj`) regardless of the
+    /// host app's language. Production callers use the parameterless property.
+    func conditionDescription(bundle: Bundle) -> String? {
         guard let weatherCode else { return nil }
         switch weatherCode {
-        case 0: return "Clear"
-        case 1: return "Mainly clear"
-        case 2: return "Partly cloudy"
-        case 3: return "Overcast"
-        case 45, 48: return "Fog"
-        case 51, 53, 55, 56, 57: return "Drizzle"
-        case 61, 63, 65, 66, 67: return "Rain"
-        case 71, 73, 75, 77: return "Snow"
-        case 80, 81, 82: return "Rain showers"
-        case 85, 86: return "Snow showers"
-        case 95: return "Thunderstorm"
-        case 96, 99: return "Thunderstorm, hail"
+        case 0: return String(localized: "Clear", bundle: bundle)
+        case 1: return String(localized: "Mainly clear", bundle: bundle)
+        case 2: return String(localized: "Partly cloudy", bundle: bundle)
+        case 3: return String(localized: "Overcast", bundle: bundle)
+        case 45, 48: return String(localized: "Fog", bundle: bundle)
+        case 51, 53, 55, 56, 57: return String(localized: "Drizzle", bundle: bundle)
+        case 61, 63, 65, 66, 67: return String(localized: "Rain", bundle: bundle)
+        case 71, 73, 75, 77: return String(localized: "Snow", bundle: bundle)
+        case 80, 81, 82: return String(localized: "Rain showers", bundle: bundle)
+        case 85, 86: return String(localized: "Snow showers", bundle: bundle)
+        case 95: return String(localized: "Thunderstorm", bundle: bundle)
+        case 96, 99: return String(localized: "Thunderstorm, hail", bundle: bundle)
         default: return nil
         }
     }
