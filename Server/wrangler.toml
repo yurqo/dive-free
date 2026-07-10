@@ -24,6 +24,13 @@ custom_domain = true
 # Optional override of Strava's token endpoint (handy for testing).
 STRAVA_TOKEN_URL = "https://www.strava.com/oauth/token"
 
+# Remote kill-switch for the in-app "Support DiveFree" tip jar, served at
+# GET /app-config. A plain VAR (NOT a secret) so it can be flipped in the
+# Cloudflare dashboard without a code deploy. Defaults to off — the feature ships
+# dark and self-activates only once this is "true" AND the App Store Connect
+# products are live (the app ANDs the two gates).
+SUPPORT_ENABLED = "false"
+
 # Secrets are NOT stored here. Set them once and they persist across deploys:
 #   npx wrangler secret put STRAVA_CLIENT_ID
 #   npx wrangler secret put STRAVA_CLIENT_SECRET

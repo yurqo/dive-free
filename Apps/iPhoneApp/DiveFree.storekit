@@ -1,0 +1,74 @@
+{
+  "identifier" : "A1B2C3D4-0000-0000-0000-000000000001",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "0.99",
+      "familyShareable" : false,
+      "internalID" : "A1B2C3D4-0000-0000-0000-000000000010",
+      "localizations" : [
+        {
+          "description" : "A one-off thank-you tip. Placeholder price — the real price is set in App Store Connect.",
+          "displayName" : "Buy me a coffee",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "org.yurko.divefree.support.coffee",
+      "referenceName" : "Support — Coffee",
+      "type" : "Consumable"
+    }
+  ],
+  "settings" : {
+    "_applicationInternalID" : "0000000000",
+    "_developerTeamID" : "0000000000",
+    "_failTransactionsEnabled" : false,
+    "_lastSynchronizedDate" : 0,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+
+    ]
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "A1B2C3D4-0000-0000-0000-000000000020",
+      "localizations" : [
+
+      ],
+      "name" : "Supporter",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "4.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "A1B2C3D4-0000-0000-0000-000000000021",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "A small monthly tip that unlocks the Supporter badge. Placeholder price — the real price is set in App Store Connect.",
+              "displayName" : "Monthly snack",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "org.yurko.divefree.support.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Support — Monthly snack",
+          "subscriptionGroupID" : "A1B2C3D4-0000-0000-0000-000000000020",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}

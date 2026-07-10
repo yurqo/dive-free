@@ -8,9 +8,17 @@ import SwiftUI
 /// IMPORTANT: keep this in step with the app. Whenever a feature or a piece of
 /// behaviour changes, update the matching chapter in `UserGuide.chapters` below.
 struct UserGuideView: View {
+    /// Gates the optional "Support DiveFree" chapter with the same rule as the tip
+    /// jar itself — shown only when the products are live and the remote switch is on.
+    @Environment(SupportStore.self) private var support
+
+    private var chapters: [GuideChapter] {
+        UserGuide.chapters + (support.visibility.showPurchaseUI ? [UserGuide.support] : [])
+    }
+
     var body: some View {
         List {
-            ForEach(UserGuide.chapters) { chapter in
+            ForEach(chapters) { chapter in
                 Section {
                     ForEach(chapter.intro.indices, id: \.self) { i in
                         GuideBlockView(block: chapter.intro[i])
@@ -146,6 +154,22 @@ private enum UserGuide {
         safety,
         troubleshooting,
     ]
+
+    // Appended by `UserGuideView` only when the tip jar is live (kept out of the
+    // static list so it's not shown while the feature is dark).
+    static let support = GuideChapter(
+        title: "Supporting DiveFree",
+        systemImage: "cup.and.saucer.fill",
+        intro: [
+            .text("DiveFree is free, and your dives always stay yours. If you'd like to chip in, there's an optional tip jar in **Settings ▸ Support DiveFree** — entirely your call."),
+            .bullet("**Buy me a coffee** — a one-off thank-you you can repeat any time."),
+            .bullet("**Monthly snack** — a small monthly subscription that lights up a **Supporter** badge in your Passport."),
+        ],
+        details: [
+            .text("Tips help keep the servers running and the developer caffeinated. They unlock a badge and a couple of keepsake counters in your Passport — nothing about your own dives is ever gated behind them."),
+            .text("The monthly option is an auto-renewing subscription you can manage or cancel any time from the Support screen or in Settings. Coffee tips are one-off."),
+        ]
+    )
 
     // MARK: Chapters
 
@@ -366,4 +390,5 @@ private enum UserGuide {
     NavigationStack {
         UserGuideView()
     }
+    .environment(SupportStore())
 }

@@ -14,6 +14,7 @@
  *   public site host (divefree.software-engineer.ing):
  *     GET  /privacy                    -> HTML privacy policy (App Store listing)
  *     GET  /support                    -> HTML support page (App Store listing)
+ *     GET  /app-config                 -> { supportEnabled } remote kill-switch
  *     POST /live-activity/start        -> APNs push-to-start a Live Activity (#18)
  */
 
@@ -25,6 +26,13 @@ export interface Env extends ApnsEnv {
   STRAVA_CLIENT_SECRET: string;
   // Optional override (declared in wrangler.toml [vars]); defaults below.
   STRAVA_TOKEN_URL?: string;
+  // Remote kill-switch for the in-app "Support DiveFree" tip jar. A plain
+  // (non-secret) VAR declared in wrangler.toml [vars] and overridable in the
+  // Cloudflare dashboard, so support can be toggled without a code deploy. String
+  // "true"/"false" (Worker vars are strings); anything but "true" reads as off.
+  // Defaults to off — the feature ships dark and self-activates only when this is
+  // flipped AND the App Store Connect products are live (the app ANDs the two).
+  SUPPORT_ENABLED?: string;
   // APNS_AUTH_KEY / APNS_KEY_ID / APPLE_TEAM_ID come from ApnsEnv (Live Activity
   // push-to-start); also set via `wrangler secret put`.
 }
@@ -186,6 +194,25 @@ export default {
       // handled before the static GET pages.
       if (pathname === "/live-activity/start") {
         return handleLiveActivityStart(request, env);
+      }
+      // Remote kill-switch for the in-app tip jar (support feature). The app
+      // fetches this at launch, caches it, and ANDs it with the App Store Connect
+      // product availability — so support stays dark until BOTH say yes. Reads the
+      // non-secret SUPPORT_ENABLED var (default off); modest caching so a toggle
+      // propagates within the hour without hammering the Worker.
+      if (pathname === "/app-config") {
+        if (request.method !== "GET" && request.method !== "HEAD") {
+          return json({ error: "method_not_allowed" }, 405);
+        }
+        return new Response(
+          JSON.stringify({ supportEnabled: env.SUPPORT_ENABLED === "true" }),
+          {
+            headers: {
+              "Content-Type": "application/json",
+              "Cache-Control": "public, max-age=3600",
+            },
+          }
+        );
       }
       const page =
         pathname === "/privacy" ? PRIVACY_POLICY_HTML :
