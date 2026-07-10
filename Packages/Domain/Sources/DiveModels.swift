@@ -302,6 +302,10 @@ public struct DiveSession: Sendable, Equatable, Codable, Identifiable {
     /// Total active energy burned over the session (kilocalories), read from the
     /// workout at session end. `nil` when unavailable (no workout / no Health data).
     public var activeEnergyKilocalories: Double?
+    /// UUID of the `HKWorkout` this session saved to Health, so a later delete can
+    /// remove the workout too (see `WorkoutController.deleteWorkout`). `nil` for
+    /// sessions saved before this was tracked, or with no workout (e.g. simulator).
+    public var workoutUUID: UUID?
 
     public var maxDepthMeters: Double { dives.map(\.maxDepthMeters).max() ?? 0 }
     public var diveCount: Int { dives.count }
@@ -434,7 +438,8 @@ public struct DiveSession: Sendable, Equatable, Codable, Identifiable {
         weather: DiveWeather? = nil,
         weatherFetched: Bool = false,
         smoothTrack: Bool = true,
-        activeEnergyKilocalories: Double? = nil
+        activeEnergyKilocalories: Double? = nil,
+        workoutUUID: UUID? = nil
     ) {
         self.id = id
         self.startTime = startTime
@@ -455,13 +460,14 @@ public struct DiveSession: Sendable, Equatable, Codable, Identifiable {
         self.weatherFetched = weatherFetched
         self.smoothTrack = smoothTrack
         self.activeEnergyKilocalories = activeEnergyKilocalories
+        self.workoutUUID = workoutUUID
     }
 
     private enum CodingKeys: String, CodingKey {
         case id, startTime, endTime, dives, markers, location, track
         case heartRateSamples, temperatureSamples, locationName, smoothTrack
         case locationNameEdited, title, notes, rating, conditions
-        case weather, weatherFetched, activeEnergyKilocalories
+        case weather, weatherFetched, activeEnergyKilocalories, workoutUUID
     }
 
     /// Decoded leniently so payloads from an older app version (which had no
@@ -488,6 +494,10 @@ public struct DiveSession: Sendable, Equatable, Codable, Identifiable {
         // Default on for payloads that predate the toggle.
         smoothTrack = try c.decodeIfPresent(Bool.self, forKey: .smoothTrack) ?? true
         activeEnergyKilocalories = try c.decodeIfPresent(Double.self, forKey: .activeEnergyKilocalories)
+        // Optional + decodeIfPresent: payloads from an older watch (no workout
+        // link) decode to nil, and the encoder omits nil, so a phone on an older
+        // build simply ignores the key — both directions stay compatible.
+        workoutUUID = try c.decodeIfPresent(UUID.self, forKey: .workoutUUID)
     }
 }
 

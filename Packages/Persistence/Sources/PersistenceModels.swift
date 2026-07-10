@@ -100,6 +100,11 @@ public final class SessionRecord {
     // workout. Optional → lightweight migration of rows created before it.
     public var activeEnergyKilocalories: Double?
 
+    // UUID of the HKWorkout this session saved to Health, so a watch-side delete
+    // can remove the workout too. Optional → lightweight migration of rows created
+    // before it (and nil when there was no workout, e.g. the simulator).
+    public var workoutUUID: UUID?
+
     /// The Photos album (PHAssetCollection) holding this session's media (#145),
     /// nested under Dive Free ▸ Spots ▸ <spot>. Stored so the album is reused and
     /// renamed (not duplicated) across imports and title edits.
@@ -144,6 +149,7 @@ public final class SessionRecord {
         weatherFetched: Bool = false,
         smoothTrack: Bool = true,
         activeEnergyKilocalories: Double? = nil,
+        workoutUUID: UUID? = nil,
         dives: [DiveRecord] = [],
         markers: [MarkerRecord] = []
     ) {
@@ -173,6 +179,7 @@ public final class SessionRecord {
         self.weatherFetched = weatherFetched
         self.smoothTrack = smoothTrack
         self.activeEnergyKilocalories = activeEnergyKilocalories
+        self.workoutUUID = workoutUUID
         self.dives = dives
         self.markers = markers
     }
@@ -327,7 +334,8 @@ public extension SessionRecord {
             weather: weather,
             weatherFetched: weatherFetched,
             smoothTrack: smoothTrack,
-            activeEnergyKilocalories: activeEnergyKilocalories
+            activeEnergyKilocalories: activeEnergyKilocalories,
+            workoutUUID: workoutUUID
         )
     }
 }
@@ -384,6 +392,7 @@ public extension SessionRecord {
             weatherFetched: session.weatherFetched,
             smoothTrack: session.smoothTrack,
             activeEnergyKilocalories: session.activeEnergyKilocalories,
+            workoutUUID: session.workoutUUID,
             dives: session.dives.map { DiveRecord(from: $0) },
             markers: session.markers.map { MarkerRecord(from: $0) }
         )

@@ -102,11 +102,18 @@ struct DiveFreeApp: App {
         // Persist sessions arriving from the watch into the shared container; the
         // importer dedupes by id, so the sync layer's retries can't create
         // duplicates, and `@Query` refreshes the list.
-        sync.onReceiveSession = { session in
+        sync.onReceiveSession = { session, isResync in
             Task { @MainActor in
+                // An explicit watch re-send ("Re-send to iPhone"/"Re-send all") is a
+                // deliberate recovery: clear any tombstone first so the import isn't
+                // rejected as a stale re-delivery of a session the user removed here.
+                if isResync { DeletionTombstones.remove(session.id) }
                 try? SessionImporter(
                     context: container.mainContext,
-                    mirrorAudio: { VoiceNoteStore.mirrorAudioData(into: $0) }
+                    mirrorAudio: { VoiceNoteStore.mirrorAudioData(into: $0) },
+                    // Skip a session the user already deleted here, so a late WC
+                    // re-delivery can't resurrect it (see `DeletionTombstones`).
+                    isTombstoned: { DeletionTombstones.contains($0) }
                 ).importSession(session)
             }
         }
@@ -114,6 +121,10 @@ struct DiveFreeApp: App {
         // photo thumbnails + voice notes) so a discarded session doesn't linger.
         sync.onDeleteSession = { id in
             Task { @MainActor in
+                // Tombstone first, so even if the delete below finds no record (the
+                // payload hasn't been imported yet) a later re-delivery is still
+                // rejected by the importer.
+                DeletionTombstones.record(id)
                 let context = container.mainContext
                 var descriptor = FetchDescriptor<SessionRecord>(predicate: #Predicate { $0.id == id })
                 descriptor.fetchLimit = 1

@@ -119,6 +119,43 @@ struct PersistenceTests {
         #expect(fetched.count == 2)
     }
 
+    @Test("importSession skips a tombstoned id and imports a non-tombstoned one")
+    func importSkipsTombstoned() throws {
+        let store = try DiveStore(inMemory: true)
+        let context = store.container.mainContext
+
+        let deleted = DiveSession(startTime: Date(timeIntervalSince1970: 0))
+        let kept = DiveSession(startTime: Date(timeIntervalSince1970: 100))
+        // Only `deleted.id` is tombstoned; the closure stands in for the app's
+        // UserDefaults-backed DeletionTombstones.
+        let tombstoned: Set<UUID> = [deleted.id]
+        let importer = SessionImporter(context: context, isTombstoned: { tombstoned.contains($0) })
+
+        // The tombstoned session is rejected (no record stored)...
+        #expect(try importer.importSession(deleted) == false)
+        // ...while a non-tombstoned one imports as before.
+        #expect(try importer.importSession(kept) == true)
+
+        let fetched = try context.fetch(FetchDescriptor<SessionRecord>())
+        #expect(fetched.count == 1)
+        #expect(fetched.first?.id == kept.id)
+    }
+
+    @Test("round-trips workoutUUID through domain→record→domain")
+    func roundTripsWorkoutUUID() throws {
+        let store = try DiveStore(inMemory: true)
+        let context = store.container.mainContext
+
+        let workoutID = UUID()
+        let session = DiveSession(startTime: Date(timeIntervalSince1970: 0), workoutUUID: workoutID)
+        context.insert(SessionRecord(from: session))
+        try context.save()
+
+        let fetched = try context.fetch(FetchDescriptor<SessionRecord>())
+        #expect(fetched.first?.workoutUUID == workoutID)
+        #expect(fetched.first?.toDomain().workoutUUID == workoutID)
+    }
+
     @Test("round-trips an empty session with no dives or markers")
     func roundTripsEmptySession() throws {
         let store = try DiveStore(inMemory: true)

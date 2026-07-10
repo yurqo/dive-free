@@ -131,8 +131,15 @@ struct SessionListView: View {
     private func deleteSessions(at offsets: IndexSet) {
         for index in offsets {
             let session = sessions[index]
+            // Tombstone the id so a late WatchConnectivity re-delivery of the same
+            // session can't resurrect it after the user deleted it here.
+            DeletionTombstones.record(session.id)
             // SwiftData cascade-deletes the child records; remove their on-disk
             // files (photo thumbnails + voice notes) too, which the cascade misses.
+            // Note: the paired HKWorkout can't be removed from here — HealthKit only
+            // lets the *creating* app (the Watch app) delete a workout it saved, so
+            // deleting a session on the phone leaves its workout in Health. The watch
+            // archive delete removes it (see `WorkoutController.deleteWorkout`).
             deleteLocalArtifacts(of: session)
             modelContext.delete(session)
         }

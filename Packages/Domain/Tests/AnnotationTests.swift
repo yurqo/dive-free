@@ -37,4 +37,22 @@ struct AnnotationTests {
         #expect(session.rating == nil)
         #expect(session.locationNameEdited == false)
     }
+
+    @Test("workoutUUID round-trips through JSON, and a payload without it decodes nil")
+    func workoutUUIDCompatibility() throws {
+        // Present: encodes and decodes back.
+        let workoutID = UUID()
+        var session = DiveSession(startTime: Date(timeIntervalSince1970: 0))
+        #expect(session.workoutUUID == nil)
+        session.workoutUUID = workoutID
+        let decoded = try JSONDecoder().decode(DiveSession.self, from: JSONEncoder().encode(session))
+        #expect(decoded.workoutUUID == workoutID)
+
+        // Absent (older watch payload with no workout link): decodes to nil.
+        let json = """
+        {"id":"\(UUID().uuidString)","startTime":0,"dives":[],"markers":[]}
+        """
+        let legacy = try JSONDecoder().decode(DiveSession.self, from: Data(json.utf8))
+        #expect(legacy.workoutUUID == nil)
+    }
 }

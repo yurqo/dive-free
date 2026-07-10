@@ -505,6 +505,14 @@ final class SessionCoordinator {
             // Remove the session's voice-note files too — the SwiftData cascade
             // drops the marker rows but not their files (matches retention below).
             deleteAudioFiles(of: record)
+            // Delete the HKWorkout this session saved to Health too, so a deleted
+            // archive session stops counting toward the Fitness rings (retention
+            // pruning deliberately does NOT — see `pruneSyncedSessions`). Capture the
+            // UUID before deleting the record; the delete is fire-and-forget (a
+            // not-found/permission error is a silent no-op inside `deleteWorkout`).
+            if let workoutUUID = record.workoutUUID {
+                Task { await workout.deleteWorkout(uuid: workoutUUID) }
+            }
             modelContext.delete(record)
             try? modelContext.save()
         }
@@ -656,7 +664,13 @@ final class SessionCoordinator {
         await pendingMergeTask?.value
         pendingMergeTask = nil
         let activeEnergy = await workout.end()
-        let session = try? sessionManager.stopSession(activeEnergyKilocalories: activeEnergy)
+        // The saved HKWorkout's id is known only once `end()` has returned; pass it
+        // through so it's persisted on the record and a later delete can remove the
+        // workout too. `nil` when no workout finished (e.g. the simulator).
+        let workoutUUID = workout.finishedWorkoutUUID
+        let session = try? sessionManager.stopSession(
+            activeEnergyKilocalories: activeEnergy, workoutUUID: workoutUUID
+        )
         if let session {
             sendSessionToPhone(session)
             state = .summary(session)
@@ -668,23 +682,26 @@ final class SessionCoordinator {
 
     /// Re-sends a stored session (and its voice-note files) to the iPhone — the
     /// manual recovery when a dive didn't make it across (e.g. the phone was out
-    /// of range when it finished). Safe to repeat; the phone upserts by id.
+    /// of range when it finished). Safe to repeat; the phone upserts by id. Marked
+    /// `isResync` so the phone clears any deletion tombstone first — a deliberate
+    /// re-send must override an earlier accidental swipe-delete.
     func resync(_ session: DiveSession) {
-        sendSessionToPhone(session)
+        sendSessionToPhone(session, isResync: true)
     }
 
-    /// Re-sends every session stored on this watch to the iPhone.
+    /// Re-sends every session stored on this watch to the iPhone. Marked `isResync`
+    /// for the same tombstone-override reason as `resync(_:)`.
     func resyncAll() {
         let records = (try? modelContext.fetch(FetchDescriptor<SessionRecord>())) ?? []
         for record in records where record.modelContext != nil {
-            sendSessionToPhone(record.toDomain())
+            sendSessionToPhone(record.toDomain(), isResync: true)
         }
     }
 
     /// Queues a session and its voice notes for delivery to the iPhone — shared by
-    /// session-end and manual re-sync.
-    private func sendSessionToPhone(_ session: DiveSession) {
-        try? sync.send(session)
+    /// session-end (`isResync: false`) and manual re-sync (`isResync: true`).
+    private func sendSessionToPhone(_ session: DiveSession, isResync: Bool = false) {
+        try? sync.send(session, isResync: isResync)
         for fileName in session.markers.compactMap(\.audioFileName) {
             sync.sendAudioFile(AudioNoteRecorder.url(for: fileName), fileName: fileName)
         }
@@ -705,6 +722,7 @@ final class SessionCoordinator {
         var ids = deliveredIDs
         guard ids.insert(id.uuidString).inserted else { return }
         UserDefaults.standard.set(Array(ids), forKey: Self.deliveredKey)
+        scheduleRetentionPrune()
     }
 
     /// Persisted set of voice-note file names whose transfer the phone has
@@ -721,6 +739,26 @@ final class SessionCoordinator {
         var names = deliveredAudioFileNames
         guard names.insert(fileName).inserted else { return }
         UserDefaults.standard.set(Array(names), forKey: Self.deliveredAudioKey)
+        scheduleRetentionPrune()
+    }
+
+    /// Pending debounced retention prune (see `scheduleRetentionPrune`).
+    @ObservationIgnored private var retentionPruneTask: Task<Void, Never>?
+
+    /// Schedules a single retention prune ~60 s after the most recent delivery
+    /// confirmation, coalescing a burst into one pass. A session's payload
+    /// delivery and its several voice-note confirmations land together; pruning on
+    /// each would refetch/rescan the store repeatedly, and — worse — could try to
+    /// prune the session before its clips are all confirmed. Each new confirmation
+    /// cancels and replaces the pending task, so the prune only fires once the
+    /// confirmations go quiet. `pruneForRetention` is a no-op when retention is off.
+    private func scheduleRetentionPrune() {
+        retentionPruneTask?.cancel()
+        retentionPruneTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(60))
+            if Task.isCancelled { return }
+            self?.pruneForRetention()
+        }
     }
 
     /// Trims the persisted delivered-audio set to the file names still referenced
@@ -814,7 +852,10 @@ final class SessionCoordinator {
         guard !toPrune.isEmpty else { return true }
         for record in records where record.modelContext != nil && toPrune.contains(record.id) {
             // Free the voice-note files too, then drop only the local record —
-            // no sync deletion, so the phone keeps its copy.
+            // no sync deletion, so the phone keeps its copy. Deliberately do NOT
+            // delete the HKWorkout (unlike `deleteSession`): the session lives on
+            // in the phone/iCloud, so its workout stays valid Health history — this
+            // is a storage cleanup, not a discard.
             deleteAudioFiles(of: record)
             modelContext.delete(record)
         }

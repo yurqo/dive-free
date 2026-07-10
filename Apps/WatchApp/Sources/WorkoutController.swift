@@ -23,6 +23,12 @@ final class WorkoutController: NSObject {
     /// simulator, or HealthKit unavailable).
     private var finishedWorkout: HKWorkout?
 
+    /// UUID of the `HKWorkout` saved by the most recent `end()`, or `nil` when
+    /// nothing has finished. Read right after `end()` returns so the coordinator can
+    /// store it on the session/record and later delete the workout on a session
+    /// delete (see `deleteWorkout(uuid:)`).
+    var finishedWorkoutUUID: UUID? { finishedWorkout?.uuid }
+
     private(set) var isRunning = false
 
     /// Most recent heart rate (bpm) for the live readout; `nil` until the first sample.
@@ -136,6 +142,25 @@ final class WorkoutController: NSObject {
         guard let workout = finishedWorkout else { return }
         try? await healthStore.delete(workout)
         finishedWorkout = nil
+    }
+
+    /// Deletes the `HKWorkout` with `uuid` from Health — the Health-side half of
+    /// deleting a stored session from the watch archive, so its workout stops
+    /// counting toward the Fitness rings.
+    ///
+    /// Uses `deleteObjects(of:predicate:)` rather than a read query + `delete`
+    /// deliberately: `requestAuthorization` only puts `.workoutType()` in the
+    /// *share* set, never the *read* set, so an `HKSampleQuery` for the workout
+    /// fails `authorizationNotDetermined` on device — the fetch returns nothing and
+    /// the archive-delete silently never happens. Deleting an app's *own* objects
+    /// needs share authorization only (no read grant), so `deleteObjects` matches
+    /// the id we wrote and removes it without ever reading. A not-found (already
+    /// gone) or permission error is a silent no-op — there's nothing the diver can
+    /// do about it and the local record is going away anyway.
+    func deleteWorkout(uuid: UUID) async {
+        guard HKHealthStore.isHealthDataAvailable() else { return }
+        let predicate = HKQuery.predicateForObject(with: uuid)
+        _ = try? await healthStore.deleteObjects(of: HKObjectType.workoutType(), predicate: predicate)
     }
 
     #if targetEnvironment(simulator)
