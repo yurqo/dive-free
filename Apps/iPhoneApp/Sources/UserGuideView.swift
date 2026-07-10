@@ -194,6 +194,7 @@ private enum UserGuide {
             .text("Press the **Action + side buttons together** to start a dive the moment you drop, and again to end it — handy for very shallow dives that automatic detection might miss. Otherwise the watch detects dives for you."),
             .subheading("Ending a session"),
             .text("At the surface, scroll the Crown to **End** and press the Action button; in the confirmation, Action + side ends it and the Action button cancels. On a watch without an Action button, turn the Crown to unlock the screen, then tap."),
+            .text("Started one by mistake? On the summary that appears when a session ends, tap **Discard** and confirm — it throws the session away, so it's removed from the watch and never appears on your iPhone."),
             .subheading("What the numbers mean"),
             .bullet("**Big timer** — your current dive time underwater, or your surface recovery time between dives."),
             .bullet("**Recovery colour** — after a dive the timer is tinted by how long you've rested versus your last dive: red under 1×, orange under 2×, yellow under 3×, white once well rested. A gentle nudge to pace yourself, not medical advice."),

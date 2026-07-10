@@ -213,6 +213,26 @@ final class SessionCoordinator {
         state = .idle
     }
 
+    /// Discards the just-finished session from the post-dive summary — for an
+    /// accidental session (started by mistake, no real dives). Deletes the local
+    /// record and its voice notes, discards the Health workout `stop()` saved so
+    /// the accident stops counting toward the Fitness rings, and tells the phone to
+    /// drop its copy (see `deleteSession`), then returns to the start screen.
+    ///
+    /// `stop()` already queued the session's payload to the phone; the deletion is
+    /// a separate message delivered after it (FIFO), so once both land the phone
+    /// ends up without the session. Until `sendDeletion` also cancels the OS
+    /// transfer (next work item), a relaunch that re-adopts the not-yet-delivered
+    /// payload before the deletion arrives is a remaining edge.
+    func discardSummary() {
+        guard case .summary(let session) = state else { return }
+        WKInterfaceDevice.current().play(.success)
+        deleteSession(session.id)
+        // Delete the Health workout too, but don't block the return to idle on it.
+        Task { await workout.discardFinishedWorkout() }
+        state = .idle
+    }
+
     /// Action button (`AddMarkerIntent`). Context-sensitive: cancels the end
     /// dialog if armed; underwater drops the focused marker (or the default when
     /// parked on a non-marker); at the surface confirms the focused item.
