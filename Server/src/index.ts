@@ -14,19 +14,25 @@
  *   public site host (divefree.software-engineer.ing):
  *     GET  /privacy                    -> HTML privacy policy (App Store listing)
  *     GET  /support                    -> HTML support page (App Store listing)
+ *     POST /live-activity/start        -> APNs push-to-start a Live Activity (#18)
  */
 
-export interface Env {
+import { handleLiveActivityStart, type ApnsEnv } from "./liveActivity";
+
+export interface Env extends ApnsEnv {
   // Set via `wrangler secret put` (persist across deploys; not in wrangler.toml).
   STRAVA_CLIENT_ID: string;
   STRAVA_CLIENT_SECRET: string;
   // Optional override (declared in wrangler.toml [vars]); defaults below.
   STRAVA_TOKEN_URL?: string;
+  // APNS_AUTH_KEY / APNS_KEY_ID / APPLE_TEAM_ID come from ApnsEnv (Live Activity
+  // push-to-start); also set via `wrangler secret put`.
 }
 
 const DEFAULT_TOKEN_URL = "https://www.strava.com/oauth/token";
 
-// Public site host (apex). Serves only GET /privacy; the Strava proxy endpoints
+// Public site host (apex). Serves the static GET /privacy & /support pages and
+// the POST /live-activity/start push-to-start relay; the Strava proxy endpoints
 // (/token, /refresh) answer on the strava.* host, never here.
 const PUBLIC_SITE_HOST = "divefree.software-engineer.ing";
 
@@ -170,10 +176,17 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const { pathname, hostname } = new URL(request.url);
 
-    // The public site host serves ONLY the privacy policy; the Strava token
-    // proxy lives on the strava.* host. Routing by host keeps the token proxy
-    // off the public domain and the policy off the proxy domain.
+    // The public site host serves the static pages (/privacy, /support) and the
+    // Live Activity push-to-start relay; the Strava token proxy lives on the
+    // strava.* host. Routing by host keeps the token proxy off the public domain
+    // and the static pages off the proxy domain.
     if (hostname === PUBLIC_SITE_HOST) {
+      // Live Activity push-to-start (#18): the phone asks us to APNs-start its
+      // Live Activity when it can't start one itself (backgrounded). POST-only,
+      // handled before the static GET pages.
+      if (pathname === "/live-activity/start") {
+        return handleLiveActivityStart(request, env);
+      }
       const page =
         pathname === "/privacy" ? PRIVACY_POLICY_HTML :
         pathname === "/support" ? SUPPORT_HTML :

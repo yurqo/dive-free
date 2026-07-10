@@ -2,6 +2,13 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+    <!-- Required to receive the Live Activity push-to-start token and APNs
+         push-to-start (#18 stage 2). `development` here; release signing maps it
+         to `production` automatically. NOTE: the App ID must have the Push
+         Notifications capability enabled in the Apple Developer portal and the
+         provisioning profile regenerated, or signing will fail. -->
+    <key>aps-environment</key>
+    <string>development</string>
     <key>com.apple.developer.healthkit</key>
     <true/>
     <key>com.apple.developer.healthkit.access</key>

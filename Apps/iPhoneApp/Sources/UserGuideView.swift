@@ -165,7 +165,7 @@ private enum UserGuide {
             .subheading("Getting a dive to your phone"),
             .text("When you end a session, the watch sends it straight to your iPhone over their direct link — no internet or iCloud required. Keep the watch near the phone afterwards and the dive arrives within moments. If one ever doesn't, you can re-send it from the watch (see Troubleshooting)."),
             .subheading("Following a dive live"),
-            .text("While a session runs on the watch, your iPhone shows it live: a banner at the top of the **Dives** tab, plus a Live Activity on the Lock Screen and in the Dynamic Island. Even with the app closed, a notification appears when a watch session starts — tap it to open DiveFree and follow the dive live."),
+            .text("While a session runs on the watch, your iPhone shows it live: a banner at the top of the **Dives** tab, plus a Live Activity on the Lock Screen and in the Dynamic Island. Even with the app closed, a notification appears when a watch session starts — tap it to open DiveFree and follow the dive live. On iOS 17.2 and later the Live Activity can appear on its own, even with the app closed."),
             .text("A **green dot** means the phone is hearing from the watch; **grey** means they're briefly out of range — normal when your phone is on the boat and you're in the water. The timer keeps counting as an estimate and catches up once they reconnect."),
             .subheading("Then iCloud ties it together"),
             .text("Your saved dives, spots, and photos sync across iPhone and iPad through your own iCloud, so your log looks the same everywhere."),
