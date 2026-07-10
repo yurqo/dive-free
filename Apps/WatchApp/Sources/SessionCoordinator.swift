@@ -34,6 +34,13 @@ final class SessionCoordinator {
     /// Guards `start()` against re-entry during its async setup (see `start()`).
     @ObservationIgnored private var isStarting = false
 
+    /// Guards `stop()`'s teardown against a voice note started or stopped mid-way.
+    /// `stop()` suspends (awaiting the merge task, then `workout.end()`); a new
+    /// recording begun or a final clip stitched during that window would spawn a
+    /// `pendingMergeTask` the already-captured `await` never waits on, silently
+    /// dropping the clip. Set true at the top of `stop()`, reset before returning.
+    @ObservationIgnored private var isStopping = false
+
     /// In-flight voice-note stitch (merging a new clip onto the last marker's
     /// existing one). `stop()` awaits it so the saved session references the
     /// merged clip rather than a source file the merge is about to delete.
@@ -384,6 +391,11 @@ final class SessionCoordinator {
         sync.onSessionDelivered = { [weak self] id in
             Task { @MainActor in self?.markDelivered(id) }
         }
+        // Record confirmed voice-note deliveries too, so retention won't prune a
+        // session — and delete a clip's only copy — before the phone confirms it.
+        sync.onAudioFileDelivered = { [weak self] fileName in
+            Task { @MainActor in self?.markAudioDelivered(fileName) }
+        }
         sync.onReceiveCustomMarkers = { [weak self] kinds in
             Task { @MainActor in
                 self?.customKinds = kinds
@@ -408,10 +420,21 @@ final class SessionCoordinator {
         var descriptor = FetchDescriptor<SessionRecord>(predicate: #Predicate { $0.id == id })
         descriptor.fetchLimit = 1
         if let record = try? modelContext.fetch(descriptor).first {
+            // Remove the session's voice-note files too — the SwiftData cascade
+            // drops the marker rows but not their files (matches retention below).
+            deleteAudioFiles(of: record)
             modelContext.delete(record)
             try? modelContext.save()
         }
         sync.sendDeletion(id)
+    }
+
+    /// Removes every voice-note file referenced by a session's markers. Shared by
+    /// manual delete and retention pruning so neither leaks audio on disk.
+    private func deleteAudioFiles(of record: SessionRecord) {
+        for fileName in (record.markers ?? []).compactMap(\.audioFileName) {
+            try? FileManager.default.removeItem(at: AudioNoteRecorder.url(for: fileName))
+        }
     }
 
     /// Starts a surface voice note, or stops the current one. Surface-only;
@@ -421,7 +444,10 @@ final class SessionCoordinator {
         if audioRecorder.isRecording {
             stopVoiceNote()
         } else {
-            guard !isSubmerged else { return }
+            // Don't start a new recording mid-teardown: `stop()` has already
+            // captured the merge task it will await, so a clip begun now would
+            // never be awaited and its attach would run after the session ended.
+            guard !isSubmerged, !isStopping else { return }
             if await audioRecorder.start() {
                 // The mic-permission prompt can take a while; if the diver
                 // submerged during it, the onSubmerge auto-stop already missed
@@ -456,8 +482,16 @@ final class SessionCoordinator {
             if let targetID,
                let existing = self.sessionManager.markers.first(where: { $0.id == targetID })?.audioFileName {
                 // The target marker already has a clip — stitch the new one onto it.
-                let merged = (try? await AudioNoteRecorder.merge(existing, with: fileName)) ?? fileName
-                self.sessionManager.attachAudio(merged, toMarkerWithID: targetID)
+                do {
+                    let merged = try await AudioNoteRecorder.merge(existing, with: fileName)
+                    self.sessionManager.attachAudio(merged, toMarkerWithID: targetID)
+                } catch {
+                    // Merge failed: keep the existing clip on the target marker and
+                    // carry the new one on a fresh .note marker, so neither recording
+                    // is lost (the old behaviour dropped the existing clip's file).
+                    self.sessionManager.addMarker(kind: MarkerKind(.note))
+                    self.sessionManager.attachAudioToLastMarker(fileName)
+                }
             } else if let targetID {
                 self.sessionManager.attachAudio(fileName, toMarkerWithID: targetID)
             } else {
@@ -520,12 +554,20 @@ final class SessionCoordinator {
     @discardableResult
     func stop() async -> DiveSession? {
         guard case .active = state else { return nil }
+        // Bar new/late recordings from spawning a merge task the awaits below can't
+        // see (see `isStopping`). Reset on every return path.
+        isStopping = true
+        defer { isStopping = false }
         stopTimeCues()
         stopLiveSync()
         // Tell the phone the session ended so it dismisses the banner/Live Activity.
         sendLiveSnapshot(active: false)
-        // Finish any in-flight voice-note stitch first, so the saved session
-        // references the merged clip and not a source file the merge will delete.
+        // Finish recording the final clip FIRST, so its merge task exists before the
+        // await below captures `pendingMergeTask` — otherwise a clip stopped during
+        // the suspension (via `stopVoiceNote`) would set a fresh, never-awaited task.
+        if audioRecorder.isRecording { stopVoiceNote() }
+        // Finish any in-flight voice-note stitch, so the saved session references
+        // the merged clip and not a source file the merge will delete.
         await pendingMergeTask?.value
         pendingMergeTask = nil
         let activeEnergy = await workout.end()
@@ -580,6 +622,33 @@ final class SessionCoordinator {
         UserDefaults.standard.set(Array(ids), forKey: Self.deliveredKey)
     }
 
+    /// Persisted set of voice-note file names whose transfer the phone has
+    /// **confirmed**. Same watch-only UserDefaults pattern as `deliveredKey`; only
+    /// grows, and only on genuine delivery (`onAudioFileDelivered`) — so retention
+    /// never mistakes an unsent clip for a delivered one.
+    @ObservationIgnored private static let deliveredAudioKey = "deliveredAudioFileNames"
+
+    private var deliveredAudioFileNames: Set<String> {
+        Set(UserDefaults.standard.stringArray(forKey: Self.deliveredAudioKey) ?? [])
+    }
+
+    private func markAudioDelivered(_ fileName: String) {
+        var names = deliveredAudioFileNames
+        guard names.insert(fileName).inserted else { return }
+        UserDefaults.standard.set(Array(names), forKey: Self.deliveredAudioKey)
+    }
+
+    /// Trims the persisted delivered-audio set to the file names still referenced
+    /// by a surviving record's markers (mirror of `trimDeliveredIDs`): a name with
+    /// no referencing marker was pruned or deleted and can't be needed again. Only
+    /// removes names, never adds; no write unless the set actually shrinks.
+    private func trimDeliveredAudio(keeping: Set<String>) {
+        let names = deliveredAudioFileNames
+        let trimmed = names.intersection(keeping)
+        guard trimmed.count != names.count else { return }
+        UserDefaults.standard.set(Array(trimmed), forKey: Self.deliveredAudioKey)
+    }
+
     /// Trims the persisted delivered set to `keeping` (the ids of records still on
     /// this watch), so it stops growing unbounded. An id with no surviving record
     /// was pruned or manually deleted and can never be needed again — if the
@@ -608,8 +677,13 @@ final class SessionCoordinator {
         // A failed fetch must skip the trim too — treating it as "no records"
         // would wipe the whole delivered set (safe, but needless bookkeeping loss).
         guard let records = try? modelContext.fetch(FetchDescriptor<SessionRecord>()) else { return }
-        let existing = Set(records.compactMap { $0.modelContext != nil ? $0.id.uuidString : nil })
+        let surviving = records.filter { $0.modelContext != nil }
+        let existing = Set(surviving.map { $0.id.uuidString })
         trimDeliveredIDs(keeping: existing)
+        // Trim the delivered-audio set to clips still referenced by a surviving
+        // record's markers — same failure-safe path as the id trim above.
+        let audioNames = Set(surviving.flatMap { ($0.markers ?? []).compactMap(\.audioFileName) })
+        trimDeliveredAudio(keeping: audioNames)
     }
 
     /// Removes old sessions from **this watch** — only ones confirmed delivered to
@@ -631,13 +705,24 @@ final class SessionCoordinator {
         guard policy.isActive else { return true }
         let records = (try? modelContext.fetch(FetchDescriptor<SessionRecord>())) ?? []
         let delivered = deliveredIDs
+        let deliveredAudio = deliveredAudioFileNames
+        // A session is prunable only once it's confirmed on the phone: its own
+        // payload delivered AND every voice-note clip it references confirmed
+        // delivered too. Waiting on confirmation (not "in flight") covers the two
+        // unsound cases the old guard missed — a pre-activation read that sees no
+        // outstanding transfers, and a failed transfer that leaves the queue with
+        // no retry — either of which would let us delete a clip's only copy.
+        // Sessions without audio only need their own delivery. Undelivered sessions
+        // are never pruned, but still count toward the size/count budgets.
         let candidates = records.compactMap { record -> RetentionCandidate? in
             guard record.modelContext != nil else { return nil }
+            let fileNames = (record.markers ?? []).compactMap(\.audioFileName)
+            let audioDelivered = fileNames.allSatisfy { deliveredAudio.contains($0) }
             return RetentionCandidate(
                 id: record.id,
                 startTime: record.startTime,
                 sizeBytes: estimatedSize(record),
-                isDelivered: delivered.contains(record.id.uuidString)
+                isDelivered: delivered.contains(record.id.uuidString) && audioDelivered
             )
         }
         let toPrune = Set(sessionsToPrune(candidates, policy: policy))
@@ -645,9 +730,7 @@ final class SessionCoordinator {
         for record in records where record.modelContext != nil && toPrune.contains(record.id) {
             // Free the voice-note files too, then drop only the local record —
             // no sync deletion, so the phone keeps its copy.
-            for fileName in (record.markers ?? []).compactMap(\.audioFileName) {
-                try? FileManager.default.removeItem(at: AudioNoteRecorder.url(for: fileName))
-            }
+            deleteAudioFiles(of: record)
             modelContext.delete(record)
         }
         do {

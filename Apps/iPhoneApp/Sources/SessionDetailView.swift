@@ -284,8 +284,7 @@ struct SessionDetailView: View {
         var changed = false
         for marker in (session.markers ?? []) {
             guard let name = marker.audioFileName else { continue }
-            if marker.audioData == nil, let data = VoiceNoteStore.data(for: name) {
-                marker.audioData = data                          // local file → CloudKit
+            if VoiceNoteStore.mirrorAudioData(into: marker) {     // local file → CloudKit
                 changed = true
             } else if let data = marker.audioData, !VoiceNoteStore.exists(name) {
                 if VoiceNoteStore.materialize(data, as: name) {  // CloudKit → local file
