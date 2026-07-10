@@ -220,7 +220,7 @@ private enum UserGuide {
         ],
         details: [
             .subheading("A single dive"),
-            .text("Tap any session to open it: a **depth-profile chart** for each dive, a map of where you were, your markers along the timeline, photos and videos from that day, voice notes you can play back, plus water temperature, heart rate, and calories where available."),
+            .text("Tap any session to open it: a **depth-profile chart** for each dive, a map of where you were, your markers along the timeline, photos and videos from that day, voice notes you can play back, plus water temperature, heart rate, and calories where available. Voice notes sync to your other devices automatically, so a clip you recorded on the watch plays back on your iPad too."),
             .subheading("Editing and rating"),
             .text("Give a session a title, a star rating, and notes. You can tidy up details and remove a session you didn't mean to keep."),
             .subheading("Spots"),

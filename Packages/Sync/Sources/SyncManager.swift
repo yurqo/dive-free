@@ -56,6 +56,12 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     /// arbitrary thread.
     public var onSessionDelivered: (@Sendable (UUID) -> Void)?
 
+    /// Notified with a voice-note file name once its transfer is **confirmed
+    /// delivered** to the counterpart device — the safe signal watch-side
+    /// retention uses to know a clip is on the phone before pruning the session
+    /// that references it. Fires on an arbitrary thread.
+    public var onAudioFileDelivered: (@Sendable (String) -> Void)?
+
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
     static let payloadKey = "session"
@@ -107,6 +113,12 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     /// stub. Used at activation to re-adopt transfers that outlived a relaunch.
     private let outstandingTransfers: () -> [(id: String, data: Data)]
 
+    /// Hands a voice-note file to the transport. Defaults to
+    /// `WCSession.transferFile`, guarded by `WCSession.isSupported()`; tests inject
+    /// a stub so the confirmed-delivery/retry logic is unit-testable without a real
+    /// `WCSession`.
+    private let performFileTransfer: (_ url: URL, _ metadata: [String: Any]) -> Void
+
     /// Sessions queued but not yet confirmed delivered.
     public var pendingCount: Int {
         lock.lock(); defer { lock.unlock() }
@@ -117,7 +129,8 @@ public final class SyncManager: NSObject, @unchecked Sendable {
         performTransfer: ((_ id: String, _ data: Data) -> Void)? = nil,
         applyContext: ((_ context: [String: Any]) -> Void)? = nil,
         performDeletion: ((_ id: UUID) -> Void)? = nil,
-        outstandingTransfers: (() -> [(id: String, data: Data)])? = nil
+        outstandingTransfers: (() -> [(id: String, data: Data)])? = nil,
+        performFileTransfer: ((_ url: URL, _ metadata: [String: Any]) -> Void)? = nil
     ) {
         // Each default transport guards WCSession.isSupported(): WatchConnectivity
         // imports on iPad (canImport is true) but isn't supported there, and calling
@@ -150,6 +163,12 @@ public final class SyncManager: NSObject, @unchecked Sendable {
             }
             #else
             return []
+            #endif
+        }
+        self.performFileTransfer = performFileTransfer ?? { url, metadata in
+            #if canImport(WatchConnectivity)
+            guard WCSession.isSupported() else { return }
+            WCSession.default.transferFile(url, metadata: metadata)
             #endif
         }
         super.init()
@@ -262,12 +281,11 @@ public final class SyncManager: NSObject, @unchecked Sendable {
 
     /// Sends a voice-note file to the counterpart device. Uses the background-safe
     /// `transferFile`; the `fileName` rides in metadata so the receiver stores it
-    /// under the name the session's markers reference.
+    /// under the name the session's markers reference — and so `completeFileTransfer`
+    /// can identify the clip when the OS confirms (or fails) delivery.
     public func sendAudioFile(_ url: URL, fileName: String) {
-        #if canImport(WatchConnectivity)
-        guard WCSession.isSupported(), FileManager.default.fileExists(atPath: url.path) else { return }
-        WCSession.default.transferFile(url, metadata: [Self.fileNameKey: fileName])
-        #endif
+        guard FileManager.default.fileExists(atPath: url.path) else { return }
+        performFileTransfer(url, [Self.fileNameKey: fileName])
     }
 
     // MARK: - Transport-agnostic core (unit-tested directly)
@@ -303,6 +321,28 @@ public final class SyncManager: NSObject, @unchecked Sendable {
         let shouldRetry = pending[id] != nil && count <= Self.maxImmediateRetries
         lock.unlock()
         if shouldRetry { performTransfer(id, data) }
+    }
+
+    /// Records the outcome of a voice-note file transfer: on success fire
+    /// `onAudioFileDelivered` (the safe signal watch-side retention needs before
+    /// pruning the clip's only copy); on failure re-send once, provided the source
+    /// file still exists. Unlike session payloads, `transferFile` is not re-adopted
+    /// across relaunches and has no per-file pending queue, so this can't consult
+    /// `pending`. The re-send doesn't loop: each retry needs a fresh OS-level
+    /// `didFinish(error:)` to fire again, and a missing file just stops.
+    ///
+    /// The file name comes from the `fileNameKey` metadata (the name the markers
+    /// reference), falling back to the URL's last path component.
+    func completeFileTransfer(fileName: String?, fileURL: URL, metadata: [String: Any]?, error: Error?) {
+        let name = fileName ?? (metadata?[Self.fileNameKey] as? String) ?? fileURL.lastPathComponent
+        if error == nil {
+            onAudioFileDelivered?(name)
+            return
+        }
+        // Re-send once — but only if the source file is still on disk; otherwise
+        // there's nothing to resend and retrying would fail forever.
+        guard FileManager.default.fileExists(atPath: fileURL.path) else { return }
+        performFileTransfer(fileURL, metadata ?? [Self.fileNameKey: name])
     }
 
     /// Re-sends everything still outstanding — called when reachability returns
@@ -419,6 +459,20 @@ extension SyncManager: WCSessionDelegate {
     ) {
         guard let (id, data) = Self.sessionTransfer(from: userInfoTransfer.userInfo) else { return }
         completeTransfer(id: id, data: data, error: error)
+    }
+
+    public func session(
+        _ session: WCSession,
+        didFinish fileTransfer: WCSessionFileTransfer,
+        error: Error?
+    ) {
+        let metadata = fileTransfer.file.metadata
+        completeFileTransfer(
+            fileName: metadata?[Self.fileNameKey] as? String,
+            fileURL: fileTransfer.file.fileURL,
+            metadata: metadata,
+            error: error
+        )
     }
 
     public func sessionReachabilityDidChange(_ session: WCSession) {

@@ -31,6 +31,18 @@ struct SyncManagerTests {
         }
     }
 
+    /// Records every voice-note file (url + name metadata) handed to the transport.
+    private final class FileTransferRecorder: @unchecked Sendable {
+        private let lock = NSLock()
+        private(set) var urls: [URL] = []
+        private(set) var names: [String] = []
+        func record(_ url: URL, _ metadata: [String: Any]) {
+            lock.lock(); defer { lock.unlock() }
+            urls.append(url)
+            names.append((metadata[SyncManager.fileNameKey] as? String) ?? "")
+        }
+    }
+
     @Test("a session survives a JSON encode/decode round trip")
     func sessionRoundTrips() throws {
         let original = makeSession()
@@ -375,6 +387,79 @@ struct SyncManagerTests {
         let context = captured.withLock { $0 }
         #expect(context?[SyncManager.markersKey] != nil)
         #expect(context?[SyncManager.unitsKey] != nil)
+    }
+
+    @Test("sendAudioFile hands the file and name metadata to the transport")
+    func sendAudioFileRoutesThroughSeam() throws {
+        let recorder = FileTransferRecorder()
+        let manager = SyncManager(performTransfer: { _, _ in }, performFileTransfer: { recorder.record($0, $1) })
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("voice-\(UUID().uuidString).m4a")
+        try Data("x".utf8).write(to: fileURL)
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+
+        manager.sendAudioFile(fileURL, fileName: "voice-1.m4a")
+        #expect(recorder.urls == [fileURL])
+        #expect(recorder.names == ["voice-1.m4a"])
+    }
+
+    @Test("a confirmed voice-note delivery fires onAudioFileDelivered with the metadata name")
+    func audioDeliveryConfirmed() {
+        let manager = SyncManager(performTransfer: { _, _ in })
+        let delivered = Mutex<String?>(nil)
+        manager.onAudioFileDelivered = { name in delivered.withLock { $0 = name } }
+
+        manager.completeFileTransfer(
+            fileName: nil,
+            fileURL: URL(fileURLWithPath: "/tmp/whatever.m4a"),
+            metadata: [SyncManager.fileNameKey: "voice-1.m4a"],
+            error: nil
+        )
+        #expect(delivered.withLock { $0 } == "voice-1.m4a")
+    }
+
+    @Test("a failed voice-note transfer re-sends via the transport when the file exists")
+    func audioFailureResendsWhenFileExists() throws {
+        struct TransferError: Error {}
+        let recorder = FileTransferRecorder()
+        let manager = SyncManager(performTransfer: { _, _ in }, performFileTransfer: { recorder.record($0, $1) })
+        let delivered = Mutex<String?>(nil)
+        manager.onAudioFileDelivered = { name in delivered.withLock { $0 = name } }
+
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("voice-\(UUID().uuidString).m4a")
+        try Data("x".utf8).write(to: fileURL)
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+
+        manager.completeFileTransfer(
+            fileName: "voice-1.m4a",
+            fileURL: fileURL,
+            metadata: [SyncManager.fileNameKey: "voice-1.m4a"],
+            error: TransferError()
+        )
+        #expect(recorder.urls == [fileURL])          // re-sent once
+        #expect(recorder.names == ["voice-1.m4a"])
+        #expect(delivered.withLock { $0 } == nil)     // a failure never confirms delivery
+    }
+
+    @Test("a failed voice-note transfer with a missing file neither re-sends nor confirms")
+    func audioFailureMissingFileNoResend() {
+        struct TransferError: Error {}
+        let recorder = FileTransferRecorder()
+        let manager = SyncManager(performTransfer: { _, _ in }, performFileTransfer: { recorder.record($0, $1) })
+        let delivered = Mutex<String?>(nil)
+        manager.onAudioFileDelivered = { name in delivered.withLock { $0 = name } }
+
+        let missing = FileManager.default.temporaryDirectory
+            .appendingPathComponent("missing-\(UUID().uuidString).m4a")
+        manager.completeFileTransfer(
+            fileName: "missing.m4a",
+            fileURL: missing,
+            metadata: [SyncManager.fileNameKey: "missing.m4a"],
+            error: TransferError()
+        )
+        #expect(recorder.urls.isEmpty)                // nothing to re-send
+        #expect(delivered.withLock { $0 } == nil)
     }
 
     @Test("a live session snapshot round-trips through the application context")

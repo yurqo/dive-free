@@ -127,8 +127,9 @@ struct SessionListView: View {
     private func deleteSessions(at offsets: IndexSet) {
         for index in offsets {
             let session = sessions[index]
-            // SwiftData cascade-deletes the PhotoRecords; remove their files too.
-            for photo in (session.photos ?? []) { PhotoStore.delete(photo.thumbnailFileName) }
+            // SwiftData cascade-deletes the child records; remove their on-disk
+            // files (photo thumbnails + voice notes) too, which the cascade misses.
+            deleteLocalArtifacts(of: session)
             modelContext.delete(session)
         }
         try? modelContext.save()

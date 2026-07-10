@@ -47,16 +47,24 @@ final class AudioNoteRecorder {
         let template = try AVAudioFile(forReading: url(for: firstName))
         let output = try AVAudioFile(forWriting: outputURL, settings: template.fileFormat.settings)
 
-        for name in [firstName, secondName] {
-            let input = try AVAudioFile(forReading: url(for: name))
-            let format = input.processingFormat
-            let chunk: AVAudioFrameCount = 32_768
-            while true {
-                guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: chunk) else { break }
-                try input.read(into: buffer, frameCount: chunk)
-                if buffer.frameLength == 0 { break }
-                try output.write(from: buffer)
+        // The output file exists on disk from `forWriting:` onward, but no marker
+        // references it until we return. A mid-stream throw would leave it orphaned
+        // (the watch has no sweeper), so remove the partial file before rethrowing.
+        do {
+            for name in [firstName, secondName] {
+                let input = try AVAudioFile(forReading: url(for: name))
+                let format = input.processingFormat
+                let chunk: AVAudioFrameCount = 32_768
+                while true {
+                    guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: chunk) else { break }
+                    try input.read(into: buffer, frameCount: chunk)
+                    if buffer.frameLength == 0 { break }
+                    try output.write(from: buffer)
+                }
             }
+        } catch {
+            try? FileManager.default.removeItem(at: outputURL)
+            throw error
         }
 
         // The clips now live in the merged file — drop the sources.
@@ -84,7 +92,12 @@ final class AudioNoteRecorder {
                 AVEncoderAudioQualityKey: AVAudioQuality.medium.rawValue,
             ]
             let newRecorder = try AVAudioRecorder(url: Self.url(for: fileName), settings: settings)
-            guard newRecorder.record() else { return false }
+            guard newRecorder.record() else {
+                // Release the session we just activated, or it stays claimed against
+                // the workout's audio routing (1f).
+                deactivateSession()
+                return false
+            }
             recorder = newRecorder
             isRecording = true
 
@@ -96,6 +109,9 @@ final class AudioNoteRecorder {
             }
             return true
         } catch {
+            // Setup threw after (possibly) activating the session — release it so it
+            // doesn't stay claimed against the workout's audio routing (1f).
+            deactivateSession()
             return false
         }
     }
@@ -111,8 +127,15 @@ final class AudioNoteRecorder {
         capTask?.cancel()
         capTask = nil
         // Release the session so the workout's audio routing can resume.
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        deactivateSession()
         return fileName
+    }
+
+    /// Releases the shared audio session so it doesn't stay claimed against the
+    /// workout's audio routing (1f). Shared by `start()`'s failure exits and
+    /// `stop()`.
+    private func deactivateSession() {
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 
     private func requestPermission() async -> Bool {

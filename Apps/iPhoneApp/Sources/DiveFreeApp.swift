@@ -79,18 +79,22 @@ struct DiveFreeApp: App {
                     // retries can't create duplicates, and `@Query` refreshes the list.
                     sync.onReceiveSession = { session in
                         Task { @MainActor in
-                            try? SessionImporter(context: container.mainContext).importSession(session)
+                            try? SessionImporter(
+                                context: container.mainContext,
+                                mirrorAudio: { VoiceNoteStore.mirrorAudioData(into: $0) }
+                            ).importSession(session)
                         }
                     }
                     // Mirror a watch-side deletion: drop the phone's copy (and its
-                    // photo thumbnails) so a discarded session doesn't linger.
+                    // on-disk photo thumbnails + voice notes) so a discarded
+                    // session doesn't linger.
                     sync.onDeleteSession = { id in
                         Task { @MainActor in
                             let context = container.mainContext
                             var descriptor = FetchDescriptor<SessionRecord>(predicate: #Predicate { $0.id == id })
                             descriptor.fetchLimit = 1
                             guard let session = try? context.fetch(descriptor).first else { return }
-                            for photo in (session.photos ?? []) { PhotoStore.delete(photo.thumbnailFileName) }
+                            deleteLocalArtifacts(of: session)
                             context.delete(session)
                             try? context.save()
                         }
@@ -98,14 +102,36 @@ struct DiveFreeApp: App {
                     // Store voice-note files the watch transfers, keyed by the
                     // name the markers reference, so they're playable from detail.
                     sync.audioDirectory = VoiceNoteStore.directory
-                    // Tell any open detail view a clip landed so its play button
-                    // re-enables (SwiftUI can't observe the filesystem).
-                    sync.onReceiveAudioFile = { _ in
+                    // A clip landed from the watch. Mirror its bytes into the
+                    // matching marker's `audioData` so it syncs to the iPad via
+                    // CloudKit even if the session's detail view is never opened on
+                    // this phone (the reconcile that used to be the only path). Then
+                    // tell any open detail view so its play button re-enables
+                    // (SwiftUI can't observe the filesystem).
+                    sync.onReceiveAudioFile = { url in
                         Task { @MainActor in
+                            let context = container.mainContext
+                            let fileName = url.lastPathComponent
+                            var descriptor = FetchDescriptor<MarkerRecord>(
+                                predicate: #Predicate { $0.audioFileName == fileName }
+                            )
+                            descriptor.fetchLimit = 1
+                            if let marker = try? context.fetch(descriptor).first,
+                               VoiceNoteStore.mirrorAudioData(into: marker) {
+                                try? context.save()
+                            }
                             NotificationCenter.default.post(name: .voiceNoteReceived, object: nil)
                         }
                     }
                     sync.activate()
+                    // Sweep voice-note files orphaned on disk — e.g. a session
+                    // deleted on another device drops out here via CloudKit without
+                    // the local delete path running, leaving its clip behind. Also
+                    // retroactively cleans anything already leaked. Background
+                    // priority, after the store is up.
+                    Task(priority: .background) { @MainActor in
+                        try? await VoiceNoteSweeper(context: container.mainContext).sweep(directory: VoiceNoteStore.directory)
+                    }
                     // Push current custom markers so the Watch carousel has them.
                     let descriptor = FetchDescriptor<CustomMarkerRecord>(sortBy: [SortDescriptor(\.createdAt)])
                     let markers = (try? container.mainContext.fetch(descriptor)) ?? []
