@@ -33,7 +33,7 @@ struct DiveLiveActivity: Widget {
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     HStack {
-                        Text("\(snapshot.diveCount) dives · max \(DepthFormat.string(snapshot.maxDepthMeters))")
+                        Text("^[\(snapshot.diveCount) dive](inflect: true) · max \(DepthFormat.string(snapshot.maxDepthMeters))")
                         Spacer()
                         Text(dim ? "estimated" : "on Apple Watch")
                             .foregroundStyle(.secondary)

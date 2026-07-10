@@ -12,28 +12,66 @@ struct StatsView: View {
     @Query private var sessions: [SessionRecord]
     @Query private var spots: [Spot]
 
+    /// Aggregation is expensive (it faults every session's dives relationship), so
+    /// it's cached here and recomputed only on appear and when `fingerprint`
+    /// changes — not on every body evaluation. `nil` = not yet computed.
+    @State private var stats: DiveStats?
+
     var body: some View {
         NavigationStack {
-            // Computed once per render and threaded through the sections (rather
-            // than a computed property, which would re-aggregate on every access).
-            let stats = computeStats()
             List {
-                if stats.totalSessions == 0 {
-                    ContentUnavailableView(
-                        "No dives yet",
-                        systemImage: "rosette",
-                        description: Text("Log a session and your dive passport fills in here.")
-                    )
+                if let stats {
+                    if stats.totalSessions == 0 {
+                        ContentUnavailableView(
+                            "No dives yet",
+                            systemImage: "rosette",
+                            description: Text("Log a session and your dive passport fills in here.")
+                        )
+                    } else {
+                        totalsSection(stats)
+                        bestsSection(stats)
+                        passportSection(stats)
+                        if stats.monthly.count > 1 { activitySection(stats) }
+                        badgesSection(stats)
+                    }
                 } else {
-                    totalsSection(stats)
-                    bestsSection(stats)
-                    passportSection(stats)
-                    if stats.monthly.count > 1 { activitySection(stats) }
-                    badgesSection(stats)
+                    // First-frame flash guard: show a spinner until the first
+                    // aggregate lands instead of an empty list.
+                    ProgressView()
+                        .frame(maxWidth: .infinity)
+                        .listRowBackground(Color.clear)
                 }
             }
             .navigationTitle("Passport")
+            // Recompute on every appearance (`.task` re-runs each time the tab
+            // becomes frontmost in a TabView), not just the first. The cheap
+            // `fingerprint` misses two mutations the aggregate depends on: the
+            // async spot-country geocode backfill and CloudKit merging a
+            // session's dive children in a later save — neither bumps
+            // sessionCount / spotCount / latest startTime. Recomputing per visit
+            // picks both up. Accepted residual gap: such a mutation that happens
+            // while this tab stays frontmost stays stale until the next visit
+            // (`.onChange(of: fingerprint)` still catches count/date changes).
+            .task { stats = computeStats() }
+            .onChange(of: fingerprint) { stats = computeStats() }
         }
+    }
+
+    /// Cheap signature of the inputs the aggregate depends on; recompute when it
+    /// changes. The `@Query` is unsorted, so the newest session is found by max,
+    /// not position.
+    private var fingerprint: Fingerprint {
+        Fingerprint(
+            sessionCount: sessions.count,
+            spotCount: spots.count,
+            latestSession: sessions.map(\.startTime).max()
+        )
+    }
+
+    private struct Fingerprint: Equatable {
+        let sessionCount: Int
+        let spotCount: Int
+        let latestSession: Date?
     }
 
     /// Maps the live records to lightweight inputs and runs the pure aggregator.

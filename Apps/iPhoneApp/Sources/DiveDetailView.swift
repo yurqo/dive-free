@@ -106,7 +106,7 @@ struct SurfaceDetailView: View {
 
 /// Wraps a metric chart in a titled `Section`, omitting it entirely when the
 /// chart has no points in range (e.g. no temperature on a non-Ultra watch).
-@ViewBuilder
+@MainActor @ViewBuilder
 private func metricChartSection(_ title: String, _ chart: MetricChartView) -> some View {
     if !chart.isEmpty {
         Section(title) { chart }
