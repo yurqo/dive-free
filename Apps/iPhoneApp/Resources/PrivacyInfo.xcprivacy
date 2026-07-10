@@ -4,7 +4,7 @@
 <dict>
     <!-- DiveFree does not track users or share data with data brokers. The
          per-data-type "nutrition label" (Health, Location, Photos, etc.) is
-         declared authoritatively in App Store Connect; see docs/app-store-listing.md. -->
+         declared authoritatively in App Store Connect. -->
     <key>NSPrivacyTracking</key>
     <false/>
     <key>NSPrivacyTrackingDomains</key>

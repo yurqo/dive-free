@@ -79,6 +79,12 @@ fastlane/test_output
 # xcode-build-server config for SourceKit-LSP (machine-specific)
 buildServer.json
 
+# Local internal working docs — PRD, brandbook, mockups, impl guide, App Store listing (not for the public repo)
+/docs-local/
+
+# Local implementation plans / working notes (not for the public repo)
+/plans/
+
 # Cloudflare Worker (/Server)
 Server/node_modules/
 Server/.wrangler/

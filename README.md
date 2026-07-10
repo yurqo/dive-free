@@ -2,7 +2,7 @@
 
 The best Apple Watch companion for recreational freediving and snorkeling — a
 session logger and memory platform (not a dive computer). See [`docs/`](docs/)
-for the PRD, architecture, and implementation guide.
+for the architecture notes, CI/CD runbook, and privacy policy.
 
 ## Project layout
 
