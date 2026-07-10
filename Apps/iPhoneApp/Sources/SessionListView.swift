@@ -114,7 +114,11 @@ struct SessionListView: View {
 
     /// Row subtitle: dive count, session duration, max depth, and a photo count.
     private func statsLine(_ domain: DiveSession, photoCount: Int) -> String {
-        var parts = ["\(domain.diveCount) dives"]
+        // `String(localized:)` is a table lookup — it does NOT process inflection
+        // markup, so it would return the literal "^[…](inflect: true)" string. Build
+        // an `AttributedString` (which resolves the morphology) and read its
+        // characters back out to get the inflected plain string.
+        var parts = [String(AttributedString(localized: "^[\(domain.diveCount) dive](inflect: true)").characters)]
         if domain.totalDuration > 0 {
             parts.append(Duration.seconds(domain.totalDuration).formatted(.units(allowed: [.hours, .minutes], width: .narrow)))
         }

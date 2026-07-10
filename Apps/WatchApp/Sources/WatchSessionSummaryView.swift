@@ -325,7 +325,7 @@ struct WatchSessionSummaryView: View {
                 .foregroundStyle(.secondary)
         } else {
             VStack(spacing: 2) {
-                Text("\(session.markers.count) markers")
+                Text("^[\(session.markers.count) marker](inflect: true)")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                 Text(
