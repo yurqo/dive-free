@@ -40,6 +40,9 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     /// Called on the watch when the iPhone's units preference changes.
     public var onReceiveUnitPreference: (@Sendable (UnitPreference) -> Void)?
 
+    /// Called on the watch when the iPhone's dive-detection config changes.
+    public var onReceiveDetectionConfig: (@Sendable (DiveDetectionConfig) -> Void)?
+
     /// Called on the phone with each live snapshot of an in-progress Watch session
     /// (#118). Coalesced latest-value over the application context, so the phone
     /// can drive an in-app banner + Live Activity and keep the last value while the
@@ -68,6 +71,7 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     static let idKey = "id"
     static let markersKey = "customMarkers"
     static let unitsKey = "unitPreference"
+    static let detectionKey = "diveDetectionConfig"
     static let fileNameKey = "fileName"
     static let deletedKey = "deletedSessionID"
     static let liveSessionKey = "liveSession"
@@ -230,6 +234,14 @@ public final class SyncManager: NSObject, @unchecked Sendable {
         mergeAndApplyContext([Self.unitsKey: data])
     }
 
+    /// Pushes the current dive-detection config to the counterpart device (same
+    /// latest-wins application-context channel as the units preference). The watch
+    /// stores it and applies it to its next session.
+    public func sendDetectionConfig(_ config: DiveDetectionConfig) {
+        guard let data = try? encoder.encode(config) else { return }
+        mergeAndApplyContext([Self.detectionKey: data])
+    }
+
     // MARK: - Live session (watch → phone, #118)
 
     /// Pushes the latest in-progress session snapshot to the phone over the
@@ -264,6 +276,10 @@ public final class SyncManager: NSObject, @unchecked Sendable {
         if let data = context[Self.unitsKey] as? Data,
            let preference = try? decoder.decode(UnitPreference.self, from: data) {
             onReceiveUnitPreference?(preference)
+        }
+        if let data = context[Self.detectionKey] as? Data,
+           let config = try? decoder.decode(DiveDetectionConfig.self, from: data) {
+            onReceiveDetectionConfig?(config)
         }
         if let data = context[Self.liveSessionKey] as? Data,
            let snapshot = try? decoder.decode(LiveSessionSnapshot.self, from: data) {

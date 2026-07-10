@@ -36,6 +36,27 @@ public enum DepthFormat {
         }
     }
 
+    /// Exact depth string for a **selectable** value (a settings/threshold label),
+    /// never the ceiling "+": e.g. `"6 m"` / `"20 ft"` / `"1.5 m"`. Unlike `string`,
+    /// values at or beyond the ceiling render plainly — the caller is labelling a
+    /// chosen threshold, not a measured reading, so "6+ m" (which reads as "beyond
+    /// 6 m") would be wrong. A whole number drops its trailing decimal the locale-
+    /// aware way.
+    public static func exact(_ meters: Double, units: UnitPreference = .current) -> String {
+        "\(exactValue(meters, units: units)) \(unitLabel(units))"
+    }
+
+    /// Bare number for `exact` (no unit): whole meters drop the trailing ".0"
+    /// (`"6"`), fractional keep one decimal (`"1.5"`); feet are always whole.
+    public static func exactValue(_ meters: Double, units: UnitPreference = .current) -> String {
+        switch units.depth {
+        case .meters:
+            return meters.formatted(.number.precision(.fractionLength(0...1)))
+        case .feet:
+            return "\(Int((meters * feetPerMeter).rounded()))"
+        }
+    }
+
     /// The depth unit symbol for the current preference (`"m"` / `"ft"`).
     public static func unitLabel(_ units: UnitPreference = .current) -> String {
         units.depth == .meters ? "m" : "ft"

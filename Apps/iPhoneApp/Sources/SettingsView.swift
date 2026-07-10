@@ -31,6 +31,15 @@ struct SettingsView: View {
                 }
             }
             unitsSection
+            Section {
+                NavigationLink {
+                    DiveDetectionSettingsView()
+                } label: {
+                    Label("Dive detection", systemImage: "waveform.path.ecg")
+                }
+            } footer: {
+                Text("Tune when a descent counts as a dive. Syncs to your watch and applies to your next session.")
+            }
             iCloudSection
             Section {
                 if strava.isConnected {

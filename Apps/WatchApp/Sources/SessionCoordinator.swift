@@ -184,6 +184,32 @@ final class SessionCoordinator {
     /// doing nothing. Cleared on the next start attempt.
     private(set) var startError: String?
 
+    /// UserDefaults key for the diver's dive-detection config (JSON blob), synced
+    /// from the phone and applied to the next session (read in `start()`).
+    @ObservationIgnored private static let detectionConfigKey = "diveDetectionConfig"
+
+    /// The stored dive-detection config synced from the phone, or `.default` when
+    /// none has synced yet or it fails to decode.
+    private var storedDetectionConfig: DiveDetectionConfig {
+        guard let data = UserDefaults.standard.data(forKey: Self.detectionConfigKey),
+              let config = try? JSONDecoder().decode(DiveDetectionConfig.self, from: data)
+        else { return .default }
+        return config
+    }
+
+    /// Read-only one-line summary of the active detection rules for the watch's
+    /// Settings, in the diver's depth unit, e.g. "2 m/2 s · 1.5 m/3 s · 1 m/5 s ·
+    /// ends 3 s". Reflects what synced from the phone (or the defaults).
+    var detectionSummary: String {
+        let config = storedDetectionConfig.sanitized()
+        let tiers = config.thresholds.map { tier in
+            // Shared exact label so the same tier reads identically here and in the
+            // phone's picker (no locale-fragile ".0" stripping, no ceiling "+").
+            "\(DepthFormat.exact(tier.minimumDepthMeters))/\(Int(tier.minimumDuration)) s"
+        }
+        return (tiers + ["ends \(Int(config.surfaceExitDwellSeconds)) s"]).joined(separator: " · ")
+    }
+
     func addMarker(kind: MarkerKind) {
         sessionManager.addMarker(kind: kind)
     }
@@ -428,6 +454,16 @@ final class SessionCoordinator {
         sync.onReceiveUnitPreference = { preference in
             Task { @MainActor in preference.store() }
         }
+        // Mirror the iPhone's dive-detection config into local UserDefaults (JSON
+        // blob), the same last-stored-wins pattern as the units preference. Applied
+        // to the next session — `start()` reads it back and hands it to the manager.
+        sync.onReceiveDetectionConfig = { config in
+            Task { @MainActor in
+                if let data = try? JSONEncoder().encode(config) {
+                    UserDefaults.standard.set(data, forKey: Self.detectionConfigKey)
+                }
+            }
+        }
         sync.activate()
         // Let the Action-button intent route into this live coordinator.
         LiveSessionRegistry.shared.coordinator = self
@@ -551,6 +587,9 @@ final class SessionCoordinator {
         do {
             try await workout.requestAuthorization()
             try await workout.start()
+            // Apply the diver's synced detection config (sanitized) before starting,
+            // so this session's acceptance tiers + surface-exit dwell reflect it.
+            sessionManager.setDetectionConfig(storedDetectionConfig.sanitized())
             try await sessionManager.startSession()
             // Fresh interaction: menu rebuilt, focused on the default marker, end disarmed.
             interaction = SessionInteraction(

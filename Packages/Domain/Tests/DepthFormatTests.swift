@@ -30,6 +30,13 @@ struct DepthFormatTests {
         #expect(DepthFormat.string(6.0, units: .imperial) == "20+ ft") // 6 m ≈ 19.7 ft
         #expect(DepthFormat.string(9.9, units: .imperial) == "20+ ft")
     }
+
+    @Test("exact renders a selectable threshold with no ceiling affix, dropping a trailing .0")
+    func exactThreshold() {
+        #expect(DepthFormat.exact(6.0, units: .metric) == "6 m")   // not "6+ m"
+        #expect(DepthFormat.exact(1.5, units: .metric) == "1.5 m")
+        #expect(DepthFormat.exact(6.0, units: .imperial) == "20 ft") // 6 m ≈ 19.7 ft, not "20+ ft"
+    }
 }
 
 @Suite("DistanceFormat")

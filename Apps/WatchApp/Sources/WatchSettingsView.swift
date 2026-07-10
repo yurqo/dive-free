@@ -106,6 +106,16 @@ struct WatchSettingsView: View {
                 }
 
                 Section {
+                    Text(session.detectionSummary)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                } header: {
+                    Text("Dive detection")
+                } footer: {
+                    Text("Set on iPhone. Applies to your next session.")
+                }
+
+                Section {
                     Toggle("Time cues", isOn: $timeCuesEnabled)
                     if timeCuesEnabled {
                         Picker("Minor", selection: $timeCueMinorSeconds) {
