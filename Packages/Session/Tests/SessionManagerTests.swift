@@ -454,6 +454,102 @@ struct SessionManagerTests {
         try manager.stopSession()
     }
 
+    @Test("startManualDive is a no-op while an auto dive is in progress (doesn't destroy it)")
+    func startManualDuringAutoDiveIsNoop() async throws {
+        // An accidental Action + side mid-dive must NOT overwrite the auto dive's real
+        // start / running max with `now` / the current depth — that would destroy the
+        // dive in progress and (via pre-emption) drop it from the final pass.
+        let profile = Array(repeating: 8.0, count: 40) + [0.0]
+        let (manager, store) = try makeManager(
+            dwell: 0.3,
+            provider: ScriptedDepthProvider(profile: profile, interval: 0.02)
+        )
+        defer { _ = store }
+
+        try await manager.startSession()
+        // Wait until the auto dive is open and has accrued some max depth.
+        for _ in 0..<200 where manager.currentDiveStart == nil || manager.currentDiveMaxDepth < 8 {
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        let autoStart = manager.currentDiveStart
+        let autoMax = manager.currentDiveMaxDepth
+        #expect(autoStart != nil)
+
+        // The mid-dive manual toggle must be rejected — no manual dive, state intact.
+        let started = manager.startManualDive()
+        #expect(started == false)
+        #expect(manager.isManualDiveActive == false)
+        #expect(manager.currentDiveStart == autoStart)   // real start preserved
+        #expect(manager.currentDiveMaxDepth >= autoMax)  // running max not reset to `now`'s depth
+
+        // Let it surface, then end: the logged dive is the original auto dive (8 m).
+        for _ in 0..<200 where manager.currentDepthMeters != 0 {
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        let session = try manager.stopSession()
+        #expect(session?.dives.count == 1)
+        #expect(session?.dives.first?.maxDepthMeters == 8)
+    }
+
+    @Test("a manual stop while still deep defers onSurface until the genuine exit, firing once")
+    func manualStopDeepDefersSurfaceCallback() async throws {
+        // The diver surfaces THEN stops is the normal flow; here the diver stops while
+        // still deep. onSurface must NOT fire at the stop (that would restore the menu
+        // and let a voice note start underwater) — it fires exactly once at the true
+        // 0 m exit.
+        let profile = Array(repeating: 6.0, count: 30) + [0.0] + Array(repeating: 0.0, count: 5)
+        let (manager, store) = try makeManager(
+            dwell: 0.3,
+            provider: ScriptedDepthProvider(profile: profile, interval: 0.02)
+        )
+        defer { _ = store }
+
+        var surfaceCount = 0
+        manager.onSurface = { surfaceCount += 1 }
+
+        try await manager.startSession()
+        manager.startManualDive()
+        // Wait until we're actually deep, then stop the manual dive while still deep.
+        for _ in 0..<200 where manager.currentDepthMeters <= 1 {
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        manager.stopManualDive()
+        #expect(surfaceCount == 0)                 // deferred — not fired at the deep stop
+
+        // Let the profile reach 0 m — the genuine exit fires the deferred callback once.
+        for _ in 0..<200 where surfaceCount == 0 {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(surfaceCount == 1)                 // fired exactly once at the true exit
+
+        // No further surfaces from the trailing 0 m samples.
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(surfaceCount == 1)
+        try manager.stopSession()
+    }
+
+    @Test("a manual stop at/near the surface fires onSurface immediately")
+    func manualStopShallowFiresSurfaceImmediately() async throws {
+        // Stopped at 0 m (surfaced): onSurface fires right away, as before — the menu
+        // restores and a surface voice note may start.
+        let profile = Array(repeating: 0.0, count: 40)
+        let (manager, store) = try makeManager(
+            dwell: 0.3,
+            provider: ScriptedDepthProvider(profile: profile, interval: 0.02)
+        )
+        defer { _ = store }
+
+        var surfaceCount = 0
+        manager.onSurface = { surfaceCount += 1 }
+
+        try await manager.startSession()
+        manager.startManualDive()
+        try await Task.sleep(for: .milliseconds(50))   // at the surface (0 m)
+        manager.stopManualDive()
+        #expect(surfaceCount == 1)                      // fired immediately at the surface stop
+        try manager.stopSession()
+    }
+
     @Test("a manual stop in the shallow band clears suppression once the dwell elapses")
     func manualStopShallowClearsAfterDwell() async throws {
         // Same shallow stop, but the diver then hangs shallow past the (short) dwell — a

@@ -151,23 +151,46 @@ public final class SessionManager {
     /// `surfaceExitDwellSeconds` folds back into the dive; longer ends it, backdated
     /// to this crossing.
     @ObservationIgnored private var shallowSince: Date?
+    /// Set when `stopManualDive` ran while the diver was still deeper than the exit
+    /// threshold, so its `onSurface` callback was DEFERRED (firing it then would
+    /// restore the surface menu and let a voice note start at depth). The genuine
+    /// surface exit — the 0 m branch or the dwell expiry in `refreshDetection` that
+    /// clears `suppressAutoUntilSurface` — fires the deferred `onSurface` exactly
+    /// once. Cleared on session start/stop and whenever a new dive opens.
+    @ObservationIgnored private var pendingSurfaceCallback = false
 
     /// Whether a manual dive (Action + side) is currently in progress.
     public var isManualDiveActive: Bool { manualDiveStart != nil }
 
     /// Begins a manual dive immediately — even at the surface, before depth crosses
     /// the threshold. Suspends auto-detection for this segment; the live UI shows
-    /// "submerged" right away.
-    public func startManualDive() {
-        guard isActive, manualDiveStart == nil else { return }
+    /// "submerged" right away. Returns whether a manual dive actually started, so the
+    /// app layer only plays its confirming haptic on a real start.
+    ///
+    /// No-op when an AUTO dive is already in progress (`currentDiveStart != nil` while
+    /// no manual dive is active): an accidental Action + side mid-dive must NOT
+    /// overwrite the dive's real start + running max depth with `now` / the current
+    /// (deep) depth — doing so would destroy the dive in progress (and the detector's
+    /// pre-emption would then drop the auto dive). The diver ends the dive by
+    /// surfacing, as normal.
+    @discardableResult
+    public func startManualDive() -> Bool {
+        guard isActive, manualDiveStart == nil else { return false }
+        // Also rejects a manual start during the post-dive shallow-band dwell: the dive
+        // hasn't ended until the diver clears the exit threshold, so `currentDiveStart`
+        // is still set. Accepted trade-off — the alternative (letting the start through)
+        // would overwrite and destroy the still-open dive, as above.
+        guard currentDiveStart == nil else { return false }
         let now = Date()
         manualDiveStart = now
         suppressAutoUntilSurface = false
         shallowSince = nil
+        pendingSurfaceCallback = false
         currentDiveStart = now
         currentDiveMaxDepth = sensors.currentDepthMeters
         lastSurfacedAt = nil
         onSubmerge?()
+        return true
     }
 
     /// Ends the in-progress manual dive immediately — even before surfacing.
@@ -188,8 +211,22 @@ public final class SessionManager {
         // here it would open+confirm a re-descent dive the final pass then drops
         // (live/final mismatch). The shallow-branch dwell in `refreshDetection` clears
         // this once the diver actually surfaces.
-        suppressAutoUntilSurface = sensors.currentDepthMeters > DiveDetectionConfig.surfaceExitDepthMeters
-        onSurface?()
+        let stillDeep = sensors.currentDepthMeters > DiveDetectionConfig.surfaceExitDepthMeters
+        suppressAutoUntilSurface = stillDeep
+        // Fire `onSurface` immediately only when the diver is at/near the surface at
+        // the manual stop. When still deeper than the exit threshold, DEFER it: firing
+        // now would restore the surface action menu and let a voice note start
+        // underwater (at 4 m it never auto-stops until the surface). The genuine exit
+        // — the 0 m branch or the dwell expiry in `refreshDetection` that clears
+        // `suppressAutoUntilSurface` — fires the deferred callback exactly once, so the
+        // menu stays collapsed and the time cues (which key off the haptic tracker's
+        // depth-driven `.surface`) stop at the true exit.
+        if stillDeep {
+            pendingSurfaceCallback = true
+        } else {
+            pendingSurfaceCallback = false
+            onSurface?()
+        }
     }
 
     /// When the diver last returned to the surface after a completed dive. Set
@@ -310,6 +347,7 @@ public final class SessionManager {
         manualDiveStart = nil
         suppressAutoUntilSurface = false
         shallowSince = nil
+        pendingSurfaceCallback = false
         capturedLocation = nil
         lastLocationFixAt = nil
         lastLocationAccuracy = nil
@@ -366,6 +404,10 @@ public final class SessionManager {
             // out a dive OR the post-manual-stop suppression through a bounce.
             shallowSince = nil
             if !suppressAutoUntilSurface, currentDiveStart == nil {
+                // A fresh descent starts a new dive; any deferred surface callback from
+                // an earlier manual stop is stale now (the diver never surfaced but is
+                // diving again — the menu is collapsing via onSubmerge regardless).
+                pendingSurfaceCallback = false
                 currentDiveStart = Date()
                 currentDiveMaxDepth = 0
                 onSubmerge?()
@@ -380,6 +422,7 @@ public final class SessionManager {
             suppressAutoUntilSurface = false
             shallowSince = nil
             if currentDiveStart != nil { endCurrentDive(surfacedAt: Date()) }
+            else { fireDeferredSurfaceCallback() }   // genuine exit after a deep manual stop
         } else if currentDiveStart != nil || suppressAutoUntilSurface {
             // Shallow band (above the surface, below the threshold) with a dive open,
             // or auto-detection suppressed after a manual stop: time the dwell from the
@@ -392,13 +435,23 @@ public final class SessionManager {
             if Date().timeIntervalSince(crossing) >= detector.config.surfaceExitDwellSeconds {
                 suppressAutoUntilSurface = false
                 if currentDiveStart != nil { endCurrentDive(surfacedAt: crossing) }
-                else { shallowSince = nil }
+                else { shallowSince = nil; fireDeferredSurfaceCallback() }   // genuine dwell exit after a deep manual stop
             }
         } else {
             shallowSince = nil
         }
         let events = hapticTracker.update(depthMeters: depth)
         for event in events { onHapticEvent?(event) }
+    }
+
+    /// Fires the `onSurface` callback that `stopManualDive` deferred because the diver
+    /// was still deep at the manual stop (see `pendingSurfaceCallback`). No-op unless
+    /// a callback is actually pending, so it's safe to call from every genuine-exit
+    /// branch. Fires exactly once (the flag is cleared here).
+    private func fireDeferredSurfaceCallback() {
+        guard pendingSurfaceCallback else { return }
+        pendingSurfaceCallback = false
+        onSurface?()
     }
 
     /// Ends the auto-detected dive in progress: clears the live dive state and,
@@ -458,6 +511,7 @@ public final class SessionManager {
         manualDiveStart = nil
         suppressAutoUntilSurface = false
         shallowSince = nil
+        pendingSurfaceCallback = false
         track = []
         lastLocationFixAt = nil
         lastLocationAccuracy = nil

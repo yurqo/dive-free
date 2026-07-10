@@ -352,6 +352,100 @@ struct SyncManagerTests {
         #expect(flags.withLock { $0 } == [true, false])
     }
 
+    @Test("a failed resync retries via the resync transport, not a plain send")
+    func failedResyncRetriesViaResyncTransport() throws {
+        struct TransferError: Error {}
+        let normal = TransferRecorder()
+        let resync = TransferRecorder()
+        let manager = SyncManager(
+            performTransfer: { normal.record($0, $1) },
+            performResyncTransfer: { resync.record($0, $1) }
+        )
+        try manager.send(makeSession(), isResync: true)   // explicit resync
+        let sent = resync.calls[0]
+
+        // The first hop fails — the retry must keep the resync envelope, or the phone
+        // would tombstone-reject it yet still mark it delivered (data loss).
+        manager.completeTransfer(id: sent.id, data: sent.data, error: TransferError())
+        #expect(resync.calls.count == 2)                  // original + retry, both resync
+        #expect(resync.calls[1].id == sent.id)
+        #expect(normal.calls.isEmpty)                     // never downgraded to a plain send
+        #expect(manager.pendingCount == 1)
+    }
+
+    @Test("retryPending preserves the resync envelope for a queued resync")
+    func retryPendingPreservesResyncEnvelope() throws {
+        let normal = TransferRecorder()
+        let resync = TransferRecorder()
+        let manager = SyncManager(
+            performTransfer: { normal.record($0, $1) },
+            performResyncTransfer: { resync.record($0, $1) }
+        )
+        try manager.send(makeSession(), isResync: true)
+        let sentID = resync.calls[0].id
+
+        // A reachability-driven resend must re-route through the resync transport.
+        manager.retryPending()
+        #expect(resync.calls.count == 2)                  // original + retryPending resend
+        #expect(resync.calls[1].id == sentID)
+        #expect(normal.calls.isEmpty)
+    }
+
+    @Test("the phone's session import ack round-trips to the watch's onSessionImported")
+    func importAckRoundTrips() {
+        // Phone side: capture the wire message sendImportAck produces (its default
+        // transport builds `[ackKey: id]`; the stub mirrors that shape).
+        let ackPayload = Mutex<[String: Any]?>(nil)
+        let id = UUID()
+        let phone = SyncManager(performAck: { ackedID in
+            ackPayload.withLock { $0 = [SyncManager.ackKey: ackedID.uuidString] }
+        })
+        phone.sendImportAck(id)
+
+        // Watch side: the ack message decodes to onSessionImported, not onReceiveSession.
+        let watch = SyncManager(performTransfer: { _, _ in })
+        let imported = Mutex<UUID?>(nil)
+        let received = Mutex<DiveSession?>(nil)
+        watch.onSessionImported = { id in imported.withLock { $0 = id } }
+        watch.onReceiveSession = { session, _ in received.withLock { $0 = session } }
+        watch.handleReceived(ackPayload.withLock { $0 } ?? [:])
+
+        #expect(imported.withLock { $0 } == id)
+        #expect(received.withLock { $0 } == nil)
+    }
+
+    @Test("the phone's audio import ack round-trips to the watch's onAudioImported")
+    func audioImportAckRoundTrips() {
+        let ackPayload = Mutex<[String: Any]?>(nil)
+        let phone = SyncManager(performAudioAck: { name in
+            ackPayload.withLock { $0 = [SyncManager.audioAckKey: name] }
+        })
+        phone.sendAudioImportAck("voice-1.m4a")
+
+        let watch = SyncManager(performTransfer: { _, _ in })
+        let imported = Mutex<String?>(nil)
+        let receivedFile = Mutex<Bool>(false)
+        watch.onAudioImported = { name in imported.withLock { $0 = name } }
+        watch.onReceiveSession = { _, _ in receivedFile.withLock { $0 = true } }
+        watch.handleReceived(ackPayload.withLock { $0 } ?? [:])
+
+        #expect(imported.withLock { $0 } == "voice-1.m4a")
+        #expect(receivedFile.withLock { $0 } == false)   // not mistaken for a session
+    }
+
+    @Test("an import-ack message is skipped by outstanding-transfer adoption (no payloadKey)")
+    func ackMessageNotAdoptedAsSession() {
+        // The ack shares the deletion's shape (a control message, id only). Adoption
+        // maps only session transfers (payloadKey present), so an ack in the OS queue
+        // must not become a phantom pending session.
+        let manager = SyncManager(
+            performTransfer: { _, _ in },
+            outstandingTransfers: { [(id: "ack-1", data: Data())] }
+        )
+        #expect(SyncManager.sessionTransfer(from: [SyncManager.ackKey: UUID().uuidString]) == nil)
+        _ = manager
+    }
+
     @Test("after sendDeletion, re-sending the same session id is a no-op (tombstoned)")
     func sendAfterDeletionIsTombstoned() throws {
         let recorder = TransferRecorder()
