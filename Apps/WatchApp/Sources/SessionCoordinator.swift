@@ -364,6 +364,10 @@ final class SessionCoordinator {
     /// over the application context, so a missed tick just gets overwritten.
     private func startLiveSync() {
         liveSyncTask?.cancel()
+        // Fresh session: forget the previous session's last-sent state so this
+        // session's first snapshot always goes out (see `sendLiveSnapshot`).
+        lastSentLiveSnapshot = nil
+        lastLiveSentAt = nil
         sendLiveSnapshot(active: true)
         liveSyncTask = Task { @MainActor in
             while !Task.isCancelled {
@@ -382,19 +386,40 @@ final class SessionCoordinator {
 
     /// Sends the current session state to the phone. `active: false` is the
     /// terminal snapshot on stop, telling the phone to end its live display.
+    ///
+    /// The 2 s tick is kept, but a redundant tick is *suppressed*: we only actually
+    /// transmit when the phone would render something different, or a heartbeat is
+    /// due (`LiveSessionSnapshot.shouldSend`). Each send re-applies the whole
+    /// application context (markers/units ride along — see `SyncManager`), so at the
+    /// surface, where most of a session is spent with nothing changing, this cuts
+    /// ~1,800 redundant sends/hour to one heartbeat every `heartbeatInterval`.
     private func sendLiveSnapshot(active: Bool) {
         let start: Date
         if case .active(let s) = state { start = s } else { start = sessionManager.startTime ?? Date() }
-        sync.sendLiveSession(LiveSessionSnapshot(
+        let now = Date()
+        let snapshot = LiveSessionSnapshot(
             isActive: active,
             startTime: start,
+            updatedAt: now,
             depthMeters: currentDepthMeters,
             maxDepthMeters: maxDepthMeters,
             diveCount: diveCount,
             isSubmerged: isSubmerged,
             currentDiveElapsed: currentDiveElapsed
-        ))
+        )
+        guard LiveSessionSnapshot.shouldSend(
+            previous: lastSentLiveSnapshot, candidate: snapshot, lastSentAt: lastLiveSentAt, now: now
+        ) else { return }
+        sync.sendLiveSession(snapshot)
+        lastSentLiveSnapshot = snapshot
+        lastLiveSentAt = now
     }
+
+    /// The last live snapshot actually transmitted, and when — the baseline the next
+    /// tick compares against to suppress redundant sends. Reset per session in
+    /// `startLiveSync`; the terminal snapshot bypasses the comparison in `shouldSend`.
+    @ObservationIgnored private var lastSentLiveSnapshot: LiveSessionSnapshot?
+    @ObservationIgnored private var lastLiveSentAt: Date?
 
     private let sessionManager: SessionManager
     private let modelContext: ModelContext
