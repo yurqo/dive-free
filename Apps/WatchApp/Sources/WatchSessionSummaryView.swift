@@ -16,6 +16,7 @@ struct WatchSessionSummaryView: View {
     @Environment(SessionCoordinator.self) private var coordinator
     @Environment(\.dismiss) private var dismiss
     @State private var showDeleteConfirm = false
+    @State private var showDiscardConfirm = false
     @State private var resynced = false
 
     private var hasGeo: Bool { !session.track.isEmpty || session.location != nil }
@@ -46,12 +47,18 @@ struct WatchSessionSummaryView: View {
                 // Full session map at the bottom.
                 if hasGeo { mapSection }
 
-                // Re-send / discard actions on a browsed past session (not the
+                // Re-send / delete actions on a browsed past session (not the
                 // live post-dive summary, which shows its own sync badge).
                 if !showSync {
                     resyncButton
                     deleteButton
                 }
+
+                // On the live post-dive summary, a Discard to throw away an
+                // accidental session (started by mistake, no real dives). Sync
+                // already happened on stop(); the discard sends a deletion that
+                // drops it from the phone too (see `discardSummary`).
+                if showSync { discardButton }
             }
             .frame(maxWidth: .infinity)
             .padding(.horizontal, 4)
@@ -64,6 +71,14 @@ struct WatchSessionSummaryView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("This removes the session from your watch and iPhone.")
+        }
+        .confirmationDialog("Discard this session?", isPresented: $showDiscardConfirm, titleVisibility: .visible) {
+            Button("Discard", role: .destructive) {
+                coordinator.discardSummary()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This throws away the session — it won't be kept on your watch or appear on your iPhone.")
         }
     }
 
@@ -88,6 +103,18 @@ struct WatchSessionSummaryView: View {
     private var deleteButton: some View {
         Button(role: .destructive) { showDeleteConfirm = true } label: {
             Label("Delete Session", systemImage: "trash")
+                .frame(maxWidth: .infinity)
+        }
+        .tint(.red)
+        .padding(.top, 8)
+    }
+
+    /// Discard action at the bottom of the just-finished summary — for an
+    /// accidental session. Confirmation-gated so a water-splashed screen can't
+    /// throw a session away in one tap; the Done control stays in the toolbar.
+    private var discardButton: some View {
+        Button(role: .destructive) { showDiscardConfirm = true } label: {
+            Label("Discard Session", systemImage: "trash")
                 .frame(maxWidth: .infinity)
         }
         .tint(.red)

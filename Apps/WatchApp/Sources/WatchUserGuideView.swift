@@ -40,6 +40,11 @@ struct WatchUserGuideView: View {
                         systemImage: "stop.circle"
                     )
                     item(
+                        "Discarding",
+                        "Started a session by mistake? On the summary after it ends, tap Discard (and confirm) to throw it away — it's removed from the watch and won't appear on your iPhone.",
+                        systemImage: "trash"
+                    )
+                    item(
                         "Depth",
                         "Depth needs an Ultra or Series 10/11. Other watches still log the GPS track and your markers.",
                         systemImage: "gauge.with.dots.needle.bottom.50percent"

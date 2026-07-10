@@ -17,6 +17,12 @@ final class WorkoutController: NSObject {
     private var session: HKWorkoutSession?
     private var builder: HKLiveWorkoutBuilder?
 
+    /// The `HKWorkout` saved by the most recent `end()`, retained so a discard of
+    /// an accidental session can delete it from Health too. Cleared on the next
+    /// `start()` and once discarded; `nil` when nothing has finished (e.g. the
+    /// simulator, or HealthKit unavailable).
+    private var finishedWorkout: HKWorkout?
+
     private(set) var isRunning = false
 
     /// Most recent heart rate (bpm) for the live readout; `nil` until the first sample.
@@ -54,6 +60,9 @@ final class WorkoutController: NSObject {
     // MARK: - Session lifecycle
 
     func start() async throws {
+        // A new session supersedes any previously-finished workout still held for
+        // a possible discard.
+        finishedWorkout = nil
         let configuration = HKWorkoutConfiguration()
         // .underwaterDiving is reserved for Apple's dive apps — HKWorkoutSession
         // rejects it for third parties (HKError 12, "does not support this
@@ -109,12 +118,24 @@ final class WorkoutController: NSObject {
             .statistics(for: HKQuantityType(.activeEnergyBurned))?
             .sumQuantity()?
             .doubleValue(for: .kilocalorie())
-        _ = try? await builder?.finishWorkout()
+        // Keep the finished workout so a discard can delete it from Health.
+        finishedWorkout = try? await builder?.finishWorkout()
         session = nil
         builder = nil
         isRunning = false
         currentHeartRate = nil
         return kilocalories
+    }
+
+    /// Deletes the workout saved by the last `end()` from Health — the Health-side
+    /// half of discarding an accidental session, so it stops counting toward the
+    /// activity/Fitness rings. An app may delete objects it wrote without extra
+    /// authorization. No-op when nothing has finished (e.g. the simulator, or
+    /// HealthKit unavailable).
+    func discardFinishedWorkout() async {
+        guard let workout = finishedWorkout else { return }
+        try? await healthStore.delete(workout)
+        finishedWorkout = nil
     }
 
     #if targetEnvironment(simulator)
