@@ -25,7 +25,7 @@ struct UserGuideView: View {
                         .font(.subheadline.weight(.medium))
                     }
                 } header: {
-                    Label(chapter.title, systemImage: chapter.systemImage)
+                    Label { Text(chapter.title) } icon: { Image(systemName: chapter.systemImage) }
                         .font(.headline)
                         .textCase(nil)
                         .foregroundStyle(.primary)
@@ -58,6 +58,9 @@ private struct GuideBlockView: View {
                 .fixedSize(horizontal: false, vertical: true)
 
         case .subheading(let s):
+            // `Text(LocalizedStringResource)` parses inline markdown and treats
+            // `%` as a format specifier — keep subheading literals free of both
+            // (as with `.text`/`.bullet` above).
             Text(s)
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.primary)
@@ -98,23 +101,30 @@ private struct GuideBlockView: View {
 // MARK: - Content model
 
 /// A single line of guide content. Text supports simple **bold**/_italic_ markdown.
+///
+/// Payloads are `LocalizedStringResource`, not `String`, so the English literals
+/// at each `.text("…")`/`.bullet("…")` definition site auto-extract into the app's
+/// String Catalog (via `SWIFT_EMIT_LOC_STRINGS`) — a plain `String` rendered
+/// through `Text(_ verbatim:)`/`AttributedString(markdown:)` would not. English
+/// output is unchanged: each resource resolves back to its own literal.
 private enum GuideBlock {
-    case text(String)
-    case subheading(String)
-    case bullet(String)
-    case step(Int, String)
-    case tip(String)
+    case text(LocalizedStringResource)
+    case subheading(LocalizedStringResource)
+    case bullet(LocalizedStringResource)
+    case step(Int, LocalizedStringResource)
+    case tip(LocalizedStringResource)
 
-    /// Parses inline markdown so key terms can be emphasised; falls back to plain
-    /// text if the string somehow fails to parse.
-    static func markdown(_ s: String) -> AttributedString {
-        (try? AttributedString(markdown: s)) ?? AttributedString(s)
+    /// Resolves the localized string then parses inline markdown so key terms can
+    /// be emphasised; falls back to plain text if it somehow fails to parse.
+    static func markdown(_ s: LocalizedStringResource) -> AttributedString {
+        let resolved = String(localized: s)
+        return (try? AttributedString(markdown: resolved)) ?? AttributedString(resolved)
     }
 }
 
 private struct GuideChapter: Identifiable {
     let id = UUID()
-    let title: String
+    let title: LocalizedStringResource
     let systemImage: String
     /// Always visible under the chapter header.
     let intro: [GuideBlock]

@@ -89,9 +89,16 @@ struct WatchUserGuideView: View {
         .presentationBackground(Color.black)
     }
 
-    private func item(_ title: String, _ body: String, systemImage: String) -> some View {
+    // Payloads are `LocalizedStringResource` so the English literals at each
+    // `item("…", "…")` call site auto-extract into the Watch app's String Catalog
+    // (via `SWIFT_EMIT_LOC_STRINGS`); a plain `String` reaches `Label`/`Text`
+    // through their verbatim initializers and would not localize. English output
+    // is unchanged.
+    private func item(_ title: LocalizedStringResource, _ body: LocalizedStringResource, systemImage: String) -> some View {
         VStack(alignment: .leading, spacing: 3) {
-            Label(title, systemImage: systemImage)
+            // `Text(LocalizedStringResource)` parses inline markdown and treats
+            // `%` as a format specifier — keep the title/body literals free of both.
+            Label { Text(title) } icon: { Image(systemName: systemImage) }
                 .font(.headline)
                 .foregroundStyle(.teal)
             Text(body)

@@ -337,8 +337,10 @@ final class LiveSessionMonitor {
             await notifier.requestAuthorization()
             notifier.add(
                 id: id,
-                title: "Dive session running on your watch",
-                body: "Open DiveFree to follow it live — depth and dives update in the app."
+                // Plain `String`s handed to UNMutableNotificationContent — no
+                // SwiftUI auto-localization — so localize explicitly.
+                title: String(localized: "Dive session running on your watch"),
+                body: String(localized: "Open DiveFree to follow it live — depth and dives update in the app.")
             )
         }
     }

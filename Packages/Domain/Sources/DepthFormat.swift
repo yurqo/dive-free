@@ -1,5 +1,23 @@
 import Foundation
 
+// TODO: (localization stage 3) Domain's display strings are NOT yet localized.
+// The format helpers below embed unit words/symbols ("m", "ft", "km/h", the
+// "Depth (…)" axis caption) and other Domain files emit translatable text
+// (DiveWeather condition names like "Clear"/"Overcast"/"Rain"). These
+// reach the UI as plain `String` values, so SwiftUI's automatic `Text`
+// localization never sees them. Localizing them requires, per this framework:
+//   1. a `defaultLocalization`/development region + a `Localizable.xcstrings` in
+//      `Packages/Domain/Resources` (module() already forwards `resources:`);
+//   2. `String(localized: …, bundle: .module)` at every converted site — the
+//      bare `String(localized:)` resolves against `Bundle.main`, which is wrong
+//      for a framework;
+//   3. per-string triage: keep bare unit symbols and any identifier/wire values
+//      (e.g. DiveDetector rule ids, anything that could ride a sync payload)
+//      untranslated; only convert genuine display words.
+// Deferred here (not in this groundwork pass) because most Domain strings are
+// standard unit symbols that stay untranslated, so the value is low relative to
+// the per-call `bundle: .module` plumbing and the wire/identifier triage.
+
 /// Formats depth readings, accounting for the sensor's measurable ceiling and the
 /// user's chosen depth unit (`UnitPreference`).
 ///
