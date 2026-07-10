@@ -36,7 +36,9 @@ struct WatchSettingsView: View {
     @AppStorage(SimCapabilityOverride.actionButtonKey) private var simActionButton = true
     #endif
 
-    /// One-shot latch so the "Re-send all" button confirms it fired.
+    /// Transient confirmation for the "Re-send all" button: flips the label after a
+    /// tap and reverts after a short window (also a double-tap debounce), so the
+    /// button can be used again later in the same visit.
     @State private var resyncedAll = false
 
     // Retention: auto-clean synced sessions off the watch (they stay on the
@@ -157,8 +159,15 @@ struct WatchSettingsView: View {
                 Section {
                     Button {
                         session.resyncAll()
-                        resyncedAll = true
                         WKInterfaceDevice.current().play(.success)
+                        resyncedAll = true
+                        // Revert the confirmation after a short window so the button
+                        // can be re-used later in the same visit; the `.disabled`
+                        // below debounces double-taps until then.
+                        Task {
+                            try? await Task.sleep(for: .seconds(2.5))
+                            resyncedAll = false
+                        }
                     } label: {
                         Label(resyncedAll ? "Sent all to iPhone" : "Re-send all to iPhone",
                               systemImage: resyncedAll ? "checkmark.circle" : "arrow.triangle.2.circlepath")
@@ -167,7 +176,12 @@ struct WatchSettingsView: View {
                 } header: {
                     Text("Sync")
                 } footer: {
-                    Text("Re-send every session on this watch to your iPhone — use it if some dives didn't show up there.")
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Re-send every session on this watch to your iPhone — use it if some dives didn't show up there.")
+                        if session.pendingSyncCount > 0 {
+                            Text("\(session.pendingSyncCount) waiting to reach your iPhone")
+                        }
+                    }
                 }
 
                 Section {
