@@ -248,4 +248,121 @@ struct DiveDetectorTests {
         let s = samples([0, 5, 8, 0])
         #expect(detector.detectDives(from: s, manualSegments: []).count == detector.detectDives(from: s).count)
     }
+
+    @Test("a deep manual stop then a sub-dwell bounce and re-descent logs only the manual dive")
+    func manualStopBounceSuppressesRedescent() {
+        let detector = DiveDetector(config: DiveDetectionConfig(surfaceExitDwellSeconds: 3, minimumDiveDuration: 0))
+        let start = Date(timeIntervalSince1970: 0)
+        // Deep through the manual segment [t0,t2], a sub-dwell (1 s) shallow bounce at
+        // t4, a re-descent, then a real surface (0 m) at t8. The post-manual descent
+        // must stay suppressed — only the manual dive is logged.
+        let s = samples([4, 4, 4, 4, 0.8, 4, 4, 4, 0], start: start)
+        let dives = detector.detectDives(from: s, manualSegments: [DateInterval(start: start, end: start.addingTimeInterval(2))])
+        #expect(dives.count == 1)
+        #expect(dives.first?.startTime == start)   // the manual dive
+    }
+
+    @Test("a shallow spell that began before the manual stop doesn't swallow a later dive")
+    func manualStopShallowSpellAnchoredAtStart() {
+        // Profile [4,4,4,0.8,0.8,0.8,0.8,4,4,4,4,0], manual [t0,t5], dwell 3.
+        // The shallow spell starts at t3 (before the t5 stop). Anchoring the dwell at
+        // t3 ends the pre-emption at t6, so the genuine [t7,t11] descent survives.
+        // (Anchoring at t5 instead would push the exit to t11 and drop that dive.)
+        let detector = DiveDetector(config: DiveDetectionConfig(surfaceExitDwellSeconds: 3, minimumDiveDuration: 0))
+        let start = Date(timeIntervalSince1970: 0)
+        let s = samples([4, 4, 4, 0.8, 0.8, 0.8, 0.8, 4, 4, 4, 4, 0], start: start)
+        let dives = detector.detectDives(from: s, manualSegments: [DateInterval(start: start, end: start.addingTimeInterval(5))])
+        // The manual dive [t0,t5] plus the surviving auto dive [t7,t11].
+        #expect(dives.count == 2)
+        #expect(dives.contains { $0.startTime == start.addingTimeInterval(7) && $0.endTime == start.addingTimeInterval(11) })
+    }
+
+    @Test("a manual stop then a true surface and a new descent logs both dives")
+    func manualStopTrueSurfaceLogsBoth() {
+        let detector = DiveDetector(config: DiveDetectionConfig(surfaceExitDwellSeconds: 3, minimumDiveDuration: 0))
+        let start = Date(timeIntervalSince1970: 0)
+        // Manual [t0,t1] (stopped deep), a genuine 0 m surface at t2, then a fresh
+        // descent t3–t4 and surface t5. Both dives should survive.
+        let s = samples([4, 4, 0, 4, 6, 0], start: start)
+        let dives = detector.detectDives(from: s, manualSegments: [DateInterval(start: start, end: start.addingTimeInterval(1))])
+        #expect(dives.count == 2)
+        #expect(dives.map(\.maxDepthMeters).contains(6))   // the new descent survived
+    }
+
+    // MARK: - Configurable detection (Codable + sanitized, plan 15)
+
+    @Test("a detection config survives a JSON encode/decode round trip")
+    func configRoundTrips() throws {
+        let config = DiveDetectionConfig(surfaceThresholdMeters: 1.0, surfaceExitDwellSeconds: 4, thresholds: [
+            .init(minimumDepthMeters: 2.0, minimumDuration: 2),
+            .init(minimumDepthMeters: 1.0, minimumDuration: 6),
+        ])
+        let data = try JSONEncoder().encode(config)
+        #expect(try JSONDecoder().decode(DiveDetectionConfig.self, from: data) == config)
+    }
+
+    @Test("a partial config payload decodes with defaults for absent keys")
+    func partialConfigDecodes() throws {
+        // Only thresholds present — surface threshold and dwell fall back to defaults,
+        // keeping the wire format additive (older/newer payloads still decode).
+        let json = #"{"thresholds":[{"minimumDepthMeters":1.5,"minimumDuration":3}]}"#
+        let decoded = try JSONDecoder().decode(DiveDetectionConfig.self, from: Data(json.utf8))
+        #expect(decoded.surfaceThresholdMeters == 1.0)
+        #expect(decoded.surfaceExitDwellSeconds == 3)
+        #expect(decoded.thresholds.count == 1)
+    }
+
+    @Test("an empty config payload decodes to the default tiers")
+    func emptyConfigDecodes() throws {
+        let decoded = try JSONDecoder().decode(DiveDetectionConfig.self, from: Data("{}".utf8))
+        #expect(decoded.thresholds == DiveDetectionConfig.default.thresholds)
+        #expect(decoded.surfaceExitDwellSeconds == 3)
+    }
+
+    @Test("sanitized clamps depths, durations, and the dwell into range")
+    func sanitizedClamps() {
+        let config = DiveDetectionConfig(surfaceExitDwellSeconds: 99, thresholds: [
+            .init(minimumDepthMeters: 0.2, minimumDuration: 0),     // both below the floor
+            .init(minimumDepthMeters: 40, minimumDuration: 500),    // both above the ceiling
+        ]).sanitized()
+        #expect(config.surfaceExitDwellSeconds == 10)               // dwell clamped to [1, 10]
+        #expect(config.thresholds[0].minimumDepthMeters == 1.0)     // floor = surface threshold
+        #expect(config.thresholds[0].minimumDuration == 1)          // duration floor
+        #expect(config.thresholds[1].minimumDepthMeters == 6.0)     // depth ceiling
+        #expect(config.thresholds[1].minimumDuration == 30)         // duration ceiling
+    }
+
+    @Test("sanitized raises a too-small dwell to the floor")
+    func sanitizedDwellFloor() {
+        let config = DiveDetectionConfig(surfaceExitDwellSeconds: 0, thresholds: [
+            .init(minimumDepthMeters: 1.5, minimumDuration: 3),
+        ]).sanitized()
+        #expect(config.surfaceExitDwellSeconds == 1)
+    }
+
+    @Test("sanitized drops non-finite tiers and falls back to the default when none survive")
+    func sanitizedFallsBack() {
+        let config = DiveDetectionConfig(thresholds: [
+            .init(minimumDepthMeters: .nan, minimumDuration: 3),
+        ]).sanitized()
+        #expect(config.thresholds == DiveDetectionConfig.default.thresholds)
+    }
+
+    @Test("sanitized clamps a crafted out-of-range surface threshold into [0.5, 2.0]")
+    func sanitizedClampsSurfaceThreshold() {
+        // 50 would make every sample "shallow" (no dive ever registers); -1 would make
+        // every sample "deep" (surface bobbing logs as dives). Both are clamped.
+        let tier: [DiveDetectionConfig.DiveThreshold] = [.init(minimumDepthMeters: 3, minimumDuration: 3)]
+        #expect(DiveDetectionConfig(surfaceThresholdMeters: 50, thresholds: tier).sanitized().surfaceThresholdMeters == 2.0)
+        #expect(DiveDetectionConfig(surfaceThresholdMeters: -1, thresholds: tier).sanitized().surfaceThresholdMeters == 0.5)
+        #expect(DiveDetectionConfig(surfaceThresholdMeters: .nan, thresholds: tier).sanitized().surfaceThresholdMeters == 1.0)
+    }
+
+    @Test("sanitized falls back to a sane dwell when it is non-finite (NaN survives min/max)")
+    func sanitizedNaNDwell() {
+        let config = DiveDetectionConfig(surfaceExitDwellSeconds: .nan, thresholds: [
+            .init(minimumDepthMeters: 1.5, minimumDuration: 3),
+        ]).sanitized()
+        #expect(config.surfaceExitDwellSeconds == 3)
+    }
 }

@@ -1,12 +1,14 @@
 import Foundation
 
 /// Tunable thresholds for turning a stream of depth samples into discrete dives.
-public struct DiveDetectionConfig: Sendable, Equatable {
+/// `Codable` so the phone can sync a diver-tuned config to the watch (the config
+/// itself never persists to the model — stored `DiveRecord`s are immutable history).
+public struct DiveDetectionConfig: Sendable, Equatable, Codable {
     /// One acceptance rule: a candidate counts as a dive if it reaches
     /// `minimumDepthMeters` AND lasts at least `minimumDuration`. Rules are OR-ed,
     /// so the deeper you go the sooner it counts (a quick duck dive), while a
     /// shallow dive must be sustained (which is what rejects brief surface bobbing).
-    public struct DiveThreshold: Sendable, Equatable {
+    public struct DiveThreshold: Sendable, Equatable, Codable {
         public var minimumDepthMeters: Double
         public var minimumDuration: TimeInterval
         public init(minimumDepthMeters: Double, minimumDuration: TimeInterval) {
@@ -70,6 +72,54 @@ public struct DiveDetectionConfig: Sendable, Equatable {
             DiveThreshold(minimumDepthMeters: 1.0, minimumDuration: 5),
         ]
     )
+
+    private enum CodingKeys: String, CodingKey {
+        case surfaceThresholdMeters, surfaceExitDwellSeconds, thresholds
+    }
+
+    /// Decodes defensively so an older or partial payload still yields a usable
+    /// config: any absent key falls back to its default (the encode side is
+    /// synthesized). Keeps the wire format additive — new fields can join later
+    /// without breaking payloads already in flight.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            surfaceThresholdMeters: try container.decodeIfPresent(Double.self, forKey: .surfaceThresholdMeters) ?? 1.0,
+            surfaceExitDwellSeconds: try container.decodeIfPresent(TimeInterval.self, forKey: .surfaceExitDwellSeconds) ?? 3,
+            thresholds: try container.decodeIfPresent([DiveThreshold].self, forKey: .thresholds) ?? DiveDetectionConfig.default.thresholds
+        )
+    }
+
+    /// Returns a copy with every value clamped to a sane, UI-representable range —
+    /// the surface threshold to `[0.5, 2.0]` m, tier depths to
+    /// `[surfaceThreshold, DepthFormat.maxMeasurableMeters]`, tier durations to
+    /// `[1, 30]` s, the dwell to `[1, 10]` s — dropping any non-finite / degenerate
+    /// tier, and falling back to `.default`'s tiers when none survive (at least one
+    /// acceptance rule must remain). Applied before the config drives detection so a
+    /// corrupt, hand-edited, or out-of-range payload can never produce pathological
+    /// behaviour.
+    ///
+    /// The surface threshold isn't user-configurable, but a crafted payload could
+    /// still carry a wild value — 50 makes every sample "shallow" (no dive ever
+    /// registers), -1 makes every sample "deep" (surface bobbing logs as dives) — so
+    /// it's clamped too. Non-finite values (which survive `min`/`max` unchanged —
+    /// NaN compares false both ways) fall back to safe defaults.
+    public func sanitized() -> DiveDetectionConfig {
+        let threshold = surfaceThresholdMeters.isFinite ? min(max(surfaceThresholdMeters, 0.5), 2.0) : 1.0
+        let dwell = surfaceExitDwellSeconds.isFinite ? min(max(surfaceExitDwellSeconds, 1), 10) : 3
+        let cleaned = thresholds.compactMap { tier -> DiveThreshold? in
+            guard tier.minimumDepthMeters.isFinite, tier.minimumDuration.isFinite else { return nil }
+            return DiveThreshold(
+                minimumDepthMeters: min(max(tier.minimumDepthMeters, threshold), DepthFormat.maxMeasurableMeters),
+                minimumDuration: min(max(tier.minimumDuration, 1), 30)
+            )
+        }
+        return DiveDetectionConfig(
+            surfaceThresholdMeters: threshold,
+            surfaceExitDwellSeconds: dwell,
+            thresholds: cleaned.isEmpty ? DiveDetectionConfig.default.thresholds : cleaned
+        )
+    }
 }
 
 /// Splits a continuous depth track into individual dives using a simple
@@ -192,22 +242,26 @@ public struct DiveDetector: Sendable {
     /// Detects dives, honoring explicit **manual** dive segments (Action + side on
     /// the watch). A manual segment defines a dive directly from the samples in its
     /// window — even if depth never crossed the threshold — and **pre-empts**
-    /// auto-detection: any auto dive overlapping a manual segment is dropped so a
-    /// dive isn't counted twice. Manual + surviving auto dives come back time-ordered.
-    ///
-    /// - Note: pre-emption interacts with bounce folding. If a manual dive is stopped
-    ///   while still deep and the diver then dips shallow only briefly (a sub-dwell
-    ///   bounce) before descending again, the auto pass folds that bounce back in and
-    ///   merges the post-manual descent into a single candidate that overlaps the
-    ///   manual segment — so the overlap filter drops the whole thing, losing the
-    ///   post-manual descent. Accepted for now; revisit with configurable detection
-    ///   (plan 15).
+    /// auto-detection until the diver genuinely surfaces after it: the pre-emption
+    /// window runs from the segment's start to the first true surface exit following
+    /// its end (a 0 m sample, or the diver lingering in the shallow band for
+    /// `surfaceExitDwellSeconds`). Any auto dive overlapping that window is dropped —
+    /// so a dive isn't counted twice, and a sub-dwell bounce after a deep manual stop
+    /// can't merge the post-manual descent into a dropped candidate NOR log it as its
+    /// own dive (the diver must properly surface, or toggle manual again, to start a
+    /// new dive). Manual + surviving auto dives come back time-ordered.
     public func detectDives(from samples: [DepthSample], manualSegments: [DateInterval]) -> [Dive] {
         guard !manualSegments.isEmpty else { return detectDives(from: samples) }
         let ordered = samples.sorted { $0.timestamp < $1.timestamp }
+        // Extend each manual segment's pre-emption window forward to the first genuine
+        // surface exit after it, so the post-manual descent stays suppressed through
+        // any sub-dwell bounce until the diver actually returns to the surface.
+        let preemption = manualSegments.map { segment in
+            DateInterval(start: segment.start, end: firstSurfaceExit(after: segment.end, in: ordered))
+        }
         let auto = detectDives(from: ordered).filter { dive in
             let window = DateInterval(start: dive.startTime, end: dive.endTime)
-            return !manualSegments.contains { $0.intersects(window) }
+            return !preemption.contains { $0.intersects(window) }
         }
         let manual = manualSegments.map { segment -> Dive in
             let inSegment = ordered.filter { segment.contains($0.timestamp) }
@@ -219,5 +273,48 @@ public struct DiveDetector: Sendable {
             )
         }
         return (auto + manual).sorted { $0.startTime < $1.startTime }
+    }
+
+    /// Timestamp of the first genuine surface exit at or after `time` in `ordered`
+    /// (assumed sorted): an explicit 0 m reading (≤ `surfaceExitDepthMeters`), or the
+    /// diver lingering in the shallow band (above the surface, below the threshold)
+    /// for `surfaceExitDwellSeconds` — timed from the first shallow sample, and reset
+    /// whenever depth drops back below the threshold. Mirrors the surface-exit rule of
+    /// `detectDives(from:)` and the live layer so all three agree on when a dive ends.
+    /// `.distantFuture` when the diver never surfaces again (the session ended deep).
+    ///
+    /// The dwell anchors at the START of the shallow spell already in progress at
+    /// `time`, not at `time` itself: a diver who went shallow BEFORE a manual stop is
+    /// already partway through the dwell, so anchoring at `time` would truncate the
+    /// spell and reset it on the next descent — letting a genuine later dive get
+    /// swallowed by the pre-emption window. So the scan begins at the last DEEP sample
+    /// at or before `time` (or the first sample when the diver was never deep) and
+    /// anchors at the first shallow sample after it, while only returning an exit at
+    /// or after `time`.
+    private func firstSurfaceExit(after time: Date, in ordered: [DepthSample]) -> Date {
+        let lastDeepBeforeTime = ordered.last {
+            $0.timestamp <= time && $0.depthMeters > config.surfaceThresholdMeters
+        }
+        var shallowAnchor: Date?
+        for sample in ordered {
+            // Start the scan just after the last deep sample at/before `time` (the
+            // in-progress shallow spell began there); skip everything up to it.
+            if let lastDeep = lastDeepBeforeTime, sample.timestamp <= lastDeep.timestamp { continue }
+            let depth = sample.depthMeters
+            if depth > config.surfaceThresholdMeters {
+                shallowAnchor = nil                              // deep again → dwell resets
+            } else if depth <= DiveDetectionConfig.surfaceExitDepthMeters {
+                if sample.timestamp >= time { return sample.timestamp }  // explicit 0 m → surfaced
+                shallowAnchor = nil                              // a 0 m before `time` resets the spell
+            } else {
+                let anchor = shallowAnchor ?? sample.timestamp
+                shallowAnchor = anchor
+                if sample.timestamp >= time,
+                   sample.timestamp.timeIntervalSince(anchor) >= config.surfaceExitDwellSeconds {
+                    return sample.timestamp                      // shallow past the dwell → surfaced
+                }
+            }
+        }
+        return .distantFuture
     }
 }

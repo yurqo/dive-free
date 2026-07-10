@@ -138,6 +138,12 @@ struct DiveFreeApp: App {
                     sync.sendCustomMarkers(markers.map { $0.toMarkerKind() })
                     // Push the current units preference so the watch matches the phone.
                     sync.sendUnitPreference(.current)
+                    // Re-push the diver's dive-detection config. `updateApplicationContext`
+                    // replaces the whole dictionary and `outgoingContext` starts empty each
+                    // process, so without this the markers/units pushes above would wipe the
+                    // previously-synced detectionKey. Read the same stored blob the settings
+                    // screen writes.
+                    sync.sendDetectionConfig(DiveDetectionSettings.load().config)
                 }
         }
         .modelContainer(container)

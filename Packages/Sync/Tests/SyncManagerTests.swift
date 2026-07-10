@@ -544,6 +544,41 @@ struct SyncManagerTests {
         #expect(context?[SyncManager.unitsKey] != nil)
     }
 
+    @Test("detection config round-trips through the application context")
+    func detectionConfigSync() {
+        let captured = Mutex<[String: Any]?>(nil)
+        let manager = SyncManager(applyContext: { ctx in captured.withLock { $0 = ctx } })
+        let config = DiveDetectionConfig(surfaceExitDwellSeconds: 4, thresholds: [
+            .init(minimumDepthMeters: 2.5, minimumDuration: 2),
+            .init(minimumDepthMeters: 1.0, minimumDuration: 8),
+        ])
+
+        manager.sendDetectionConfig(config)
+        let context = captured.withLock { $0 }
+        #expect(context?[SyncManager.detectionKey] != nil)
+
+        let received = Mutex<DiveDetectionConfig?>(nil)
+        manager.onReceiveDetectionConfig = { c in received.withLock { $0 = c } }
+        manager.handleApplicationContext(context ?? [:])
+        #expect(received.withLock { $0 } == config)
+    }
+
+    @Test("detection config shares the context without clobbering markers or units")
+    func detectionCoexistsWithOthers() {
+        let captured = Mutex<[String: Any]?>(nil)
+        let manager = SyncManager(applyContext: { ctx in captured.withLock { $0 = ctx } })
+
+        manager.sendCustomMarkers([MarkerKind(.wildlife)])
+        manager.sendUnitPreference(.imperial)
+        manager.sendDetectionConfig(.default)
+
+        // All three keys must survive in the single latest-wins context.
+        let context = captured.withLock { $0 }
+        #expect(context?[SyncManager.markersKey] != nil)
+        #expect(context?[SyncManager.unitsKey] != nil)
+        #expect(context?[SyncManager.detectionKey] != nil)
+    }
+
     @Test("sendAudioFile hands the file and name metadata to the transport")
     func sendAudioFileRoutesThroughSeam() throws {
         let recorder = FileTransferRecorder()

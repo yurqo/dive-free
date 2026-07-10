@@ -182,7 +182,13 @@ public final class SessionManager {
         currentDiveMaxDepth = 0
         dives = detector.detectDives(from: sensors.samples, manualSegments: manualSegments)
         lastSurfacedAt = dives.isEmpty ? nil : now
-        suppressAutoUntilSurface = sensors.currentDepthMeters > detector.config.surfaceThresholdMeters
+        // Arm suppression whenever the diver hasn't truly surfaced (0 m) — including a
+        // stop in the shallow band (0.05–1 m). The detector's pre-emption extends to
+        // the first genuine surface exit, so if the live layer left auto unsuppressed
+        // here it would open+confirm a re-descent dive the final pass then drops
+        // (live/final mismatch). The shallow-branch dwell in `refreshDetection` clears
+        // this once the diver actually surfaces.
+        suppressAutoUntilSurface = sensors.currentDepthMeters > DiveDetectionConfig.surfaceExitDepthMeters
         onSurface?()
     }
 
@@ -238,9 +244,16 @@ public final class SessionManager {
     }
 
     private let sensors: SensorManager
-    private let detector: DiveDetector
+    /// `var` so the app layer can swap in a diver-tuned config (synced from the
+    /// phone) via `setDetectionConfig(_:)` before the next `startSession()`.
+    private var detector: DiveDetector
     private let modelContext: ModelContext
     private var hapticTracker: DiveHapticTracker
+    /// Detection config to adopt at the next `startSession()`. Held pending (rather
+    /// than applied to `detector` immediately) so a config synced from the phone
+    /// mid-session only takes effect from the following session — the same
+    /// next-session convention as the GPS-precision / target settings.
+    @ObservationIgnored private var pendingDetectionConfig: DiveDetectionConfig?
 
     private let location: LocationProviding
     /// Surface GPS fix captured for the current session, if any (the first fix).
@@ -273,9 +286,18 @@ public final class SessionManager {
         )
     }
 
+    /// Sets the dive-detection config to use from the next `startSession()`. Does
+    /// not affect a session already in progress (see `pendingDetectionConfig`).
+    public func setDetectionConfig(_ config: DiveDetectionConfig) {
+        pendingDetectionConfig = config
+    }
+
     /// Starts the depth sensor and marks the session as active.
     public func startSession() async throws {
         guard !isActive else { return }
+        // Adopt any config synced since the last session (haptics + acceptance both
+        // read `detector.config`, rebuilt just below).
+        if let pendingDetectionConfig { detector.config = pendingDetectionConfig }
         dives = []
         markers = []
         heartRateSamples = []
@@ -340,6 +362,9 @@ public final class SessionManager {
             lastSurfacedAt = nil
         } else if depth > threshold {
             // Deep: (re)open or continue the dive; a shallow bounce folds back in.
+            // Going deep also cancels any surface-exit dwell — whether it was timing
+            // out a dive OR the post-manual-stop suppression through a bounce.
+            shallowSince = nil
             if !suppressAutoUntilSurface, currentDiveStart == nil {
                 currentDiveStart = Date()
                 currentDiveMaxDepth = 0
@@ -348,28 +373,29 @@ public final class SessionManager {
             if currentDiveStart != nil {
                 currentDiveMaxDepth = max(currentDiveMaxDepth, depth)
                 lastSurfacedAt = nil
-                shallowSince = nil   // back below the threshold cancels the exit dwell
+            }
+        } else if depth <= DiveDetectionConfig.surfaceExitDepthMeters {
+            // Explicit 0 m — genuinely surfaced. Clear the post-manual suppression and
+            // end any dive in progress (the ascent through the shallow band counted).
+            suppressAutoUntilSurface = false
+            shallowSince = nil
+            if currentDiveStart != nil { endCurrentDive(surfacedAt: Date()) }
+        } else if currentDiveStart != nil || suppressAutoUntilSurface {
+            // Shallow band (above the surface, below the threshold) with a dive open,
+            // or auto-detection suppressed after a manual stop: time the dwell from the
+            // crossing. A sub-dwell bounce holds BOTH the dive and the suppression; the
+            // dwell elapsing is a genuine surface exit that clears them, ending any dive
+            // backdated to the crossing. Suppression must NOT clear on a mere shallow
+            // bounce — only on a true surface exit (0 m above, or the dwell here).
+            let crossing = shallowSince ?? Date()
+            shallowSince = crossing
+            if Date().timeIntervalSince(crossing) >= detector.config.surfaceExitDwellSeconds {
+                suppressAutoUntilSurface = false
+                if currentDiveStart != nil { endCurrentDive(surfacedAt: crossing) }
+                else { shallowSince = nil }
             }
         } else {
-            // At/near the surface. Clear the post-manual-stop suppression regardless.
-            suppressAutoUntilSurface = false
-            if currentDiveStart != nil {
-                if depth <= DiveDetectionConfig.surfaceExitDepthMeters {
-                    // Explicit 0 m — fully surfaced. End immediately (the ascent
-                    // through the shallow band still counted toward the dive).
-                    endCurrentDive(surfacedAt: Date())
-                } else {
-                    // Shallow band: hold the dive open until the dwell confirms an
-                    // exit, then end it backdated to the threshold crossing.
-                    let crossing = shallowSince ?? Date()
-                    shallowSince = crossing
-                    if Date().timeIntervalSince(crossing) >= detector.config.surfaceExitDwellSeconds {
-                        endCurrentDive(surfacedAt: crossing)
-                    }
-                }
-            } else {
-                shallowSince = nil
-            }
+            shallowSince = nil
         }
         let events = hapticTracker.update(depthMeters: depth)
         for event in events { onHapticEvent?(event) }

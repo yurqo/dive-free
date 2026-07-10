@@ -346,6 +346,141 @@ struct SessionManagerTests {
         try await Task.sleep(for: .milliseconds(50))
         #expect(manager.lastLocationFixAt == nil)
     }
+
+    // MARK: - Configurable detection (plan 15)
+
+    @Test("setDetectionConfig before startSession changes which descents count")
+    func setDetectionConfigAppliesAtStart() async throws {
+        // A shallow 1.2 m profile: a 1.5 m tier rejects it, a 1.0 m tier accepts it.
+        // The config set before start must decide acceptance for this session.
+        let profile = [0.0] + Array(repeating: 1.2, count: 20) + [0.0]
+        let (manager, store) = try makeManager(
+            provider: ScriptedDepthProvider(profile: profile, interval: 0.02),
+            config: DiveDetectionConfig(surfaceExitDwellSeconds: 0.3, thresholds: [
+                .init(minimumDepthMeters: 1.5, minimumDuration: 0)   // would reject 1.2 m
+            ])
+        )
+        defer { _ = store }
+
+        manager.setDetectionConfig(DiveDetectionConfig(surfaceExitDwellSeconds: 0.3, thresholds: [
+            .init(minimumDepthMeters: 1.0, minimumDuration: 0)       // accepts 1.2 m
+        ]))
+        try await manager.startSession()
+        for _ in 0..<200 where manager.currentDepthMeters != 0 || manager.diveCount == 0 {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(manager.diveCount == 1)   // logged under the custom tier
+        try manager.stopSession()
+    }
+
+    @Test("a config change mid-session does not apply until the next session")
+    func midSessionConfigDeferred() async throws {
+        // Start with a permissive 1.0 m tier so the 1.2 m descent registers, then set a
+        // stricter 3.0 m config mid-session — it must NOT retroactively drop the dive.
+        let profile = [0.0] + Array(repeating: 1.2, count: 30) + [0.0]
+        let (manager, store) = try makeManager(
+            provider: ScriptedDepthProvider(profile: profile, interval: 0.02),
+            config: DiveDetectionConfig(surfaceExitDwellSeconds: 0.3, thresholds: [
+                .init(minimumDepthMeters: 1.0, minimumDuration: 0)
+            ])
+        )
+        defer { _ = store }
+
+        try await manager.startSession()
+        for _ in 0..<200 where manager.diveCount == 0 {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(manager.diveCount == 1)
+        manager.setDetectionConfig(DiveDetectionConfig(surfaceExitDwellSeconds: 0.3, thresholds: [
+            .init(minimumDepthMeters: 3.0, minimumDuration: 0)      // stricter — would reject 1.2 m
+        ]))
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(manager.diveCount == 1)   // the running session keeps its original config
+        try manager.stopSession()
+    }
+
+    @Test("auto-detection stays suppressed through a sub-dwell bounce after a manual stop")
+    func manualStopSuppressesThroughBounce() async throws {
+        // Deep throughout, with one brief sub-dwell shallow bounce, and the session
+        // never surfaces (0 m). A manual dive is started then stopped while still deep,
+        // so auto-detection is suppressed until a true surface — which never comes. The
+        // bounce must NOT clear the suppression and open a phantom auto dive.
+        let profile = Array(repeating: 4.0, count: 25) + [0.8] + Array(repeating: 4.0, count: 25)
+        let (manager, store) = try makeManager(
+            dwell: 5,
+            provider: ScriptedDepthProvider(profile: profile, interval: 0.02)
+        )
+        defer { _ = store }
+
+        try await manager.startSession()
+        manager.startManualDive()
+        // Wait until we're actually deep, then stop the manual dive while still deep.
+        for _ in 0..<100 where manager.currentDepthMeters <= 1 {
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        manager.stopManualDive()
+        #expect(manager.diveCount == 1)             // the manual dive
+        // Let the sub-dwell bounce and re-descent finish playing (~1 s of profile).
+        try await Task.sleep(for: .milliseconds(1500))
+        #expect(manager.currentDiveStart == nil)    // suppression held — no phantom live dive
+        #expect(manager.diveCount == 1)             // still only the manual dive
+        try manager.stopSession()
+    }
+
+    @Test("a manual stop in the shallow band suppresses a re-descent within the dwell")
+    func manualStopShallowSuppressesRedescent() async throws {
+        // The stop happens at 0.8 m — in the surface band but NOT surfaced (0 m). With a
+        // long dwell, a re-descent to 4 m must not open a live auto dive: the detector's
+        // pre-emption extends to the first true surface exit (which never comes), so the
+        // live layer must stay suppressed to match (no live/final mismatch).
+        let profile = Array(repeating: 0.8, count: 12) + Array(repeating: 4.0, count: 25)
+        let (manager, store) = try makeManager(
+            dwell: 5,
+            provider: ScriptedDepthProvider(profile: profile, interval: 0.02)
+        )
+        defer { _ = store }
+
+        try await manager.startSession()
+        manager.startManualDive()
+        // Wait for the first shallow (0.8 m) sample so the stop reads the shallow band.
+        for _ in 0..<100 where manager.currentDepthMeters == 0 {
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        manager.stopManualDive()
+        // Let the re-descent to 4 m play out (well within the 5 s dwell).
+        try await Task.sleep(for: .milliseconds(800))
+        #expect(manager.currentDiveStart == nil)   // suppression armed on the shallow stop
+        #expect(manager.diveCount == 1)            // only the manual dive (live == final)
+        try manager.stopSession()
+    }
+
+    @Test("a manual stop in the shallow band clears suppression once the dwell elapses")
+    func manualStopShallowClearsAfterDwell() async throws {
+        // Same shallow stop, but the diver then hangs shallow past the (short) dwell — a
+        // genuine surface exit — which must clear the suppression so the later descent
+        // opens a fresh auto dive.
+        let profile = Array(repeating: 0.8, count: 40) + Array(repeating: 4.0, count: 30) + [0.0]
+        let (manager, store) = try makeManager(
+            dwell: 0.3,
+            provider: ScriptedDepthProvider(profile: profile, interval: 0.02)
+        )
+        defer { _ = store }
+
+        try await manager.startSession()
+        manager.startManualDive()
+        for _ in 0..<100 where manager.currentDepthMeters == 0 {
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        manager.stopManualDive()
+        // Poll for the descent opening a live dive once the dwell has cleared suppression.
+        var opened = false
+        for _ in 0..<200 {
+            if manager.currentDiveStart != nil { opened = true; break }
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(opened)   // dwell elapsed → suppression cleared → the descent opened a dive
+        try manager.stopSession()
+    }
 }
 
 /// Returns a fixed location (or nil) without touching CoreLocation.
