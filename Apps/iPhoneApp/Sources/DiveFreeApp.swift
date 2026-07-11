@@ -112,13 +112,40 @@ struct DiveFreeApp: App {
                 // deliberate recovery: clear any tombstone first so the import isn't
                 // rejected as a stale re-delivery of a session the user removed here.
                 if isResync { DeletionTombstones.remove(session.id) }
-                try? SessionImporter(
-                    context: container.mainContext,
-                    mirrorAudio: { VoiceNoteStore.mirrorAudioData(into: $0) },
-                    // Skip a session the user already deleted here, so a late WC
-                    // re-delivery can't resurrect it (see `DeletionTombstones`).
-                    isTombstoned: { DeletionTombstones.contains($0) }
-                ).importSession(session)
+                let context = container.mainContext
+                do {
+                    let imported = try SessionImporter(
+                        context: context,
+                        mirrorAudio: { VoiceNoteStore.mirrorAudioData(into: $0) },
+                        // Skip a session the user already deleted here, so a late WC
+                        // re-delivery can't resurrect it (see `DeletionTombstones`).
+                        isTombstoned: { DeletionTombstones.contains($0) }
+                    ).importSession(session)
+                    // Application-level ACK — the signal watch retention gates on
+                    // (WC's transport didFinish fires even if this save threw, which is
+                    // the whole bug this closes). Ack only when the session is genuinely
+                    // on the phone now: freshly imported, OR an already-present record
+                    // being re-delivered (so re-sends still confirm). Do NOT ack a
+                    // tombstoned rejection — the user deleted it here; letting the watch
+                    // prune its only copy would lose it. On a throw we skip the ack (the
+                    // catch below), so retention keeps the watch copy until a later
+                    // delivery succeeds.
+                    let present = imported
+                        || (!DeletionTombstones.contains(session.id) && sessionExists(session.id, in: context))
+                    if present { sync.sendImportAck(session.id) }
+                } catch {
+                    // Save failed — no ack, so the watch keeps its copy and retries.
+                    // Roll back the failed INSERT: `mainContext` is long-lived, so the
+                    // pending (unsaved) row survives this closure. On the next
+                    // re-delivery the importer's dedupe fetch (which includes pending
+                    // changes) would see it and skip the import as a false "duplicate",
+                    // and the ack condition's `sessionExists` would likewise see it and
+                    // fire an ACK for a record that was never persisted — letting the
+                    // watch prune its only copy of a session the phone never saved.
+                    // Discarding the pending change restores a clean context so the
+                    // retry genuinely re-inserts.
+                    context.rollback()
+                }
             }
         }
         // Mirror a watch-side deletion: drop the phone's copy (and its on-disk
@@ -150,6 +177,11 @@ struct DiveFreeApp: App {
             Task { @MainActor in
                 let context = container.mainContext
                 let fileName = url.lastPathComponent
+                // The file is already copied into storage by the time this fires (the
+                // receiver only calls back on a successful copy), so ACK it: this — not
+                // the transport didFinish — is the safe signal watch retention gates on
+                // before pruning the clip's only copy (the copy can fail silently).
+                sync.sendAudioImportAck(fileName)
                 var descriptor = FetchDescriptor<MarkerRecord>(
                     predicate: #Predicate { $0.audioFileName == fileName }
                 )
@@ -208,4 +240,14 @@ struct DiveFreeApp: App {
         }
         .modelContainer(container)
     }
+}
+
+/// Whether a session record with `id` is present in the store. Used by the import
+/// ack path to confirm an already-imported session (a re-delivery) is genuinely on
+/// the phone before acking it, so a duplicate re-send still confirms delivery.
+@MainActor
+private func sessionExists(_ id: UUID, in context: ModelContext) -> Bool {
+    var descriptor = FetchDescriptor<SessionRecord>(predicate: #Predicate { $0.id == id })
+    descriptor.fetchLimit = 1
+    return (try? context.fetch(descriptor).first) != nil
 }

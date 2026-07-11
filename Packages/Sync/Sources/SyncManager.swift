@@ -69,6 +69,22 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     /// that references it. Fires on an arbitrary thread.
     public var onAudioFileDelivered: (@Sendable (String) -> Void)?
 
+    /// Called on the watch when the phone acknowledges that a session was actually
+    /// **imported** (SAVED) — an application-level ACK, distinct from WC's transport
+    /// `didFinish` (which fires even if the phone's save then throws). This is the
+    /// signal watch-side retention must gate on: WC delivery only clears the badge.
+    /// Fires on an arbitrary thread. An OLDER phone never sends these, so a watch on
+    /// this version paired with one never marks anything delivered → retention never
+    /// prunes (the safe direction — no data loss).
+    public var onSessionImported: (@Sendable (UUID) -> Void)?
+
+    /// Called on the watch when the phone acknowledges a voice-note clip was actually
+    /// **copied into storage** — the audio counterpart of `onSessionImported`. The
+    /// phone's file receiver returns silently on a copy failure, so the transport's
+    /// `didFinish` success is not proof the clip persisted; this ack is. Same
+    /// old-phone-never-acks safety. Fires on an arbitrary thread.
+    public var onAudioImported: (@Sendable (String) -> Void)?
+
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
     static let payloadKey = "session"
@@ -79,6 +95,14 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     static let fileNameKey = "fileName"
     static let deletedKey = "deletedSessionID"
     static let liveSessionKey = "liveSession"
+    /// Application-level ACK from the phone: this session id was actually imported
+    /// (saved), not merely delivered by WC. Rides its own lightweight message (id
+    /// only, no `payloadKey`), like a deletion, so adoption/`didFinish`/receive all
+    /// treat it as a non-session control message.
+    static let ackKey = "importedSessionID"
+    /// Application-level ACK from the phone: this voice-note file name was actually
+    /// copied into storage. Mirror of `ackKey` for audio clips.
+    static let audioAckKey = "importedAudioFileName"
     /// Envelope flag on a session transfer marking it an *explicit* re-send, so the
     /// receiver clears its deletion tombstone before importing. Absent → a normal
     /// send (keeps older watches, which never set it, compatible).
@@ -99,6 +123,14 @@ public final class SyncManager: NSObject, @unchecked Sendable {
         /// must not be re-`performTransfer`ed (that would enqueue a duplicate); they
         /// become ours (`false`) once their `didFinish` arrives.
         var isSystemOwned: Bool
+        /// Whether this payload is an *explicit* resync — carried so a RETRY re-picks
+        /// the resync transport (with the `resyncKey` envelope flag) rather than
+        /// silently downgrading to a plain send. Without it, a tombstone-clearing
+        /// resync that failed its first hop would retry flag-free, be tombstone-rejected
+        /// on the phone, yet a later `didFinish` success would still mark it delivered —
+        /// letting retention prune the only copy (the exact loss FIX 3's import ack now
+        /// also guards against). See `send`/`completeTransfer`/`retryPending`.
+        var isResync: Bool
     }
     /// Payloads sent but not yet confirmed delivered, keyed by transfer id.
     private var pending: [String: Pending] = [:]
@@ -139,6 +171,15 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     /// inject a stub.
     private let performDeletion: (_ id: UUID) -> Void
 
+    /// Sends a phone→watch import ACK for a session id. Same background-safe
+    /// `transferUserInfo` transport as `performDeletion` (id-only control message);
+    /// tests inject a stub.
+    private let performAck: (_ id: UUID) -> Void
+
+    /// Sends a phone→watch import ACK for a voice-note file name. Mirror of
+    /// `performAck` for audio clips; tests inject a stub.
+    private let performAudioAck: (_ fileName: String) -> Void
+
     /// Cancels the OS's still-queued userInfo transfers whose transfer id is in
     /// the set. Defaults to filtering `WCSession.outstandingUserInfoTransfers` by
     /// matching `Self.idKey` and calling `cancel()`; tests inject a stub. Used by
@@ -168,6 +209,8 @@ public final class SyncManager: NSObject, @unchecked Sendable {
         performResyncTransfer: ((_ id: String, _ data: Data) -> Void)? = nil,
         applyContext: ((_ context: [String: Any]) -> Void)? = nil,
         performDeletion: ((_ id: UUID) -> Void)? = nil,
+        performAck: ((_ id: UUID) -> Void)? = nil,
+        performAudioAck: ((_ fileName: String) -> Void)? = nil,
         cancelTransfers: ((_ ids: Set<String>) -> Void)? = nil,
         outstandingTransfers: (() -> [(id: String, data: Data)])? = nil,
         performFileTransfer: ((_ url: URL, _ metadata: [String: Any]) -> Void)? = nil
@@ -200,6 +243,18 @@ public final class SyncManager: NSObject, @unchecked Sendable {
             #if canImport(WatchConnectivity)
             guard WCSession.isSupported() else { return }
             WCSession.default.transferUserInfo([Self.deletedKey: id.uuidString])
+            #endif
+        }
+        self.performAck = performAck ?? { id in
+            #if canImport(WatchConnectivity)
+            guard WCSession.isSupported() else { return }
+            WCSession.default.transferUserInfo([Self.ackKey: id.uuidString])
+            #endif
+        }
+        self.performAudioAck = performAudioAck ?? { fileName in
+            #if canImport(WatchConnectivity)
+            guard WCSession.isSupported() else { return }
+            WCSession.default.transferUserInfo([Self.audioAckKey: fileName])
             #endif
         }
         self.cancelTransfers = cancelTransfers ?? { ids in
@@ -349,12 +404,14 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     /// session the user accidentally swipe-deleted. The flag reaches the wire on
     /// **both** the fresh-send and the dedupe *nudge* path (an already-pending,
     /// ours entry) by routing them through `performResyncTransfer` instead of
-    /// `performTransfer`. It does *not* ride the OS-driven retry paths
-    /// (`retryPending`/`completeTransfer`), which always use `performTransfer`: a
-    /// resync that fails its first hop retries as a plain send, but resyncs are
-    /// user-initiated with the phone typically reachable, and the button can be
-    /// tapped again — so the residual gap is acceptable and keeps the pending/retry
-    /// machinery flag-free.
+    /// `performTransfer`. It is also **stored on the Pending** (`isResync`) so the
+    /// OS-driven retry paths (`retryPending`/`completeTransfer`) re-pick the resync
+    /// transport too — a resync that fails its first hop retries as a resync, not a
+    /// plain send that a tombstone would reject (see the `Pending.isResync` note).
+    /// The only residual gap is a re-adopted resync after a relaunch: adoption can't
+    /// recover the flag from the OS envelope, so such a retry loses it — acceptable,
+    /// since the original queued copy still carries `resyncKey` and FIX 3's import ack
+    /// makes the failure non-destructive.
     public func send(_ session: DiveSession, isResync: Bool = false) throws {
         let data = try encoder.encode(session)
         let transfer = isResync ? performResyncTransfer : performTransfer
@@ -367,12 +424,15 @@ public final class SyncManager: NSObject, @unchecked Sendable {
             let existingID = existing.key
             let isSystemOwned = existing.value.isSystemOwned
             pending[existingID]?.data = data
+            // A resync nudge promotes the entry to resync so its retries carry the flag
+            // too; a plain nudge never demotes an entry already marked resync.
+            if isResync { pending[existingID]?.isResync = true }
             lock.unlock()
             if !isSystemOwned { transfer(existingID, data) }
             return
         }
         let id = UUID().uuidString
-        pending[id] = Pending(sessionID: session.id, data: data, isSystemOwned: false)
+        pending[id] = Pending(sessionID: session.id, data: data, isSystemOwned: false, isResync: isResync)
         let count = pending.count
         lock.unlock()
         onPendingCountChange?(count)
@@ -403,6 +463,28 @@ public final class SyncManager: NSObject, @unchecked Sendable {
         onPendingCountChange?(count)
         cancelTransfers(Set(staleKeys))
         performDeletion(id)
+    }
+
+    /// Sends an application-level import ACK to the watch (phone → watch): confirms
+    /// the phone actually SAVED this session, so watch-side retention may prune it.
+    /// Distinct from WC's transport `didFinish`, which fires even when the phone's
+    /// save throws — the very gap this closes. Idempotent and background-safe
+    /// (`transferUserInfo`); the watch's `markDelivered` de-dupes re-acks.
+    /// Fire-and-forget, like the deletion messages: a dropped ack is the SAFE
+    /// direction — it leaves the session unprunable on the watch (rather than pruning
+    /// a copy the phone never saved) until a re-delivery/re-send re-acks it. Deliberate;
+    /// no delivery-guarantee retry here.
+    public func sendImportAck(_ id: UUID) {
+        performAck(id)
+    }
+
+    /// Sends an application-level import ACK for a voice-note clip (phone → watch):
+    /// confirms the phone copied the file into storage, so retention may prune the
+    /// session that references it. Mirror of `sendImportAck` — likewise fire-and-forget:
+    /// a dropped audio ack leaves the clip unprunable (the safe direction) until a
+    /// re-send re-acks it.
+    public func sendAudioImportAck(_ fileName: String) {
+        performAudioAck(fileName)
     }
 
     /// Sends a voice-note file to the counterpart device. Uses the background-safe
@@ -457,8 +539,11 @@ public final class SyncManager: NSObject, @unchecked Sendable {
         // that landed after this transfer's snapshot must win.
         let shouldRetry = !deletedSessionIDs.contains(entry.sessionID)
             && count <= Self.maxImmediateRetries
+        // Preserve the resync envelope on retry — a resync downgraded to a plain send
+        // would be tombstone-rejected on the phone yet still marked delivered.
+        let transfer = entry.isResync ? performResyncTransfer : performTransfer
         lock.unlock()
-        if shouldRetry { performTransfer(id, data) }
+        if shouldRetry { transfer(id, data) }
     }
 
     /// Records the outcome of a voice-note file transfer: on success fire
@@ -515,7 +600,11 @@ public final class SyncManager: NSObject, @unchecked Sendable {
         }
         for id in items.keys { attempts[id] = 0 }
         lock.unlock()
-        for (id, entry) in items { performTransfer(id, entry.data) }
+        // Route each entry by its stored resync flag so a queued resync keeps carrying
+        // the tombstone-clearing envelope across a reachability-driven retry.
+        for (id, entry) in items {
+            (entry.isResync ? performResyncTransfer : performTransfer)(id, entry.data)
+        }
     }
 
     /// Re-adopts the system's still-queued userInfo transfers into `pending` so a
@@ -529,7 +618,11 @@ public final class SyncManager: NSObject, @unchecked Sendable {
         // paths contend on it.
         let outstanding = outstandingTransfers().compactMap { entry -> (id: String, adopted: Pending)? in
             guard let session = try? decoder.decode(DiveSession.self, from: entry.data) else { return nil }
-            return (entry.id, Pending(sessionID: session.id, data: entry.data, isSystemOwned: true))
+            // The OS envelope carries only the payload, so a re-adopted resync loses its
+            // flag here (isResync: false). Acceptable: the ORIGINAL queued copy still
+            // rides `resyncKey`, and FIX 3's import ack makes a downgraded retry's
+            // failure non-destructive. See `send`'s doc comment.
+            return (entry.id, Pending(sessionID: session.id, data: entry.data, isSystemOwned: true, isResync: false))
         }
         lock.lock()
         var changed = false
@@ -542,11 +635,22 @@ public final class SyncManager: NSObject, @unchecked Sendable {
         if changed { onPendingCountChange?(count) }
     }
 
-    /// Decodes an incoming payload and forwards it: a deletion (id only) to
-    /// `onDeleteSession`, otherwise a session to `onReceiveSession`.
+    /// Decodes an incoming control/payload message and forwards it: a deletion (id
+    /// only) to `onDeleteSession`, an import ACK (id/name only) to
+    /// `onSessionImported`/`onAudioImported`, otherwise a session to `onReceiveSession`.
+    /// The ack messages carry no `payloadKey`, so — like deletions — adoption,
+    /// `didFinish`, and the session decode below all skip them.
     func handleReceived(_ userInfo: [String: Any]) {
         if let idString = userInfo[Self.deletedKey] as? String, let id = UUID(uuidString: idString) {
             onDeleteSession?(id)
+            return
+        }
+        if let idString = userInfo[Self.ackKey] as? String, let id = UUID(uuidString: idString) {
+            onSessionImported?(id)
+            return
+        }
+        if let fileName = userInfo[Self.audioAckKey] as? String {
+            onAudioImported?(fileName)
             return
         }
         guard let data = userInfo[Self.payloadKey] as? Data,

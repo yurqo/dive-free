@@ -291,9 +291,46 @@ public struct DiveDetector: Sendable {
     /// at or before `time` (or the first sample when the diver was never deep) and
     /// anchors at the first shallow sample after it, while only returning an exit at
     /// or after `time`.
+    ///
+    /// One case the forward scan alone gets wrong: the diver was **already surfaced**
+    /// when the segment ended. The natural manual-dive flow is to surface FIRST (the
+    /// sensor emits its explicit 0 m as the wrist clears), THEN press stop — and the
+    /// submersion sensor stops emitting once surfaced, so no sample exists at or after
+    /// `time`. A pure forward scan would then find the surface exit only in the NEXT
+    /// dive's samples, stretching the pre-emption window over that genuine dive and
+    /// dropping it. So we first check whether the diver was already up at `time`: the
+    /// LAST sample at or before `time` (of ANY depth) is fully surfaced
+    /// (≤ `surfaceExitDepthMeters`) → return `time` itself, so the window ends where the
+    /// segment did and the next dive survives.
     private func firstSurfaceExit(after time: Date, in ordered: [DepthSample]) -> Date {
         let lastDeepBeforeTime = ordered.last {
             $0.timestamp <= time && $0.depthMeters > config.surfaceThresholdMeters
+        }
+        // Already surfaced at `time`? The rule is exactly the doc comment's: the LAST
+        // sample at or before `time`, of ANY depth, is fully surfaced (≤ exit depth).
+        // Using the *last* sample — not "a surfaced sample not older than the last deep
+        // one" — avoids a STALE 0 m from an earlier dive falsely satisfying this: e.g.
+        // dive1 ends 0 m at t9, then a shallow manual dive sits at 0.5 m t22–t29 and the
+        // stop lands at t30. The old comparison saw the t9 0 m as "surfaced after the
+        // last deep sample" and returned t30, but the live layer keeps suppressing
+        // through the 0.5 m band, so live and final disagreed. The last sample before a
+        // t30 stop is the 0.5 m one → not surfaced → we fall through to the forward scan.
+        //
+        // Consequence: an all-shallow-before-`time` shape (last sample above the exit
+        // threshold) also falls through to the forward scan rather than returning `time`.
+        // That is CONSISTENT with the live layer, whose `stopManualDive` arms suppression
+        // whenever depth > exit threshold, so it too keeps suppressing until the true
+        // exit rather than ending at the stop.
+        if let last = ordered.last(where: { $0.timestamp <= time }) {
+            if last.depthMeters <= DiveDetectionConfig.surfaceExitDepthMeters {
+                return time
+            }
+        } else {
+            // Dry-land accidental toggle: no sample at all at or before `time` (the
+            // sensor never emitted near the segment — the diver was never in the water).
+            // Treat the segment as ended at the surface so the day's next dive isn't
+            // suppressed by a `.distantFuture` window.
+            return time
         }
         var shallowAnchor: Date?
         for sample in ordered {

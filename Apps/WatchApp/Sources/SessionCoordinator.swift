@@ -265,6 +265,10 @@ final class SessionCoordinator {
     /// parked on a non-marker); at the surface confirms the focused item.
     func handleActionButton() {
         guard case .active = state else { return }
+        // Don't act mid-teardown: a press during `stop()`'s suspension could drop a
+        // marker or (with a dual-click) start a sub-second manual dive that
+        // `stopSession()` would then persist as a phantom 0 m dive.
+        guard !isStopping else { return }
         execute(interaction.actionButton(isSubmerged: isSubmerged, defaultMarker: defaultMarkerKind))
     }
 
@@ -274,6 +278,11 @@ final class SessionCoordinator {
     func handleActionSide() {
         switch state {
         case .active:
+            // Don't toggle a manual dive mid-teardown: a dual-click during `stop()`'s
+            // suspension would start a sub-second manual dive that `stopSession()`
+            // persists as a phantom 0 m dive. (End-confirm arming already happened
+            // before stop() began, so gating here loses nothing.)
+            guard !isStopping else { return }
             execute(interaction.actionSide())
         case .summary:
             dismissSummary()
@@ -300,13 +309,15 @@ final class SessionCoordinator {
     }
 
     /// Starts or stops a manual dive (Action + side), with a haptic cue since the
-    /// screen may be water-locked.
+    /// screen may be water-locked. `startManualDive` is a no-op while an AUTO dive is
+    /// already in progress (an accidental dual-click mid-dive must not destroy it), so
+    /// the start haptic fires only when a manual dive actually began — no misleading
+    /// cue when nothing changed.
     private func toggleManualDive() {
         if sessionManager.isManualDiveActive {
             sessionManager.stopManualDive()
             DiveHapticPlayer.play(.surface)
-        } else {
-            sessionManager.startManualDive()
+        } else if sessionManager.startManualDive() {
             DiveHapticPlayer.play(.markerPlaced)
         }
     }
@@ -459,13 +470,23 @@ final class SessionCoordinator {
         sync.onPendingCountChange = { [weak self] count in
             Task { @MainActor in self?.pendingSyncCount = count }
         }
-        // Record confirmed deliveries so retention can safely prune synced sessions.
-        sync.onSessionDelivered = { [weak self] id in
+        // Retention now gates on the phone's application-level IMPORT ack, not WC's
+        // transport delivery: `didFinish` success fires even when the phone's save
+        // throws (swallowed on the phone), so "delivered" is NOT proof the session is
+        // safe on the phone — only "imported" is. `onSessionImported` marks it prunable.
+        // (Paired with an OLDER phone that never acks, nothing is ever marked delivered
+        // → retention never prunes: the safe direction, no data loss.)
+        sync.onSessionImported = { [weak self] id in
             Task { @MainActor in self?.markDelivered(id) }
         }
-        // Record confirmed voice-note deliveries too, so retention won't prune a
-        // session — and delete a clip's only copy — before the phone confirms it.
-        sync.onAudioFileDelivered = { [weak self] fileName in
+        // `onSessionDelivered` (WC transport didFinish) is left UNWIRED for retention on
+        // purpose. The pending/synced BADGE still clears on WC delivery via
+        // `onPendingCountChange` above; retention just no longer trusts it.
+        // Voice-note clips likewise gate retention on the phone's copy ACK
+        // (`onAudioImported`), not the transport `didFinish` — the phone's file
+        // receiver can fail its copyItem silently, so only the ack proves the clip
+        // persisted before we prune its only copy.
+        sync.onAudioImported = { [weak self] fileName in
             Task { @MainActor in self?.markAudioDelivered(fileName) }
         }
         sync.onReceiveCustomMarkers = { [weak self] kinds in
@@ -646,6 +667,11 @@ final class SessionCoordinator {
     /// the session for delivery to the paired iPhone.
     @discardableResult
     func stop() async -> DiveSession? {
+        // Re-entrancy guard: `stop()` suspends (awaiting the merge task, then
+        // `workout.end()`) while still `.active`, so a second End confirmation during
+        // that window would otherwise run a concurrent teardown — double `workout.end()`
+        // and a lost summary. Bail if a teardown is already in flight.
+        guard !isStopping else { return nil }
         guard case .active = state else { return nil }
         // Bar new/late recordings from spawning a merge task the awaits below can't
         // see (see `isStopping`). Reset on every return path.
@@ -725,10 +751,10 @@ final class SessionCoordinator {
         scheduleRetentionPrune()
     }
 
-    /// Persisted set of voice-note file names whose transfer the phone has
-    /// **confirmed**. Same watch-only UserDefaults pattern as `deliveredKey`; only
-    /// grows, and only on genuine delivery (`onAudioFileDelivered`) — so retention
-    /// never mistakes an unsent clip for a delivered one.
+    /// Persisted set of voice-note file names whose copy the phone has **confirmed**
+    /// (the application-level `onAudioImported` ack, not the transport didFinish).
+    /// Same watch-only UserDefaults pattern as `deliveredKey`; only grows, and only on
+    /// a genuine import ack — so retention never mistakes an unsent clip for a stored one.
     @ObservationIgnored private static let deliveredAudioKey = "deliveredAudioFileNames"
 
     private var deliveredAudioFileNames: Set<String> {

@@ -277,6 +277,43 @@ struct DiveDetectorTests {
         #expect(dives.contains { $0.startTime == start.addingTimeInterval(7) && $0.endTime == start.addingTimeInterval(11) })
     }
 
+    @Test("a manual segment that ends after the diver already surfaced keeps the next dive")
+    func manualStopAfterAlreadySurfacedKeepsNextDive() {
+        // The natural flow: the diver surfaces FIRST (the 0 m at t2) and only THEN
+        // presses stop — so the manual segment [t0, t2.5] ends after an explicit 0 m,
+        // and the sensor emits nothing between t2 and t2.5 (surfaced → idle). The
+        // pre-emption window must end at t2.5 (the diver was already up), not reach
+        // forward into the genuine [t3,t5] dive and swallow it.
+        let detector = DiveDetector(config: DiveDetectionConfig(surfaceExitDwellSeconds: 3, minimumDiveDuration: 0))
+        let start = Date(timeIntervalSince1970: 0)
+        let s = samples([4, 4, 0, 4, 6, 0], start: start)
+        let dives = detector.detectDives(
+            from: s, manualSegments: [DateInterval(start: start, end: start.addingTimeInterval(2.5))]
+        )
+        #expect(dives.count == 2)
+        #expect(dives.map(\.maxDepthMeters).contains(6))   // the next dive survived
+    }
+
+    @Test("a dry-land accidental manual toggle doesn't suppress the day's next dive")
+    func dryLandManualToggleKeepsLaterDive() {
+        // The manual segment sits entirely before any samples (an accidental Action +
+        // side on dry land, sensor idle) — there is no sample at or before its end. The
+        // window must end at the segment end, not `.distantFuture`, so a real dive later
+        // that day survives.
+        let detector = DiveDetector(config: DiveDetectionConfig(surfaceExitDwellSeconds: 3, minimumDiveDuration: 0))
+        let base = Date(timeIntervalSince1970: 1000)
+        // Samples start well after the toggle at t0…t1.
+        let s = samples([0, 5, 8, 5, 0], start: base)
+        let dives = detector.detectDives(
+            from: s,
+            manualSegments: [DateInterval(
+                start: Date(timeIntervalSince1970: 0), end: Date(timeIntervalSince1970: 1)
+            )]
+        )
+        // The manual segment (no samples) plus the genuine auto dive at `base`.
+        #expect(dives.contains { $0.maxDepthMeters == 8 })
+    }
+
     @Test("a manual stop then a true surface and a new descent logs both dives")
     func manualStopTrueSurfaceLogsBoth() {
         let detector = DiveDetector(config: DiveDetectionConfig(surfaceExitDwellSeconds: 3, minimumDiveDuration: 0))
@@ -287,6 +324,43 @@ struct DiveDetectorTests {
         let dives = detector.detectDives(from: s, manualSegments: [DateInterval(start: start, end: start.addingTimeInterval(1))])
         #expect(dives.count == 2)
         #expect(dives.map(\.maxDepthMeters).contains(6))   // the new descent survived
+    }
+
+    @Test("a stale earlier-dive 0 m doesn't end the window while shallow samples still follow")
+    func staleSurfaceZeroDoesNotEndWindowEarly() {
+        // The regression the surfaced-at-`time` rule closes. Deep dive1 [t0,t2] surfaces
+        // with an explicit 0 m at t3 (the STALE 0 m). Then the diver goes shallow — never
+        // fully up — at 0.5 m (above the 0.05 m exit, below the 1 m surface bar) from t4
+        // through the manual stop at t7, then re-descends at t8 before a true 0 m surface
+        // at t9. dwell 4 s > the shallow spell, so the spell alone never completes the
+        // dwell. The OLD rule saw the t3 0 m as "surfaced after the last deep sample" and
+        // returned the stop t7, ending the window early and logging the t8 re-descent as
+        // a second dive — while the live layer, still suppressing through the 0.5 m band,
+        // logged only one. The rule now checks the LAST sample at/before t7 (the 0.5 m at
+        // t6 → not surfaced), so the window extends past the re-descent to the true exit
+        // and only the manual dive is logged (live/final agree).
+        let detector = DiveDetector(config: DiveDetectionConfig(surfaceExitDwellSeconds: 4, minimumDiveDuration: 0))
+        let start = Date(timeIntervalSince1970: 0)
+        let s = samples([4, 4, 4, 0, 0.5, 0.5, 0.5, 0.5, 4, 0], start: start)
+        let dives = detector.detectDives(from: s, manualSegments: [DateInterval(start: start, end: start.addingTimeInterval(7))])
+        #expect(dives.count == 1)              // the re-descent at t8 is NOT logged
+        #expect(dives.first?.startTime == start)   // the manual dive
+    }
+
+    @Test("a fully-surfaced sample immediately before the manual stop still returns the stop")
+    func lastSampleSurfacedJustBeforeStopReturnsStop() {
+        // The natural-flow case must stay intact under the new last-sample rule: the diver
+        // surfaces (0 m at t2) and the manual stop lands at t2.5 with no sample between —
+        // the last sample at/before t2.5 is that 0 m, so the window ends at the stop and
+        // the genuine [t3,t5] dive survives.
+        let detector = DiveDetector(config: DiveDetectionConfig(surfaceExitDwellSeconds: 3, minimumDiveDuration: 0))
+        let start = Date(timeIntervalSince1970: 0)
+        let s = samples([4, 4, 0, 4, 6, 0], start: start)
+        let dives = detector.detectDives(
+            from: s, manualSegments: [DateInterval(start: start, end: start.addingTimeInterval(2.5))]
+        )
+        #expect(dives.count == 2)
+        #expect(dives.map(\.maxDepthMeters).contains(6))   // the next dive survived
     }
 
     // MARK: - Configurable detection (Codable + sanitized, plan 15)
