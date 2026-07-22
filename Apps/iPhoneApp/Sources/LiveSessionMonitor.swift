@@ -35,9 +35,22 @@ final class LiveSessionMonitor {
     private(set) var snapshot: LiveSessionSnapshot?
 
     /// Start time of a session the user manually dismissed — ignore further
-    /// snapshots for it so a queued/stale update can't bring it back.
-    @ObservationIgnored private var dismissedStart: Date?
+    /// snapshots for it so a queued/stale update can't bring it back. FIX 3(b):
+    /// persisted in `UserDefaults` (`dismissedStartKey`) so a manual dismiss
+    /// survives a background relaunch. WCSession redelivers `receivedApplication
+    /// Context` on every activation, so without this a dismissed (or dead) session
+    /// would resurrect its banner on the next phone launch.
+    @ObservationIgnored private var dismissedStart: Date? {
+        didSet { Self.persistDismissedStart(dismissedStart) }
+    }
     @ObservationIgnored private var watchdog: Task<Void, Never>?
+    /// FIX 2: bounds an init-time adoption made with no snapshot yet. At launch we
+    /// keep an activity left over from a previous process alive (a genuine
+    /// mid-session relaunch must not drop it before the first redelivered snapshot),
+    /// but if no snapshot arrives within `initAdoptionGracePeriod` the activity is
+    /// phantom (session already over, or a stale pushed copy) and gets ended.
+    /// Cancelled on the first successful `ingest`.
+    @ObservationIgnored private var initAdoptionGrace: Task<Void, Never>?
     @ObservationIgnored private var activity: Activity<DiveActivityAttributes>?
     /// Long-lived observer of `activityUpdates` that adopts push-to-start activities
     /// (created outside our `Activity.request` path) as they appear (see FIX 1b).
@@ -48,14 +61,22 @@ final class LiveSessionMonitor {
     /// per session, independent of the notification latch, so a session fires the
     /// APNs trigger at most once regardless of the ~2 s snapshot cadence.
     @ObservationIgnored private var pushLatch = LiveSessionNotificationLatch()
-    /// Session start + wall-clock time of the most recent APNs trigger the Worker
-    /// accepted (2xx). Used to suppress the fallback notification for a short grace
-    /// window while the pushed Live Activity is still on its way (see FIX 2).
-    @ObservationIgnored private var pushAccepted: (start: Date, at: Date)?
-    /// How long after a 2xx push trigger we withhold the fallback notification: the
+    /// Session start + wall-clock time of a push-to-start trigger that is either in
+    /// flight or was accepted (2xx) by the Worker. FIX 4: recorded BEFORE launching
+    /// the trigger task (not only after the 2xx response), so a snapshot arriving
+    /// while the request is still on the wire doesn't post the fallback notification
+    /// on top of the pushed Live Activity that's about to appear. `accepted` flips
+    /// true on 2xx; the whole record is cleared on trigger failure so the next
+    /// snapshot can post the fallback.
+    @ObservationIgnored private var pushAttempt: (start: Date, at: Date, accepted: Bool)?
+    /// How long after a push trigger we withhold the fallback notification: the
     /// pushed activity typically arrives (and is adopted) within a second or two;
     /// after the window, no activity means the notification is the right fallback.
     private static let pushGrace: TimeInterval = 10
+    /// FIX 2: grace period for an init-time adoption made without a snapshot — long
+    /// enough for WCSession to redeliver the in-progress session's context after a
+    /// relaunch, short enough that a phantom activity doesn't linger.
+    private static let initAdoptionGracePeriod: TimeInterval = 90
     @ObservationIgnored private let notifier: LiveSessionNotifier
     @ObservationIgnored private let pushTrigger: LiveSessionPushTrigger
     @ObservationIgnored private let log = Logger(subsystem: "org.yurko.divefree", category: "LiveSession")
@@ -66,9 +87,33 @@ final class LiveSessionMonitor {
     ) {
         self.notifier = notifier
         self.pushTrigger = pushTrigger
+        // FIX 3(b): restore a manual dismiss made in a previous process so a
+        // redelivered application context can't resurrect the dismissed session. An
+        // initial assignment inside `init` does NOT fire the property's `didSet`, so
+        // this loads the persisted value without a redundant write-back.
+        dismissedStart = Self.loadDismissedStart()
         // Adopt an activity that outlived a previous launch so we can update/end it.
-        activity = Activity<DiveActivityAttributes>.activities.first
+        // FIX 2: a fresh launch mid-session must keep this activity alive until the
+        // first redelivered snapshot lands, so we DON'T end it here even though we
+        // have no snapshot yet — instead we start a bounded grace timer; if no
+        // snapshot arrives it's a phantom (session already ended, or a stale pushed
+        // copy) and the timer ends it.
+        if let adopted = Activity<DiveActivityAttributes>.activities.first {
+            activity = adopted
+            startInitAdoptionGrace()
+        }
         observeActivityUpdates()
+    }
+
+    /// FIX 2: ends an init-adopted activity if no snapshot arrives within
+    /// `initAdoptionGracePeriod`. Cancelled by the first `ingest` (real session).
+    private func startInitAdoptionGrace() {
+        initAdoptionGrace = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(Self.initAdoptionGracePeriod))
+            guard let self, !Task.isCancelled, self.snapshot == nil else { return }
+            // No snapshot ever arrived for the adopted activity — it's phantom.
+            self.endActivity()
+        }
     }
 
     /// Observes Live Activities that start OUTSIDE our `Activity.request` path —
@@ -91,11 +136,41 @@ final class LiveSessionMonitor {
     /// Applies an incoming snapshot: end on the terminal one, otherwise show and
     /// update (unless the user dismissed this exact session).
     func ingest(_ snapshot: LiveSessionSnapshot) {
+        // FIX 2: a real snapshot arrived, so the init-adoption grace timer's job is
+        // done — cancel it (any adopted activity is now backed by live data, and
+        // `updateActivity`/`clear` below own its lifecycle from here).
+        initAdoptionGrace?.cancel()
+        initAdoptionGrace = nil
+        // FIX 3(a): WCSession redelivers `receivedApplicationContext` on EVERY
+        // activation, so a background relaunch can re-ingest the LAST context of a
+        // session whose Watch died mid-dive (no terminal snapshot was ever sent).
+        // An ACTIVE snapshot older than `maxAge` is that dead session — treat it
+        // like a terminal one: clear any lingering notification for its start time,
+        // but do NOT display it and do NOT fire a push (which, from a background
+        // wake, could pop a stale Live Activity hours later).
+        if snapshot.isActive, snapshot.isExpired(asOf: Date()) {
+            // FIX 3: this is a terminal-WITHOUT-resurrection teardown for a dead-watch
+            // session (never sent an "ended" snapshot). If the user MANUALLY dismissed it,
+            // that dismissal must persist across relaunches — so preserve `dismissedStart`
+            // here (unlike the genuine terminal snapshot below, where a cleanly-ended
+            // session isn't "dismissed" and clearing is correct). A real NEW active start
+            // is the only thing that clears the dismissal (see `dismissedStart = nil` below).
+            clear(notificationStart: snapshot.startTime, preserveDismissal: true)
+            return
+        }
         // Terminal snapshot: tear down and remove this session's fallback
         // notification by its own start time (the latch may be empty after a
         // background relaunch — see `clearNotification(for:)`).
         guard snapshot.isActive else { clear(notificationStart: snapshot.startTime); return }
         if let dismissedStart, snapshot.startTime == dismissedStart { return }
+        // FIX 5: a NEW session started while the notification latch still holds a
+        // DIFFERENT (older) session's start — the previous session never delivered
+        // its terminal snapshot (Watch out of range at stop). Remove the stranded
+        // notification for that old start before we proceed, so it doesn't linger in
+        // Notification Center once the new session takes over.
+        if let stale = notificationLatch.postedStart, stale != snapshot.startTime {
+            clearNotification(for: stale)
+        }
         dismissedStart = nil
         self.snapshot = snapshot
         // If a Live Activity is (or just became) live, it covers the session and
@@ -131,19 +206,29 @@ final class LiveSessionMonitor {
         endPushSession()
         watchdog?.cancel()
         watchdog = nil
+        initAdoptionGrace?.cancel()
+        initAdoptionGrace = nil
     }
 
     /// Session ended cleanly, expired, or nothing to show — tear everything down,
     /// removing the fallback notification for `notificationStart` (the terminal
     /// snapshot's start time, or the current snapshot's on the watchdog path).
-    private func clear(notificationStart: Date?) {
-        dismissedStart = nil
+    ///
+    /// FIX 3: `preserveDismissal` keeps a persisted MANUAL dismissal intact. Default
+    /// `false` for the genuine terminal-snapshot path — a cleanly-ended session isn't
+    /// "dismissed", so clearing `dismissedStart` there is correct. The expired-ACTIVE
+    /// (dead-watch) branch passes `true`: that session was never cleanly ended, so a
+    /// user's manual dismiss of it must survive relaunch and not be wiped by teardown.
+    private func clear(notificationStart: Date?, preserveDismissal: Bool = false) {
+        if !preserveDismissal { dismissedStart = nil }
         snapshot = nil
         endActivity()
         clearNotification(for: notificationStart)
         endPushSession()
         watchdog?.cancel()
         watchdog = nil
+        initAdoptionGrace?.cancel()
+        initAdoptionGrace = nil
     }
 
     /// Terminal-only reset of the push-to-start state (latch + grace record). Kept
@@ -153,7 +238,7 @@ final class LiveSessionMonitor {
     /// (terminal snapshot / `dismiss()` / watchdog).
     private func endPushSession() {
         pushLatch.clear()
-        pushAccepted = nil
+        pushAttempt = nil
     }
 
     /// Dismisses the display on its own if a session goes silent past `maxAge`
@@ -246,12 +331,32 @@ final class LiveSessionMonitor {
     /// covers the session.
     private func adopt(_ activity: Activity<DiveActivityAttributes>) {
         guard activity.activityState == .active || activity.activityState == .stale else { return }
+        // FIX 1: we already track a genuinely-live activity, so the one arriving here is
+        // a duplicate (e.g. a push-to-start activity landing while a locally-requested
+        // one is already running). Adopting it would strand the currently-tracked one
+        // (two Live Activities for one session); instead END the newcomer and keep ours.
+        // BUT: `activityUpdates` re-delivers EVERY newly-started activity — including the
+        // one WE just created via `Activity.request` in `updateActivity`. That newcomer
+        // IS `self.activity`; ending it here would end our own live activity (churn /
+        // re-request loop, and no activity at all in the background). Guard on identity:
+        // only end a genuine DIFFERENT duplicate, never our own re-delivered activity.
         if let current = self.activity,
            current.activityState == .active || current.activityState == .stale {
+            if activity.id != current.id { end(activity) }  // our own re-delivery: already tracked, no-op
+            return
+        }
+        // FIX 2: an activity arrives but there's no session to back it — the session is
+        // already over (e.g. a stale pushed copy landing after the terminal snapshot, or
+        // after `dismiss()`). Don't adopt a phantom; END it — unless it's the activity we
+        // already track (same id), which `endActivity`/`clear` own and must not be double-
+        // ended here. (The init-adoption path is separate: it deliberately keeps an
+        // at-launch activity alive under its own grace timer until the first redelivered
+        // snapshot, and never routes through here.)
+        guard let snapshot else {
+            if activity.id != self.activity?.id { end(activity) }
             return
         }
         self.activity = activity
-        guard let snapshot else { return }
         let box = SendableActivity(activity)
         let content = content(for: snapshot)
         Task { await box.value.update(content) }
@@ -261,6 +366,13 @@ final class LiveSessionMonitor {
     private func endActivity() {
         guard let activity else { return }
         self.activity = nil
+        end(activity)
+    }
+
+    /// Ends an arbitrary activity immediately (used for duplicate/phantom activities in
+    /// `adopt`, not just the tracked one). `Activity` isn't `Sendable`; box it for the
+    /// detached end — `end` is nonisolated and thread-safe.
+    private func end(_ activity: Activity<DiveActivityAttributes>) {
         let box = SendableActivity(activity)
         Task { await box.value.end(nil, dismissalPolicy: .immediate) }
     }
@@ -291,17 +403,28 @@ final class LiveSessionMonitor {
            let credential = PushToStartStore.current(),
            pushLatch.markPosted(for: snapshot.startTime) {
             let pushTrigger = pushTrigger
+            // FIX 4: record the attempt as PENDING (accepted: false) BEFORE the request
+            // goes on the wire. A snapshot arriving mid-flight (~2 s cadence) then sees a
+            // pending push for this session and withholds the fallback notification,
+            // instead of racing it onto the pushed Live Activity that's about to appear.
+            pushAttempt = (start: snapshot.startTime, at: Date(), accepted: false)
             Task { @MainActor in
                 let started = await pushTrigger.trigger(
                     snapshot: snapshot, token: credential.token, env: credential.env
                 )
                 if started {
-                    // FIX 2: the Worker accepted the relay — a real (pushed) Live
-                    // Activity is on its way. Record the acceptance so the very next
-                    // ~2 s snapshot (which still sees no activity, as adoption hasn't
-                    // happened yet) doesn't post the fallback notification on top of it.
-                    self.pushAccepted = (start: snapshot.startTime, at: Date())
+                    // 2xx: promote the pending attempt to accepted so the grace window
+                    // keeps suppressing the fallback while the pushed activity lands.
+                    // FIX 2: guard like the failure branch — if the session ended while the
+                    // request was on the wire (`endPushSession` set `pushAttempt = nil`),
+                    // do NOT resurrect a grace record for the dead session; leave it nil.
+                    if self.pushAttempt?.start == snapshot.startTime {
+                        self.pushAttempt = (start: snapshot.startTime, at: Date(), accepted: true)
+                    }
                 } else {
+                    // Trigger failed — clear this session's attempt so the fallback can
+                    // post, then post it now.
+                    if self.pushAttempt?.start == snapshot.startTime { self.pushAttempt = nil }
                     self.postNotificationIfNeeded(for: snapshot)
                 }
             }
@@ -320,14 +443,15 @@ final class LiveSessionMonitor {
         // user may have opened the app — the in-app banner then covers it, so don't
         // post (and don't latch, so a later background snapshot can still post).
         guard UIApplication.shared.applicationState != .active else { return }
-        // FIX 2: within the grace window after a 2xx push trigger for THIS session,
-        // the pushed Live Activity is still arriving (adoption hasn't won yet) — the
-        // notification would land on top of it. Skip WITHOUT latching so that, once
-        // the window passes with still no activity, a later snapshot posts the
-        // (correct) fallback exactly once.
-        if let pushAccepted,
-           pushAccepted.start == snapshot.startTime,
-           Date().timeIntervalSince(pushAccepted.at) < Self.pushGrace {
+        // FIX 4: within the grace window after a push trigger for THIS session — whether
+        // still PENDING (accepted: false, request on the wire) or ACCEPTED (2xx) — the
+        // pushed Live Activity is either coming or already arriving (adoption hasn't won
+        // yet), so the notification would land on top of it. Suppress in both states,
+        // WITHOUT latching, so that once the window passes with still no activity a later
+        // snapshot posts the (correct) fallback exactly once.
+        if let pushAttempt,
+           pushAttempt.start == snapshot.startTime,
+           Date().timeIntervalSince(pushAttempt.at) < Self.pushGrace {
             return
         }
         guard notificationLatch.markPosted(for: snapshot.startTime) else { return }
@@ -362,6 +486,31 @@ final class LiveSessionMonitor {
         // The push latch is released only when the session ends — see `endPushSession`.
         guard let startTime else { return }
         notifier.remove(id: LiveSessionNotificationLatch.identifier(for: startTime))
+    }
+
+    // MARK: - Dismissed-session persistence (FIX 3(b))
+
+    /// `UserDefaults` key for the manually-dismissed session's start time. Persisting
+    /// this across launches stops a redelivered `receivedApplicationContext` (WCSession
+    /// resends it on every activation) from resurrecting a dismissed banner.
+    private static let dismissedStartKey = "liveSession.dismissedStart"
+
+    /// Persists (or clears, on `nil`) the dismissed session's start time. Stored as a
+    /// `timeIntervalSince1970` `Double`; sentinel-free — absence of the key means none.
+    private static func persistDismissedStart(_ start: Date?) {
+        let defaults = UserDefaults.standard
+        if let start {
+            defaults.set(start.timeIntervalSince1970, forKey: dismissedStartKey)
+        } else {
+            defaults.removeObject(forKey: dismissedStartKey)
+        }
+    }
+
+    /// Restores a persisted dismissed start (or `nil` if none was stored).
+    private static func loadDismissedStart() -> Date? {
+        let defaults = UserDefaults.standard
+        guard defaults.object(forKey: dismissedStartKey) != nil else { return nil }
+        return Date(timeIntervalSince1970: defaults.double(forKey: dismissedStartKey))
     }
 }
 
