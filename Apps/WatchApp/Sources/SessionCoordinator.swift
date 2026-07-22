@@ -708,7 +708,8 @@ final class SessionCoordinator {
 
     /// Re-sends a stored session (and its voice-note files) to the iPhone — the
     /// manual recovery when a dive didn't make it across (e.g. the phone was out
-    /// of range when it finished). Safe to repeat; the phone upserts by id. Marked
+    /// of range when it finished). Safe to repeat; the phone dedupes by id
+    /// (insert-only — a re-delivery of an existing id is dropped, not merged). Marked
     /// `isResync` so the phone clears any deletion tombstone first — a deliberate
     /// re-send must override an earlier accidental swipe-delete.
     func resync(_ session: DiveSession) {

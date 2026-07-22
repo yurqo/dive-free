@@ -101,6 +101,10 @@ public struct DiveHapticTracker: Sendable {
             return events   // No milestone checks at the surface.
         } else if isSubmerged {
             // Shallow band: time the dwell from first entry; surface at expiry.
+            // With dwell 0 (the legacy immediate-end value) the FIRST shallow sample
+            // is already the exit — match the detector, which ends the dive at the
+            // first below-threshold sample — rather than waiting one more sample for
+            // the elapsed check to pass.
             if let since = shallowSince {
                 if timestamp.timeIntervalSince(since) >= config.surfaceExitDwellSeconds {
                     events.append(.surface)
@@ -109,6 +113,12 @@ public struct DiveHapticTracker: Sendable {
                     shallowSince = nil
                     return events
                 }
+            } else if config.surfaceExitDwellSeconds <= 0 {
+                events.append(.surface)
+                isSubmerged = false
+                lastMilestoneLevel = 0
+                shallowSince = nil
+                return events
             } else {
                 shallowSince = timestamp
             }

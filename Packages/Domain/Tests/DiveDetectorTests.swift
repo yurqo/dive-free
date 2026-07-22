@@ -399,19 +399,26 @@ struct DiveDetectorTests {
             .init(minimumDepthMeters: 0.2, minimumDuration: 0),     // both below the floor
             .init(minimumDepthMeters: 40, minimumDuration: 500),    // both above the ceiling
         ]).sanitized()
-        #expect(config.surfaceExitDwellSeconds == 10)               // dwell clamped to [1, 10]
+        #expect(config.surfaceExitDwellSeconds == 10)               // dwell clamped to [0, 10]
         #expect(config.thresholds[0].minimumDepthMeters == 1.0)     // floor = surface threshold
         #expect(config.thresholds[0].minimumDuration == 1)          // duration floor
         #expect(config.thresholds[1].minimumDepthMeters == 6.0)     // depth ceiling
         #expect(config.thresholds[1].minimumDuration == 30)         // duration ceiling
     }
 
-    @Test("sanitized raises a too-small dwell to the floor")
-    func sanitizedDwellFloor() {
-        let config = DiveDetectionConfig(surfaceExitDwellSeconds: 0, thresholds: [
+    @Test("sanitized keeps the documented legacy dwell of 0 (immediate end)")
+    func sanitizedKeepsZeroDwell() {
+        // 0 is the documented legacy "end at the first below-threshold sample" value,
+        // so the clamp is [0, 10] and 0 must survive (a negative crafted value still
+        // clamps up to 0).
+        let zero = DiveDetectionConfig(surfaceExitDwellSeconds: 0, thresholds: [
             .init(minimumDepthMeters: 1.5, minimumDuration: 3),
         ]).sanitized()
-        #expect(config.surfaceExitDwellSeconds == 1)
+        #expect(zero.surfaceExitDwellSeconds == 0)
+        let negative = DiveDetectionConfig(surfaceExitDwellSeconds: -5, thresholds: [
+            .init(minimumDepthMeters: 1.5, minimumDuration: 3),
+        ]).sanitized()
+        #expect(negative.surfaceExitDwellSeconds == 0)
     }
 
     @Test("sanitized drops non-finite tiers and falls back to the default when none survive")

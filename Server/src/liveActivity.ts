@@ -258,11 +258,13 @@ export async function handleLiveActivityStart(request: Request, env: ApnsEnv): P
   let apns = await sendToApns(primaryHost, jwt, body, nowSeconds);
 
   // A prod build whose token is actually a sandbox token (or vice-versa) gets
-  // 400 BadDeviceToken; retry on the other host once before giving up.
-  if (apns.status === 400 && body.env === "production") {
+  // 400 BadDeviceToken; retry on the OTHER host once before giving up. Bidirectional
+  // (prod→sandbox and sandbox→prod), single retry, no loop.
+  if (apns.status === 400) {
     const text = await apns.clone().text();
     if (text.includes("BadDeviceToken")) {
-      apns = await sendToApns(APNS_HOST_SANDBOX, jwt, body, nowSeconds);
+      const otherHost = body.env === "production" ? APNS_HOST_SANDBOX : APNS_HOST_PROD;
+      apns = await sendToApns(otherHost, jwt, body, nowSeconds);
     }
   }
 

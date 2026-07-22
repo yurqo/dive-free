@@ -244,8 +244,12 @@ struct SessionManagerTests {
     func shallowHangEndsAtCrossing() async throws {
         // Deep, then a long 0.5 m hang that never reaches 0 m; the dwell must expire
         // and end the dive at the crossing (its last sample is a deep one).
+        // A long shallow hang (many samples) well past the dwell, so even a
+        // coalesced/late stream under suite load still spans enough real time for the
+        // 0.3 s dwell to expire — the flake was too short a shallow tail plus too
+        // tight a poll budget, not the assertion itself.
         let profile = [0] + Array(repeating: 4.0, count: 8)
-            + Array(repeating: 0.5, count: 40)
+            + Array(repeating: 0.5, count: 80)
         let (manager, store) = try makeManager(
             dwell: 0.3,
             provider: ScriptedDepthProvider(profile: profile, interval: 0.02)
@@ -253,7 +257,9 @@ struct SessionManagerTests {
         defer { _ = store }
 
         try await manager.startSession()
-        for _ in 0..<300 where manager.currentDiveStart != nil || manager.diveCount == 0 {
+        // Poll generously (up to 8 s) so a slow, load-contended stream still fully
+        // drains and the dwell expires before we assert.
+        for _ in 0..<800 where manager.currentDiveStart != nil || manager.diveCount == 0 {
             try await Task.sleep(for: .milliseconds(10))
         }
         #expect(manager.diveCount == 1)

@@ -237,4 +237,25 @@ struct LiveSessionSnapshotTests {
         #expect(a.contentEquals(b))
         #expect(!a.contentEquals(c))
     }
+
+    // MARK: - Non-finite guard (#audit item 6)
+
+    @Test("contentEquals and shouldSend never trap on a non-finite depth/elapsed field")
+    func nonFiniteFieldsDoNotTrap() {
+        // The bucket helpers feed `Int(Double)`, which traps on NaN/±inf. `shouldSend`
+        // runs every ~2 s tick with sensor-derived depth/elapsed that has no sanitize
+        // guard, so a non-finite value must be tolerated (bucketed to 0), not crash.
+        let nan = snapshot(depth: .nan, maxDepth: .infinity, isSubmerged: true, elapsed: .nan)
+        let finite = snapshot(depth: 0, maxDepth: 0, isSubmerged: true, elapsed: 0)
+        // Non-finite depth/maxDepth/elapsed all bucket to 0 → equal to the finite twin.
+        #expect(nan.contentEquals(finite))
+        #expect(finite.contentEquals(nan))
+        // And the full send-decision path stays crash-free with a non-finite candidate.
+        _ = LiveSessionSnapshot.shouldSend(
+            previous: finite,
+            candidate: nan,
+            lastSentAt: start,
+            now: start.addingTimeInterval(1)
+        )
+    }
 }
