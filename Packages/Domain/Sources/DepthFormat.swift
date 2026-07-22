@@ -27,7 +27,11 @@ public enum DepthFormat {
         let display = ceilingReached ? maxMeasurableMeters : meters
         switch units.depth {
         case .meters:
-            let number = ceilingReached ? "\(Int(maxMeasurableMeters))" : String(format: "%.1f", display)
+            // Locale-aware separator so `value()` agrees with `exactValue()`'s
+            // `.formatted()` in comma-decimal locales (de/fr/uk/es/it/pt).
+            let number = ceilingReached
+                ? "\(Int(maxMeasurableMeters))"
+                : String(format: "%.1f", locale: .current, display)
             return ceilingReached ? "\(number)+" : number
         case .feet:
             // Whole feet — 0.1 ft precision is meaningless for free-dive depths.
@@ -86,10 +90,10 @@ public enum DistanceFormat {
     public static func string(_ meters: Double, units: UnitPreference = .current) -> String {
         switch units.distance {
         case .metric:
-            return meters < 1000 ? "\(Int(meters)) m" : String(format: "%.1f km", meters / 1000)
+            return meters < 1000 ? "\(Int(meters)) m" : String(format: "%.1f km", locale: .current, meters / 1000)
         case .imperial:
             let feet = meters * DepthFormat.feetPerMeter
-            return meters < metersPerMile ? "\(Int(feet.rounded())) ft" : String(format: "%.1f mi", meters / metersPerMile)
+            return meters < metersPerMile ? "\(Int(feet.rounded())) ft" : String(format: "%.1f mi", locale: .current, meters / metersPerMile)
         }
     }
 
@@ -149,7 +153,7 @@ public enum WindSpeedFormat {
     public static func value(_ kmh: Double, units: UnitPreference = .current) -> String {
         switch units.windSpeed {
         case .kmh: return "\(Int(kmh.rounded()))"
-        case .ms: return String(format: "%.1f", kmh * msPerKmh)
+        case .ms: return String(format: "%.1f", locale: .current, kmh * msPerKmh)
         case .mph: return "\(Int((kmh * mphPerKmh).rounded()))"
         case .knots: return "\(Int((kmh * knotsPerKmh).rounded()))"
         }

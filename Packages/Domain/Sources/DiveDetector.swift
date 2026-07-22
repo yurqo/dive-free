@@ -93,7 +93,8 @@ public struct DiveDetectionConfig: Sendable, Equatable, Codable {
     /// Returns a copy with every value clamped to a sane, UI-representable range —
     /// the surface threshold to `[0.5, 2.0]` m, tier depths to
     /// `[surfaceThreshold, DepthFormat.maxMeasurableMeters]`, tier durations to
-    /// `[1, 30]` s, the dwell to `[1, 10]` s — dropping any non-finite / degenerate
+    /// `[1, 30]` s, the dwell to `[0, 10]` s (0 is the documented legacy
+    /// "end at the first below-threshold sample" value) — dropping any non-finite / degenerate
     /// tier, and falling back to `.default`'s tiers when none survive (at least one
     /// acceptance rule must remain). Applied before the config drives detection so a
     /// corrupt, hand-edited, or out-of-range payload can never produce pathological
@@ -106,7 +107,7 @@ public struct DiveDetectionConfig: Sendable, Equatable, Codable {
     /// NaN compares false both ways) fall back to safe defaults.
     public func sanitized() -> DiveDetectionConfig {
         let threshold = surfaceThresholdMeters.isFinite ? min(max(surfaceThresholdMeters, 0.5), 2.0) : 1.0
-        let dwell = surfaceExitDwellSeconds.isFinite ? min(max(surfaceExitDwellSeconds, 1), 10) : 3
+        let dwell = surfaceExitDwellSeconds.isFinite ? min(max(surfaceExitDwellSeconds, 0), 10) : 3
         let cleaned = thresholds.compactMap { tier -> DiveThreshold? in
             guard tier.minimumDepthMeters.isFinite, tier.minimumDuration.isFinite else { return nil }
             return DiveThreshold(

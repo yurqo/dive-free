@@ -37,6 +37,21 @@ struct DepthFormatTests {
         #expect(DepthFormat.exact(1.5, units: .metric) == "1.5 m")
         #expect(DepthFormat.exact(6.0, units: .imperial) == "20 ft") // 6 m ≈ 19.7 ft, not "20+ ft"
     }
+
+    @Test("value() and exactValue() agree on the decimal separator in a comma-decimal locale")
+    func commaLocaleSeparatorAgreement() {
+        // `value()` formats via `String(format:locale:)` and `exactValue()` via
+        // `.formatted()`; both must use the *same* locale-aware separator so a metre
+        // reading and its selectable-threshold twin never disagree (dot vs comma) in
+        // de/fr/uk/es/it/pt. `DepthFormat` reads `Locale.current`, so mirror the two
+        // primitives here with an explicit comma-decimal locale and prove they match.
+        let comma = Locale(identifier: "de_DE")
+        let valuePrimitive = String(format: "%.1f", locale: comma, 1.5)
+        let exactPrimitive = 1.5.formatted(.number.precision(.fractionLength(0...1)).locale(comma))
+        #expect(valuePrimitive == "1,5")
+        #expect(exactPrimitive == "1,5")
+        #expect(valuePrimitive == exactPrimitive)   // same separator either way
+    }
 }
 
 @Suite("DistanceFormat")

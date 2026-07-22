@@ -120,6 +120,19 @@ struct DiveHapticTrackerTests {
         #expect(events == [.diveStart, .surface, .diveStart, .surface])
     }
 
+    @Test("dwell 0 fires surface on the first shallow-band sample (matches the detector)")
+    func dwellZeroSurfacesOnFirstShallowSample() {
+        // With dwell 0 (the legacy immediate-end value) the FIRST shallow-band sample
+        // (below the 1 m threshold but above 0 m — the wrist never fully clears) is
+        // already the surface exit, matching DiveDetector's first-shallow-sample
+        // immediate end. Without the fix the surface fired one sample late.
+        //  t: 0    1    2     3
+        //     0    2    0.5   0.5
+        let config = DiveHapticConfig(surfaceExitDwellSeconds: 0)
+        let events = run([0, 2, 0.5, 0.5], config: config)
+        #expect(events == [.diveStart, .surface])
+    }
+
     @Test("reaching 0 m ends the dive immediately without waiting for the dwell")
     func zeroMetersEndsImmediately() {
         // Deep → 0 m on the very next sample (1 s later, far under the 3 s dwell).

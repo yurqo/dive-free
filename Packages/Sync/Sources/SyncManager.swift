@@ -136,6 +136,13 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     private var pending: [String: Pending] = [:]
     /// Immediate re-send attempts per payload, to bound retry storms.
     private var attempts: [String: Int] = [:]
+    /// Immediate re-send attempts per voice-note file name, to bound file-transfer
+    /// retry storms. `transferFile` has no re-adopt/pending queue like sessions do,
+    /// so its retry budget is tracked here keyed by the clip's file name. A
+    /// persistently-failing or OS-cancelled clip (an unpaired/uninstalled companion
+    /// is the common trigger) would otherwise re-send forever — each re-send spawns
+    /// its own `didFinish(error:)`, a battery hot-loop. Cleared on success.
+    private var fileTransferAttempts: [String: Int] = [:]
     /// Session ids deleted this launch. A tombstone closes the snapshot window in
     /// `retryPending`/`completeTransfer` (which snapshot under the lock but
     /// `performTransfer` after unlocking): a deletion that lands in between must not
@@ -150,6 +157,36 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     /// After this many back-to-back failures a payload stops auto-retrying and
     /// waits for the next reachability-driven `retryPending`, rather than looping.
     private static let maxImmediateRetries = 5
+
+    /// Monotonically increasing stamp for each pending-count snapshot, so
+    /// `onPendingCountChange` never publishes an older count over a newer one.
+    /// `onPendingCountChange` fires *after* the lock is released (it's a UI callback
+    /// — firing under the lock risks reentrancy/deadlock), so two racing mutations
+    /// can reach the callback out of order and leave a transient stale badge. Each
+    /// mutation stamps its snapshot under the lock via `nextPendingGeneration()`;
+    /// `publishPendingCount` then drops any snapshot older than the newest published,
+    /// making the badge monotonic (latest-wins, correct for a count).
+    private var pendingCountGeneration: UInt64 = 0
+    /// The newest generation actually published to `onPendingCountChange`.
+    private var publishedPendingGeneration: UInt64 = 0
+
+    /// Stamps a fresh pending-count snapshot. Call under `lock`.
+    private func nextPendingGeneration() -> UInt64 {
+        pendingCountGeneration &+= 1
+        return pendingCountGeneration
+    }
+
+    /// Publishes `count` to `onPendingCountChange`, but only if `generation` is newer
+    /// than the last one published — so a slower thread carrying an older snapshot
+    /// can't clobber a newer count and leave a stale badge. Call after releasing
+    /// `lock` (the callback is UI-facing).
+    private func publishPendingCount(_ count: Int, generation: UInt64) {
+        lock.lock()
+        guard generation > publishedPendingGeneration else { lock.unlock(); return }
+        publishedPendingGeneration = generation
+        lock.unlock()
+        onPendingCountChange?(count)
+    }
 
     /// Hands a payload to the transport. Defaults to `WCSession.transferUserInfo`;
     /// tests inject a stub.
@@ -434,8 +471,9 @@ public final class SyncManager: NSObject, @unchecked Sendable {
         let id = UUID().uuidString
         pending[id] = Pending(sessionID: session.id, data: data, isSystemOwned: false, isResync: isResync)
         let count = pending.count
+        let generation = nextPendingGeneration()
         lock.unlock()
-        onPendingCountChange?(count)
+        publishPendingCount(count, generation: generation)
         transfer(id, data)
     }
 
@@ -459,8 +497,9 @@ public final class SyncManager: NSObject, @unchecked Sendable {
         let staleKeys = pending.filter { $0.value.sessionID == id }.map(\.key)
         for key in staleKeys { pending[key] = nil; attempts[key] = nil }
         let count = pending.count
+        let generation = nextPendingGeneration()
         lock.unlock()
-        onPendingCountChange?(count)
+        publishPendingCount(count, generation: generation)
         cancelTransfers(Set(staleKeys))
         performDeletion(id)
     }
@@ -491,8 +530,19 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     /// `transferFile`; the `fileName` rides in metadata so the receiver stores it
     /// under the name the session's markers reference — and so `completeFileTransfer`
     /// can identify the clip when the OS confirms (or fails) delivery.
+    ///
+    /// This is the *top-level* enqueue path (a clip's first send, and again on a
+    /// fresh reachability-driven re-send), distinct from the internal re-send that
+    /// `completeFileTransfer` performs on a failed `didFinish`. So it resets the
+    /// clip's per-file retry budget (`fileTransferAttempts`) — mirroring how
+    /// `retryPending` clears the session `attempts` map for a fresh window. Without
+    /// this, a clip that exhausted its cap on an earlier give-up stays exhausted
+    /// forever: a later fresh send gets no immediate-retry budget, and each
+    /// permanently-failed file name leaks a map entry. Resetting here gives every
+    /// fresh send a clean budget and clears the leak on the next send of that clip.
     public func sendAudioFile(_ url: URL, fileName: String) {
         guard FileManager.default.fileExists(atPath: url.path) else { return }
+        lock.lock(); fileTransferAttempts[fileName] = nil; lock.unlock()
         performFileTransfer(url, [Self.fileNameKey: fileName])
     }
 
@@ -507,8 +557,9 @@ public final class SyncManager: NSObject, @unchecked Sendable {
             let entry = pending[id]
             pending[id] = nil; attempts[id] = nil
             let count = pending.count
+            let generation = nextPendingGeneration()
             lock.unlock()
-            onPendingCountChange?(count)
+            publishPendingCount(count, generation: generation)
             // Confirmed on the phone — record the session id so retention can
             // safely prune it from the watch. Only ever fires on genuine success.
             // Prefer the stored id; fall back to decoding only for an untracked
@@ -548,23 +599,37 @@ public final class SyncManager: NSObject, @unchecked Sendable {
 
     /// Records the outcome of a voice-note file transfer: on success fire
     /// `onAudioFileDelivered` (the safe signal watch-side retention needs before
-    /// pruning the clip's only copy); on failure re-send once, provided the source
-    /// file still exists. Unlike session payloads, `transferFile` is not re-adopted
-    /// across relaunches and has no per-file pending queue, so this can't consult
-    /// `pending`. The re-send doesn't loop: each retry needs a fresh OS-level
-    /// `didFinish(error:)` to fire again, and a missing file just stops.
+    /// pruning the clip's only copy) and clear the clip's retry budget; on failure
+    /// re-send, provided the source file still exists AND the clip's re-send budget
+    /// (`fileTransferAttempts`, capped at `maxImmediateRetries`) isn't spent. Unlike
+    /// session payloads, `transferFile` is not re-adopted across relaunches and has
+    /// no per-file pending queue, so this can't consult `pending`.
+    ///
+    /// Each re-send spawns its own `didFinish(error:)`, so without the per-file cap a
+    /// persistently-failing / OS-cancelled clip (an unpaired or uninstalled companion
+    /// is the common trigger) would re-send forever — a battery hot-loop. The cap
+    /// stops it past `maxImmediateRetries`; a missing file also just stops.
     ///
     /// The file name comes from the `fileNameKey` metadata (the name the markers
-    /// reference), falling back to the URL's last path component.
+    /// reference), falling back to the URL's last path component — and keys the
+    /// attempts map so the cap follows the clip across re-sends.
     func completeFileTransfer(fileName: String?, fileURL: URL, metadata: [String: Any]?, error: Error?) {
         let name = fileName ?? (metadata?[Self.fileNameKey] as? String) ?? fileURL.lastPathComponent
         if error == nil {
+            lock.lock(); fileTransferAttempts[name] = nil; lock.unlock()
             onAudioFileDelivered?(name)
             return
         }
-        // Re-send once — but only if the source file is still on disk; otherwise
-        // there's nothing to resend and retrying would fail forever.
+        // Re-send — but only if the source file is still on disk (otherwise there's
+        // nothing to resend and retrying would fail forever) and the clip's re-send
+        // budget isn't spent (otherwise a persistently-failing transfer hot-loops).
         guard FileManager.default.fileExists(atPath: fileURL.path) else { return }
+        lock.lock()
+        let count = (fileTransferAttempts[name] ?? 0) + 1
+        fileTransferAttempts[name] = count
+        let shouldRetry = count <= Self.maxImmediateRetries
+        lock.unlock()
+        guard shouldRetry else { return }
         performFileTransfer(fileURL, metadata ?? [Self.fileNameKey: name])
     }
 
@@ -572,31 +637,29 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     /// or the session finishes activating, so a backlog drains promptly. Resets
     /// the per-payload retry budget so a fresh reachability window gets new tries.
     func retryPending() {
-        // Reclaim system-owned (re-adopted) entries the OS no longer lists: their
-        // transfer was dropped without a `didFinish` (unpair, daemon restart), so
-        // waiting for one would starve them forever — badge stuck, session never
-        // re-sent. The snapshot is only taken when a system-owned entry exists,
-        // i.e. after a real activation.
+        // Snapshot the OS's still-queued transfer ids ONCE and use it for both the
+        // reclaim below and the duplicate-enqueue guard on the main filter. An id
+        // still in `outstandingTransfers` — system-owned OR one of ours the OS hasn't
+        // finished yet — must not be re-sent, or a reachability flap would enqueue a
+        // duplicate transfer per pending session per flap.
+        let stillQueued = Set(outstandingTransfers().map(\.id))
         lock.lock()
-        let hasSystemOwned = pending.contains { $0.value.isSystemOwned }
-        lock.unlock()
-        if hasSystemOwned {
-            let stillQueued = Set(outstandingTransfers().map(\.id))
-            lock.lock()
-            for (id, entry) in pending where entry.isSystemOwned && !stillQueued.contains(id) {
-                pending[id]?.isSystemOwned = false
-            }
-            lock.unlock()
+        for (id, entry) in pending where entry.isSystemOwned && !stillQueued.contains(id) {
+            // System-owned but the OS no longer lists it: its transfer was dropped
+            // without a `didFinish` (unpair, daemon restart), so reclaim it as ours —
+            // waiting for a `didFinish` that will never come would starve it forever.
+            pending[id]?.isSystemOwned = false
         }
-        lock.lock()
-        // Skip entries the OS still owns: it delivers them itself, and re-sending
-        // would enqueue a duplicate. They rejoin the retry set via a failed
-        // `didFinish` (`completeTransfer`) or the reclaim above. Also skip
-        // tombstoned (deleted-this-launch) sessions — normally already dropped from
-        // `pending` by `sendDeletion`, but the tombstone closes the snapshot window
-        // if a deletion lands mid-retry.
+        // Skip entries the OS still owns (it delivers them itself) AND any id still
+        // queued in the OS's outstanding set (re-sending would enqueue a duplicate);
+        // both rejoin the retry set via a failed `didFinish` (`completeTransfer`) or
+        // the reclaim above. Also skip tombstoned (deleted-this-launch) sessions —
+        // normally already dropped from `pending` by `sendDeletion`, but the
+        // tombstone closes the snapshot window if a deletion lands mid-retry.
         let items = pending.filter {
-            !$0.value.isSystemOwned && !deletedSessionIDs.contains($0.value.sessionID)
+            !$0.value.isSystemOwned
+                && !stillQueued.contains($0.key)
+                && !deletedSessionIDs.contains($0.value.sessionID)
         }
         for id in items.keys { attempts[id] = 0 }
         lock.unlock()
@@ -631,8 +694,9 @@ public final class SyncManager: NSObject, @unchecked Sendable {
             changed = true
         }
         let count = pending.count
+        let generation = changed ? nextPendingGeneration() : 0
         lock.unlock()
-        if changed { onPendingCountChange?(count) }
+        if changed { publishPendingCount(count, generation: generation) }
     }
 
     /// Decodes an incoming control/payload message and forwards it: a deletion (id

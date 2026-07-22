@@ -139,6 +139,33 @@ struct SyncManagerTests {
         #expect(manager.pendingCount == 2)
     }
 
+    @Test("retryPending does not re-send an id still queued in the OS's outstanding set")
+    func retryPendingSkipsStillQueuedOwnEntry() throws {
+        // A normal (non-system-owned) send whose transfer the OS hasn't finished yet
+        // is still listed in outstandingTransfers. A reachability flap must NOT
+        // re-enqueue it — that would duplicate the transfer per flap. (Previously the
+        // still-queued guard was applied only to system-owned entries.)
+        let recorder = TransferRecorder()
+        let stillQueued = Mutex<[(id: String, data: Data)]>([])
+        let manager = SyncManager(
+            performTransfer: { recorder.record($0, $1) },
+            outstandingTransfers: { stillQueued.withLock { $0 } }
+        )
+        try manager.send(makeSession())
+        // Mirror the OS still holding the just-sent transfer's slot (its id/data).
+        let sent = recorder.calls[0]
+        stillQueued.withLock { $0 = [(id: sent.id, data: sent.data)] }
+
+        manager.retryPending()
+        #expect(recorder.calls.count == 1)             // no duplicate re-send
+        #expect(manager.pendingCount == 1)             // still outstanding
+
+        // Once the OS drains it (no longer listed), retryPending may re-send again.
+        stillQueued.withLock { $0 = [] }
+        manager.retryPending()
+        #expect(recorder.calls.count == 2)
+    }
+
     @Test("pending count changes are reported to the observer")
     func reportsPendingCount() throws {
         let recorder = TransferRecorder()
@@ -577,20 +604,26 @@ struct SyncManagerTests {
         let session = makeSession()
         let data = try JSONEncoder().encode(session)
         let recorder = TransferRecorder()
+        // The OS lists the transfer at adoption, then drops it once its didFinish
+        // fires (as the real WCSession does) — otherwise retryPending's still-queued
+        // guard would correctly skip an id the OS still owns.
+        let outstanding = Mutex<[(id: String, data: Data)]>([(id: "transfer-1", data: data)])
         let manager = SyncManager(
             performTransfer: { recorder.record($0, $1) },
-            outstandingTransfers: { [(id: "transfer-1", data: data)] }
+            outstandingTransfers: { outstanding.withLock { $0 } }
         )
         manager.adoptOutstandingTransfers()
 
         // A prior-launch transfer that finished with an error clears the system's
         // copy, so the entry becomes ours and is re-sent.
+        outstanding.withLock { $0 = [] }
         manager.completeTransfer(id: "transfer-1", data: data, error: TransferError())
         #expect(recorder.calls.count == 1)
         #expect(recorder.calls[0].id == "transfer-1")
         #expect(manager.pendingCount == 1)
 
-        // Now that it's no longer system-owned, retryPending re-sends it too.
+        // Now that it's no longer system-owned (and no longer OS-queued), retryPending
+        // re-sends it too.
         manager.retryPending()
         #expect(recorder.calls.count == 2)
     }
@@ -802,6 +835,86 @@ struct SyncManagerTests {
         )
         #expect(recorder.urls.isEmpty)                // nothing to re-send
         #expect(delivered.withLock { $0 } == nil)
+    }
+
+    @Test("a repeatedly-failing voice-note transfer stops re-sending after the cap")
+    func audioFailureStopsAfterCap() throws {
+        struct TransferError: Error {}
+        let recorder = FileTransferRecorder()
+        let manager = SyncManager(performTransfer: { _, _ in }, performFileTransfer: { recorder.record($0, $1) })
+
+        // Real file on disk so the "file exists" guard never short-circuits — the cap
+        // is the only thing that can stop the storm (unpaired/uninstalled companion:
+        // every re-send spawns its own didFinish(error:), a battery hot-loop).
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("voice-\(UUID().uuidString).m4a")
+        try Data("x".utf8).write(to: fileURL)
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+
+        // Drive far more failures than the cap; re-sends must not run away.
+        for _ in 0..<20 {
+            manager.completeFileTransfer(
+                fileName: "voice-1.m4a",
+                fileURL: fileURL,
+                metadata: [SyncManager.fileNameKey: "voice-1.m4a"],
+                error: TransferError()
+            )
+        }
+        // At most `maxImmediateRetries` (5) re-sends, then it stops looping.
+        #expect(recorder.urls.count <= 5)
+    }
+
+    @Test("a successful voice-note transfer clears the per-file retry budget")
+    func audioSuccessResetsFileRetryBudget() throws {
+        struct TransferError: Error {}
+        let recorder = FileTransferRecorder()
+        let manager = SyncManager(performTransfer: { _, _ in }, performFileTransfer: { recorder.record($0, $1) })
+
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("voice-\(UUID().uuidString).m4a")
+        try Data("x".utf8).write(to: fileURL)
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+        let meta: [String: Any] = [SyncManager.fileNameKey: "voice-1.m4a"]
+
+        // Exhaust the budget with failures, confirm it stopped, then a success must
+        // reset it so a later transfer of the same clip can retry afresh.
+        for _ in 0..<20 {
+            manager.completeFileTransfer(fileName: "voice-1.m4a", fileURL: fileURL, metadata: meta, error: TransferError())
+        }
+        let afterStorm = recorder.urls.count
+        manager.completeFileTransfer(fileName: "voice-1.m4a", fileURL: fileURL, metadata: meta, error: nil)
+        // A fresh failure after the success re-sends again (budget was reset).
+        manager.completeFileTransfer(fileName: "voice-1.m4a", fileURL: fileURL, metadata: meta, error: TransferError())
+        #expect(recorder.urls.count == afterStorm + 1)
+    }
+
+    @Test("a fresh sendAudioFile restores an exhausted clip's retry budget")
+    func sendAudioFileResetsFileRetryBudget() throws {
+        struct TransferError: Error {}
+        let recorder = FileTransferRecorder()
+        let manager = SyncManager(performTransfer: { _, _ in }, performFileTransfer: { recorder.record($0, $1) })
+
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("voice-\(UUID().uuidString).m4a")
+        try Data("x".utf8).write(to: fileURL)
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+        let meta: [String: Any] = [SyncManager.fileNameKey: "voice-1.m4a"]
+
+        // Exhaust the clip's cap with failures so completeFileTransfer stops re-sending.
+        for _ in 0..<20 {
+            manager.completeFileTransfer(fileName: "voice-1.m4a", fileURL: fileURL, metadata: meta, error: TransferError())
+        }
+        let afterStorm = recorder.urls.count
+
+        // A NEW top-level send of the same clip is a fresh window: it must reset the
+        // per-file budget (like retryPending does for sessions). The send itself
+        // enqueues once, then a following failure re-sends again — proving the budget
+        // was restored (an exhausted budget would have blocked that re-send).
+        manager.sendAudioFile(fileURL, fileName: "voice-1.m4a")
+        let afterFreshSend = recorder.urls.count
+        #expect(afterFreshSend == afterStorm + 1)
+        manager.completeFileTransfer(fileName: "voice-1.m4a", fileURL: fileURL, metadata: meta, error: TransferError())
+        #expect(recorder.urls.count == afterFreshSend + 1)
     }
 
     @Test("a live session snapshot round-trips through the application context")

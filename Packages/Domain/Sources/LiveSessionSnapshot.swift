@@ -111,12 +111,18 @@ public struct LiveSessionSnapshot: Codable, Hashable, Sendable {
     /// connected session, so we use a third, not a half.
     public static let heartbeatInterval: TimeInterval = staleThreshold / 3
 
+    /// Bucketed depth. `shouldSend` runs on every ~2 s Watch tick with
+    /// sensor-derived depth that has no sanitize guard, so a non-finite value must
+    /// never reach `Int(_:)` (which traps on NaN/±inf). Non-finite → bucket 0.
     private static func depthBucket(_ meters: Double) -> Int {
-        Int((meters / depthSendQuantum).rounded())
+        guard meters.isFinite else { return 0 }
+        return Int((meters / depthSendQuantum).rounded())
     }
 
+    /// Bucketed elapsed, guarded like `depthBucket`: non-finite → bucket 0 (never
+    /// traps `Int(_:)`), absent stays absent.
     private static func elapsedBucket(_ elapsed: TimeInterval?) -> Int? {
-        elapsed.map { Int(($0 / elapsedSendQuantum).rounded(.down)) }
+        elapsed.map { $0.isFinite ? Int(($0 / elapsedSendQuantum).rounded(.down)) : 0 }
     }
 
     /// Whether two snapshots would render identically on the phone, comparing the
