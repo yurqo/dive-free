@@ -1,0 +1,6 @@
+Novidades da 1.3.0:
+• Recorte uma sessão — remova um rastro de superfície esquecido (ou um início antecipado) direto no iPhone: arraste o início e o fim no mapa, veja exatamente o que será removido e seus mergulhos permanecem intactos.
+• Exporte seus mergulhos — compartilhe qualquer sessão como UDDF (diários como o Subsurface), FIT (Garmin/Strava), GPX, CSV ou TCX. Seus dados, para levar a qualquer lugar.
+• Trajetos de superfície mais limpos — um novo suavizador desenha os caminhos de GPS e as distâncias mais próximos do que você realmente nadou.
+• Aviso de recuperação na superfície — entre mergulhos, o cronômetro do relógio muda de cor e vibra suavemente quando você descansa o intervalo recomendado (uma regra geral, não uma orientação de segurança — mergulhe sempre acompanhado).
+Além de pequenas correções e melhorias.

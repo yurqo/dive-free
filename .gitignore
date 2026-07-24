@@ -75,10 +75,18 @@ Carthage/Build/
 # For more information about the recommended setup visit:
 # https://docs.fastlane.tools/best-practices/source-control/#source-control
 
+# fastlane/metadata/** is COMMITTED — it is the source of truth for the App
+# Store listing. fastlane/screenshots/ is staged (regenerated from screenshots/
+# by the `metadata` lane) and must NOT be committed.
 fastlane/report.xml
 fastlane/Preview.html
-fastlane/screenshots/**/*.png
+fastlane/*.lock
+fastlane/screenshots/
 fastlane/test_output
+
+# Locally-vendored Ruby gems for the fastlane tooling (system Ruby needs sudo).
+vendor/bundle/
+.bundle/
 
 # xcode-build-server config for SourceKit-LSP (machine-specific)
 buildServer.json

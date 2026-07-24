@@ -1,0 +1,189 @@
+# Fastfile — App Store Connect delivery for DiveFree (org.yurko.divefree).
+#
+# Uploads localized App Store metadata (fastlane/metadata/**) and screenshots
+# (staged from the repo's screenshots/ folder) to App Store Connect as a DRAFT.
+# It never submits for review and never uploads a binary.
+#
+# Required environment variables (same names as .github/workflows/testflight.yml):
+#   APP_STORE_CONNECT_KEY_ID     — ASC API key id
+#   APP_STORE_CONNECT_ISSUER_ID  — ASC API issuer id
+#   APP_STORE_CONNECT_API_KEY    — the .p8 private key, BASE64-encoded
+#
+# Local run:
+#   export APP_STORE_CONNECT_KEY_ID=...
+#   export APP_STORE_CONNECT_ISSUER_ID=...
+#   export APP_STORE_CONNECT_API_KEY="$(base64 -i AuthKey_XXXX.p8)"
+#   bundle exec fastlane metadata
+
+require "base64"
+require "fileutils"
+require "json"
+
+APP_IDENTIFIER = "org.yurko.divefree".freeze
+METADATA_PATH = "./fastlane/metadata".freeze
+SCREENSHOTS_PATH = "./fastlane/screenshots".freeze
+
+# Where the screenshot pipeline (Scripts/screenshots.sh) drops its output.
+# Layout: screenshots/<short-locale>/<device>/*.png
+SOURCE_SCREENSHOTS_DIR = File.expand_path("../screenshots", __dir__).freeze
+
+# short-locale (screenshots/ folder) -> App Store Connect locale code.
+LOCALE_MAP = {
+  "en"    => "en-US",
+  "es"    => "es-ES",
+  "fr"    => "fr-FR",
+  "it"    => "it",
+  "de"    => "de-DE",
+  "pt-BR" => "pt-BR",
+  "ja"    => "ja",
+  "uk"    => "uk"
+}.freeze
+
+# Build the App Store Connect API key hash from env and return it so it can be
+# passed to deliver/precheck via `api_key:`. The secret is stored base64-encoded,
+# so we decode it and hand deliver the raw .p8 contents.
+def asc_api_key
+  missing = %w[
+    APP_STORE_CONNECT_KEY_ID
+    APP_STORE_CONNECT_ISSUER_ID
+    APP_STORE_CONNECT_API_KEY
+  ].select { |name| ENV[name].nil? || ENV[name].strip.empty? }
+
+  unless missing.empty?
+    UI.user_error!(
+      "Missing App Store Connect credentials: #{missing.join(', ')}.\n" \
+      "Export all three before running this lane:\n" \
+      "  export APP_STORE_CONNECT_KEY_ID=...\n" \
+      "  export APP_STORE_CONNECT_ISSUER_ID=...\n" \
+      "  export APP_STORE_CONNECT_API_KEY=\"$(base64 -i AuthKey_XXXX.p8)\"\n" \
+      "See fastlane/README.md for details."
+    )
+  end
+
+  key_id = ENV["APP_STORE_CONNECT_KEY_ID"]
+  issuer_id = ENV["APP_STORE_CONNECT_ISSUER_ID"]
+  key_content_b64 = ENV["APP_STORE_CONNECT_API_KEY"]
+
+  app_store_connect_api_key(
+    key_id: key_id,
+    issuer_id: issuer_id,
+    key_content: Base64.decode64(key_content_b64),
+    is_key_content_base64: false,
+    in_house: false
+  )
+end
+
+# The screenshot files are exported with random UUID names (xcresulttool), but
+# the accompanying manifest.json records a human-readable name like
+# "01-dives_0_....png". We use that "NN-slug" prefix so deliver uploads the
+# screenshots in the intended order (deliver sorts alphabetically per locale).
+# Falls back to the raw filename when no manifest entry exists.
+def readable_name_for(device_dir, png_basename)
+  manifest = File.join(device_dir, "manifest.json")
+  return png_basename unless File.exist?(manifest)
+
+  data = JSON.parse(File.read(manifest))
+  attachments = Array(data).flat_map { |group| Array(group["attachments"]) }
+  match = attachments.find { |a| a["exportedFileName"] == png_basename }
+  human = match && match["suggestedHumanReadableName"]
+  return png_basename if human.nil? || human.empty?
+
+  # "01-dives_0_UUID.png" -> "01-dives.png" (keep the ordering prefix + slug).
+  slug = human.sub(/_\d+_[0-9A-Fa-f-]+\.png\z/, "")
+  slug = File.basename(slug, ".*")
+  "#{slug}.png"
+rescue JSON::ParserError
+  png_basename
+end
+
+# Stage repo screenshots into the flat per-locale layout deliver expects.
+# Reads  screenshots/<short>/<device>/*.png (+ manifest.json)
+# Writes fastlane/screenshots/<asc-locale>/<device>-<NN-slug>.png
+# deliver detects the device from image dimensions; the device prefix + the
+# NN- ordering prefix keep the display order stable. Recreated fresh on every run.
+def stage_screenshots
+  FileUtils.rm_rf(SCREENSHOTS_PATH)
+  FileUtils.mkdir_p(SCREENSHOTS_PATH)
+
+  unless Dir.exist?(SOURCE_SCREENSHOTS_DIR)
+    UI.user_error!("No screenshots found at #{SOURCE_SCREENSHOTS_DIR} — run Scripts/screenshots.sh first.")
+  end
+
+  total = 0
+  LOCALE_MAP.each do |short, asc_locale|
+    short_dir = File.join(SOURCE_SCREENSHOTS_DIR, short)
+    next unless Dir.exist?(short_dir)
+
+    dest_dir = File.join(SCREENSHOTS_PATH, asc_locale)
+    FileUtils.mkdir_p(dest_dir)
+
+    Dir.glob(File.join(short_dir, "*")).sort.each do |device_dir|
+      next unless File.directory?(device_dir)
+
+      device = File.basename(device_dir)
+      # Sanitize the device name for a filename prefix (spaces/parens -> "-").
+      device_prefix = device.gsub(/[^0-9A-Za-z]+/, "-").gsub(/-+/, "-").gsub(/^-|-$/, "")
+
+      Dir.glob(File.join(device_dir, "*.png")).sort.each do |png|
+        readable = readable_name_for(device_dir, File.basename(png))
+        dest = File.join(dest_dir, "#{device_prefix}-#{readable}")
+        FileUtils.cp(png, dest)
+        total += 1
+      end
+    end
+  end
+
+  UI.user_error!("Staged 0 screenshots — check #{SOURCE_SCREENSHOTS_DIR} layout.") if total.zero?
+  UI.message("Staged #{total} screenshots into #{SCREENSHOTS_PATH}")
+end
+
+platform :ios do
+  desc "Upload localized metadata + screenshots to App Store Connect as a DRAFT (no binary, no submit). Run `fastlane precheck` first to validate."
+  lane :metadata do
+    key = asc_api_key
+    stage_screenshots
+
+    upload_to_app_store(
+      api_key: key,
+      app_identifier: APP_IDENTIFIER,
+      metadata_path: METADATA_PATH,
+      screenshots_path: SCREENSHOTS_PATH,
+      skip_binary_upload: true,
+      skip_app_version_update: false,
+      submit_for_review: false,
+      force: true,                       # skip the HTML preview confirmation prompt
+      overwrite_screenshots: true
+    )
+  end
+
+  desc "Stage + upload screenshots only (no metadata text changes)."
+  lane :screenshots_only do
+    key = asc_api_key
+    stage_screenshots
+
+    upload_to_app_store(
+      api_key: key,
+      app_identifier: APP_IDENTIFIER,
+      screenshots_path: SCREENSHOTS_PATH,
+      skip_binary_upload: true,
+      skip_metadata: true,
+      skip_app_version_update: false,
+      submit_for_review: false,
+      force: true,
+      overwrite_screenshots: true,
+      run_precheck_before_submit: false
+    )
+  end
+
+  desc "Validate metadata with precheck only (no upload)."
+  lane :precheck do
+    key = asc_api_key
+
+    precheck(
+      api_key: key,
+      app_identifier: APP_IDENTIFIER,
+      include_in_app_purchases: false,
+      default_rule_level: :warn
+    )
+  end
+end
