@@ -23,6 +23,10 @@ build/
 ## Obj-C/Swift specific
 *.hmap
 
+## Screenshot automation output (regenerate with Scripts/screenshots.sh)
+screenshots/
+*.xcresult
+
 ## App packaging
 *.ipa
 *.dSYM.zip

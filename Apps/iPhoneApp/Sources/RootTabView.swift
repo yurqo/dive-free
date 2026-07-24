@@ -12,18 +12,27 @@ struct RootTabView: View {
         @Bindable var pager = pager
         @Bindable var suggestions = suggestions
         TabView {
+            // Stable, locale-independent a11y identifiers per tab. Used by the
+            // screenshot UI test to select tabs regardless of localized titles
+            // and regardless of layout (bottom tab bar on iPhone vs. sidebar on
+            // iPad, where SwiftUI renders rows as cells/buttons rather than
+            // tab-bar buttons).
             Tab("Dives", systemImage: "water.waves") {
                 SessionListView()
             }
+            .accessibilityIdentifier("tab.dives")
             Tab("Trips", systemImage: "suitcase") {
                 TripsView()
             }
+            .accessibilityIdentifier("tab.trips")
             Tab("Spots", systemImage: "mappin.and.ellipse") {
                 SpotsListView()
             }
+            .accessibilityIdentifier("tab.spots")
             Tab("Passport", systemImage: "rosette") {
                 StatsView()
             }
+            .accessibilityIdentifier("tab.passport")
         }
         .tabViewStyle(.sidebarAdaptable)
         // Repair photos imported before the cross-device fields existed so they

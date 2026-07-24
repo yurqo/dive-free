@@ -64,6 +64,23 @@ struct DiveFreeApp: App {
     /// local store if CloudKit setup fails, so an iCloud/sync error can never
     /// block launch (#168).
     private static func makeContainer() -> ModelContainer {
+        #if DEBUG
+        // Screenshot automation: when launched with `--screenshot-demo`, bypass
+        // the CloudKit/local store entirely and use a fresh in-memory store seeded
+        // with deterministic demo content (see `DemoData`). Gated on `#if DEBUG`
+        // AND the explicit argument, so this path — and the seeding code — is
+        // completely absent from Release builds (the App Store binary never
+        // contains it). Short-circuits BEFORE any CloudKit setup below.
+        if ProcessInfo.processInfo.arguments.contains("--screenshot-demo") {
+            do {
+                let store = try DiveStore(inMemory: true)
+                DemoData.seed(into: store.container.mainContext)
+                return store.container
+            } catch {
+                fatalError("Failed to create the in-memory demo container: \(error)")
+            }
+        }
+        #endif
         let syncEnabled = UserDefaults.standard.object(forKey: AppStorageKey.iCloudSyncEnabled) as? Bool ?? true
         let log = Logger(subsystem: "org.yurko.divefree", category: "Persistence")
         if syncEnabled {
