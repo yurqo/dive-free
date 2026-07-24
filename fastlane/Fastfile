@@ -176,7 +176,9 @@ platform :ios do
       skip_app_version_update: false,
       submit_for_review: false,
       force: true,                       # skip the HTML preview confirmation prompt
-      overwrite_screenshots: true
+      overwrite_screenshots: true,
+      run_precheck_before_submit: false, # never submits here, so skip the trailing precheck (it fails on IAP w/ API key)
+      precheck_include_in_app_purchases: false
     )
   end
 
