@@ -1,0 +1,14 @@
+This is a feature release (session cropping, multi-format data export, GPS track smoothing, a surface-recovery indicator, and full local Backup & Restore). No new permissions, no new entitlements, no account, and all data stays in the user's private iCloud.
+
+Essentials (unchanged from 1.2.x):
+- Recording sessions requires a paired Apple Watch. Depth readings require Apple Watch Ultra or Series 10/11; other watches record GPS and markers.
+- To demo without water: start a session on the watch, then press the Action + Side buttons together to start/stop a manual dive. The summary, iPhone sync, cropping, export, backup/restore, Live Activity and notification flows all work from a dry manual session.
+- The app requests provisional (silent) notification permission only when a watch session starts while the iPhone app is closed, solely for the "session running on your watch" notice.
+- The aps-environment entitlement is used only for ActivityKit push-to-start tokens (automatic Live Activity). No marketing pushes; the server component is stateless.
+
+New in 1.3.1:
+- Backup & Restore (iPhone/iPad): exports all app data (sessions, dive spots, trips, voice notes) to a single file via the system share sheet, and restores from such a file via the document picker. Purely local file I/O; no upload, no account. Restore is additive and deduplicated — it never overwrites or deletes existing data.
+- Session cropping (iPhone): trims the surface time before the first dive / after the last dive; it never cuts a dive. Destructive, with an explicit confirmation.
+- Data export (iPhone): shares a session as UDDF, FIT, GPX, CSV or TCX via the system share sheet. Purely local file generation; no upload.
+- Surface-recovery indicator (watch): a colour + gentle haptic once a recommended surface interval elapses. Copy is explicitly "a common rule of thumb, not medical or safety advice."
+- In-App Purchases are NOT part of this submission. The binary contains dormant, unreachable support/tip-jar code, disabled server-side, with no products configured.
