@@ -28,21 +28,40 @@ public struct DiveDetectionConfig: Sendable, Equatable, Codable {
     /// Acceptance rules; a candidate is kept as a dive if it satisfies **any** of them.
     public var thresholds: [DiveThreshold]
 
+    /// Whether the watch shows the surface-recovery indicator (colour-tinted timer +
+    /// one-shot "rested" haptic). Off keeps the plain surface timer.
+    public var recoveryEnabled: Bool
+    /// Rest-to-dive ratio for the recommended surface interval: the diver should rest
+    /// `recoveryMultiplier × the last dive's duration` (with `recoveryMinimumSeconds`
+    /// as a floor). Commonly 2–3; clamped to `[1.5, 5.0]` by `sanitized()`. See
+    /// `SurfaceRecovery`.
+    public var recoveryMultiplier: Double
+
+    /// Floor (s) for the recommended surface interval, so a very short dive still
+    /// yields a sensible rest. Not user-configurable; kept here as the single source
+    /// the watch feeds into `SurfaceRecovery.recommendedInterval(minimum:)`.
+    public static let recoveryMinimumSeconds: TimeInterval = 60
+
     /// Depth (m) at or below which the diver is treated as fully surfaced: the
     /// water-submersion sensor emits an explicit 0 m reading when the wrist clears
     /// the water, so a reading this shallow ends the dive immediately (no dwell).
     /// A small epsilon absorbs float noise around the exact-zero sample.
     public static let surfaceExitDepthMeters: Double = 0.05
 
-    /// Designated initializer.
+    /// Designated initializer. `recoveryEnabled`/`recoveryMultiplier` default to the
+    /// on/3× surface-recovery preset, so existing call sites need no changes.
     public init(
         surfaceThresholdMeters: Double = 1.0,
         surfaceExitDwellSeconds: TimeInterval = 3,
-        thresholds: [DiveThreshold]
+        thresholds: [DiveThreshold],
+        recoveryEnabled: Bool = true,
+        recoveryMultiplier: Double = 3.0
     ) {
         self.surfaceThresholdMeters = surfaceThresholdMeters
         self.surfaceExitDwellSeconds = surfaceExitDwellSeconds
         self.thresholds = thresholds
+        self.recoveryEnabled = recoveryEnabled
+        self.recoveryMultiplier = recoveryMultiplier
     }
 
     /// Convenience for a single (depth, duration) gate — the historical shape,
@@ -75,6 +94,7 @@ public struct DiveDetectionConfig: Sendable, Equatable, Codable {
 
     private enum CodingKeys: String, CodingKey {
         case surfaceThresholdMeters, surfaceExitDwellSeconds, thresholds
+        case recoveryEnabled, recoveryMultiplier
     }
 
     /// Decodes defensively so an older or partial payload still yields a usable
@@ -86,7 +106,9 @@ public struct DiveDetectionConfig: Sendable, Equatable, Codable {
         self.init(
             surfaceThresholdMeters: try container.decodeIfPresent(Double.self, forKey: .surfaceThresholdMeters) ?? 1.0,
             surfaceExitDwellSeconds: try container.decodeIfPresent(TimeInterval.self, forKey: .surfaceExitDwellSeconds) ?? 3,
-            thresholds: try container.decodeIfPresent([DiveThreshold].self, forKey: .thresholds) ?? DiveDetectionConfig.default.thresholds
+            thresholds: try container.decodeIfPresent([DiveThreshold].self, forKey: .thresholds) ?? DiveDetectionConfig.default.thresholds,
+            recoveryEnabled: try container.decodeIfPresent(Bool.self, forKey: .recoveryEnabled) ?? true,
+            recoveryMultiplier: try container.decodeIfPresent(Double.self, forKey: .recoveryMultiplier) ?? 3.0
         )
     }
 
@@ -94,7 +116,8 @@ public struct DiveDetectionConfig: Sendable, Equatable, Codable {
     /// the surface threshold to `[0.5, 2.0]` m, tier depths to
     /// `[surfaceThreshold, DepthFormat.maxMeasurableMeters]`, tier durations to
     /// `[1, 30]` s, the dwell to `[0, 10]` s (0 is the documented legacy
-    /// "end at the first below-threshold sample" value) — dropping any non-finite / degenerate
+    /// "end at the first below-threshold sample" value), and the recovery multiplier to
+    /// `[1.5, 5.0]` — dropping any non-finite / degenerate
     /// tier, and falling back to `.default`'s tiers when none survive (at least one
     /// acceptance rule must remain). Applied before the config drives detection so a
     /// corrupt, hand-edited, or out-of-range payload can never produce pathological
@@ -115,10 +138,15 @@ public struct DiveDetectionConfig: Sendable, Equatable, Codable {
                 minimumDuration: min(max(tier.minimumDuration, 1), 30)
             )
         }
+        // Clamp the recovery multiplier to a sane rest-to-dive range; a non-finite
+        // crafted value (survives min/max unchanged) falls back to the 3× default.
+        let multiplier = recoveryMultiplier.isFinite ? min(max(recoveryMultiplier, 1.5), 5.0) : 3.0
         return DiveDetectionConfig(
             surfaceThresholdMeters: threshold,
             surfaceExitDwellSeconds: dwell,
-            thresholds: cleaned.isEmpty ? DiveDetectionConfig.default.thresholds : cleaned
+            thresholds: cleaned.isEmpty ? DiveDetectionConfig.default.thresholds : cleaned,
+            recoveryEnabled: recoveryEnabled,
+            recoveryMultiplier: multiplier
         )
     }
 }

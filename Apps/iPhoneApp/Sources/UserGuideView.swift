@@ -149,6 +149,7 @@ private enum UserGuide {
         onYourPad,
         croppingSessions,
         diveDetection,
+        surfaceRecovery,
         photosAndVideos,
         iCloudSync,
         exportingData,
@@ -324,6 +325,22 @@ private enum UserGuide {
             .text("For a very shallow or quick drop you want to be sure is logged, mark the dive by hand with **Action + side** (see the watch chapter) — it counts from the moment you press, whatever the depth."),
             .subheading("About depth"),
             .text("Depth is measured in shallow water only — up to about **6 m (20 ft)**. Dive Free is built for recreational freediving and snorkelling, so it doesn't measure or plan deep dives, and maximum depth stops at that ceiling."),
+        ]
+    )
+
+    private static let surfaceRecovery = GuideChapter(
+        title: "Surface recovery hint",
+        systemImage: "lungs",
+        intro: [
+            .text("Between dives, the watch's big surface timer doubles as a gentle recovery hint. Once you've rested the recommended interval, it turns **green** and gives a single **buzz** — a nudge that you've paced yourself, without staring at the screen."),
+            .text("The recommended interval is a **multiple of your last dive's time** — so a longer dive earns a longer rest — and never less than **1 minute**."),
+        ],
+        details: [
+            .subheading("Setting the multiple"),
+            .text("In **Settings ▸ Dive detection** under **Surface recovery**, pick the multiplier (**2×**, **2.5×**, or **3×**) or turn the hint off entirely. The choice syncs to your watch and applies to your next session."),
+            .subheading("Reading the colours"),
+            .text("As you rest, the timer warms from red through orange and yellow to white, then flips to green once you pass the recommended interval — an at-a-glance sense of how recovered you are."),
+            .text("This is a **common rule of thumb, not medical or safety advice**. It doesn't mean you're safe to dive — **always dive with a trained buddy** and stay well within your limits."),
         ]
     )
 

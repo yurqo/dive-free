@@ -227,6 +227,7 @@ struct SessionRootView: View {
                          ? (session.currentDiveElapsed ?? 0)
                          : (session.surfaceInterval ?? session.elapsedTime),
                          color: heroTimeColor)
+                recoveryTargetLine
                 secondLine
             }
         }
@@ -235,25 +236,50 @@ struct SessionRootView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    /// Recommended recovery scales with the dive just completed: red below 1× the
-    /// dive time, orange below 2×, yellow below 3×, and white once well rested.
-    private static let redIntervalMultiple = 1.0
-    private static let orangeIntervalMultiple = 2.0
-    private static let yellowIntervalMultiple = 3.0
-
-    /// Tints the hero time to flag a short recovery break, relative to the last
-    /// dive's duration — but only for the surface-recovery interval after a dive.
-    /// Dive time and the pre-first-dive clock stay white.
-    private var heroTimeColor: Color {
-        guard !session.currentDiveConfirmed,
-              let interval = session.surfaceInterval,
-              let diveDuration = session.lastDiveDuration else { return .white }
-        switch interval {
-        case ..<(diveDuration * Self.redIntervalMultiple):    return .red
-        case ..<(diveDuration * Self.orangeIntervalMultiple): return .orange
-        case ..<(diveDuration * Self.yellowIntervalMultiple): return .yellow
-        default:                                              return .white
+    /// A small secondary readout under the hero time during surface recovery: the
+    /// recommended interval as "rec M:SS", plus a green checkmark once `.rested` so
+    /// the fully-recovered state reads clearly (green alone was ambiguous). Does NOT
+    /// replace the elapsed hero number — divers want the raw count. Hidden in
+    /// AOD/luminance-reduced (like the action selector) and off the surface.
+    @ViewBuilder
+    private var recoveryTargetLine: some View {
+        if showsRecoveryTarget, !isLuminanceReduced, let recommended = session.recommendedRecovery {
+            let rested = session.recoveryTier == .rested
+            HStack(spacing: 3) {
+                if rested {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                }
+                // Roll over to h:mm:ss for a recommended interval ≥ 1 h (a long dive
+                // × a high multiplier) so it doesn't read as e.g. 65:00.
+                Text("rec \(Duration.seconds(recommended).formatted(.time(pattern: recommended >= 3600 ? .hourMinuteSecond : .minuteSecond)))")
+                    .foregroundStyle(rested ? .green : .secondary)
+            }
+            .font(.caption2)
+            .monospacedDigit()
+            .lineLimit(1)
         }
+    }
+
+    /// Tints the hero time by recovery tier during the surface interval after a
+    /// dive: `.short`→red, `.building`→orange, `.nearly`→yellow, `.rested`→green.
+    /// Dive time, the pre-first-dive clock, and disabled recovery stay white —
+    /// preserving today's untinted behaviour when the feature is off (see
+    /// `recoveryTier`, which is nil unless recovery is on with a completed dive).
+    private var heroTimeColor: Color {
+        guard !session.currentDiveConfirmed, let tier = session.recoveryTier else { return .white }
+        switch tier {
+        case .short:    return .red
+        case .building: return .orange
+        case .nearly:   return .yellow
+        case .rested:   return .green
+        }
+    }
+
+    /// True while the surface-recovery target should be shown: recovery is on, a
+    /// completed dive gives a target, and the diver is at the surface (not mid-dive).
+    private var showsRecoveryTarget: Bool {
+        !session.currentDiveConfirmed && session.recoveryEnabled && session.recommendedRecovery != nil
     }
 
     /// The big mm:ss time in DIN Condensed (tall, narrow, tabular figures), sized

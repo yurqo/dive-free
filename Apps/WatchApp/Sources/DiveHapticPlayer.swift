@@ -19,6 +19,10 @@ enum DiveHapticPlayer {
             type = .directionUp
         case .markerPlaced:
             type = .success
+        case .recoveryReached:
+            // A distinctive one-shot cue that the recommended surface interval has
+            // been reached — the diver is rested for the next dive (SurfaceRecovery).
+            type = .success
         }
         WKInterfaceDevice.current().play(type)
     }
@@ -72,6 +76,8 @@ enum DiveTonePlayer {
             tone(frequency: ascendFrequency, duration: leftCeiling ? longDuration : shortDuration)
         case .markerPlaced:
             break // markers stay haptic-only
+        case .recoveryReached:
+            break // recovery cue stays haptic-only (surface, screen may be locked)
         }
     }
 
