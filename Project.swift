@@ -187,6 +187,25 @@ let widgetExtension = Target.target(
     ]
 )
 
+// The screenshot-capture UI-test target (#screenshot-automation). Standalone —
+// NOT part of the DiveFree app scheme's test action, so CI's `xcodebuild build
+// -scheme DiveFree` never runs it; Tuist's auto-generated `ScreenshotTests`
+// scheme drives it via `Scripts/screenshots.sh`. Hosts on the iPhone app and
+// launches it with `--screenshot-demo` to boot the seeded in-memory store.
+let screenshotTests = Target.target(
+    name: "ScreenshotTests",
+    destinations: .iOS,
+    product: .uiTests,
+    bundleId: "\(bundlePrefix).screenshottests",
+    deploymentTargets: .iOS(iOSVersion),
+    infoPlist: .default,
+    sources: ["Apps/iPhoneApp/ScreenshotTests/**"],
+    // The iPhone app target's `name` is "DiveFree" (the `iphoneApp` variable);
+    // Tuist resolves target dependencies by that name string, so it hosts on
+    // and launches the iPhone app.
+    dependencies: [.target(name: "DiveFree")]
+)
+
 // MARK: - Project
 
 let project = Project(
@@ -214,7 +233,7 @@ let project = Project(
         "DEVELOPMENT_TEAM": SettingValue(stringLiteral: developmentTeam),
         "CODE_SIGN_STYLE": "Automatic",
     ]),
-    targets: [iphoneApp, watchApp, widgetExtension]
+    targets: [iphoneApp, watchApp, widgetExtension, screenshotTests]
         + module("Domain", resources: ["Packages/Domain/Resources/**"])
         + module("Persistence", dependencies: [.target(name: "Domain")])
         + module(
