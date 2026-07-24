@@ -26,8 +26,8 @@ require "json"
 require "shellwords"
 
 APP_IDENTIFIER = "org.yurko.divefree".freeze
-METADATA_PATH = "./fastlane/metadata".freeze
-SCREENSHOTS_PATH = "./fastlane/screenshots".freeze
+METADATA_PATH = File.expand_path("metadata", __dir__).freeze
+SCREENSHOTS_PATH = File.expand_path("screenshots", __dir__).freeze
 
 # Where the screenshot pipeline (Scripts/screenshots.sh) drops its output.
 # Layout: screenshots/<short-locale>/<device>/*.png
