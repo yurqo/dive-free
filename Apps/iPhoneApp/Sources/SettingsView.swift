@@ -1,6 +1,9 @@
 import SwiftUI
+import SwiftData
+import UniformTypeIdentifiers
 import AuthenticationServices
 import Domain
+import Persistence
 import Strava
 
 /// Account settings: units, Strava connection, custom markers.
@@ -8,8 +11,15 @@ struct SettingsView: View {
     @Environment(StravaAuthManager.self) private var strava
     @Environment(SupportStore.self) private var support
     @Environment(\.syncManager) private var sync
+    @Environment(\.modelContext) private var modelContext
     @State private var isConnecting = false
     @State private var errorMessage: String?
+
+    // Backup & restore UI state.
+    @State private var backupToShare: SharedBackup?
+    @State private var showRestoreImporter = false
+    @State private var restoreSummary: BackupRestore.RestoreSummary?
+    @State private var backupErrorMessage: String?
 
     // Units preference — each dimension stored independently so the Custom
     // pickers bind directly; defaults follow the device region until chosen.
@@ -42,6 +52,7 @@ struct SettingsView: View {
                 Text("Tune when a descent counts as a dive. Syncs to your watch and applies to your next session.")
             }
             iCloudSection
+            backupSection
             Section {
                 if strava.isConnected {
                     Label("Connected", systemImage: "checkmark.circle.fill")
@@ -98,6 +109,104 @@ struct SettingsView: View {
         }
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(item: $backupToShare) { shared in
+            ActivityView(activityItems: [shared.url])
+        }
+        .fileImporter(
+            isPresented: $showRestoreImporter,
+            allowedContentTypes: [.json]
+        ) { result in
+            switch result {
+            case .success(let url):
+                do {
+                    restoreSummary = try BackupService.restoreBackup(from: url, context: modelContext)
+                } catch {
+                    backupErrorMessage = restoreErrorMessage(for: error)
+                }
+            case .failure(let error):
+                backupErrorMessage = restoreErrorMessage(for: error)
+            }
+        }
+        .alert(
+            "Restore Complete",
+            isPresented: Binding(
+                get: { restoreSummary != nil },
+                set: { if !$0 { restoreSummary = nil } }
+            ),
+            presenting: restoreSummary
+        ) { _ in
+            Button("OK", role: .cancel) {}
+        } message: { summary in
+            Text(restoreSummaryMessage(summary))
+        }
+        .alert(
+            "Backup Failed",
+            isPresented: Binding(
+                get: { backupErrorMessage != nil },
+                set: { if !$0 { backupErrorMessage = nil } }
+            ),
+            presenting: backupErrorMessage
+        ) { _ in
+            Button("OK", role: .cancel) {}
+        } message: { message in
+            Text(message)
+        }
+    }
+
+    @ViewBuilder private var backupSection: some View {
+        Section {
+            Button {
+                do {
+                    backupToShare = SharedBackup(url: try BackupService.exportBackup(context: modelContext))
+                } catch {
+                    backupErrorMessage = String(localized: "Couldn't create the backup. Please try again.")
+                }
+            } label: {
+                Label("Export Backup", systemImage: "square.and.arrow.up.on.square")
+            }
+            Button {
+                showRestoreImporter = true
+            } label: {
+                Label("Restore Backup…", systemImage: "square.and.arrow.down")
+            }
+        } header: {
+            Text("Backup & Restore")
+        } footer: {
+            Text("Export everything — sessions, spots, trips, and voice notes — as a single file to save in Files or another device. Restoring is additive: existing items are kept and duplicates are skipped. With iCloud Sync on, a restore also propagates to your other devices.")
+        }
+    }
+
+    // MARK: - Backup messages
+
+    /// A friendly, pluralized summary of a completed restore.
+    ///
+    /// Each line uses a plain interpolated count (e.g. "3 sessions"), which the String
+    /// Catalog can pluralize per-language via its own plural variations — no
+    /// `^[…](inflect:)` automatic-grammar markup, which is the inflection pitfall.
+    private func restoreSummaryMessage(_ s: BackupRestore.RestoreSummary) -> String {
+        let imported = String(
+            localized: "Imported \(s.sessionsImported) sessions (\(s.sessionsSkipped) already present)."
+        )
+        let spots = String(
+            localized: "Added \(s.spotsCreated) spots and \(s.tripsCreated) trips."
+        )
+        let voiceNotes = String(
+            localized: "Restored \(s.audioRestored) voice notes."
+        )
+        return [imported, spots, voiceNotes].joined(separator: "\n")
+    }
+
+    /// Maps a restore failure to a user-facing message, translating the archive's
+    /// typed errors into plain guidance.
+    private func restoreErrorMessage(for error: Error) -> String {
+        switch error {
+        case BackupArchiveError.unsupportedVersion:
+            return String(localized: "This backup was made by a newer version of Dive Free. Update the app and try again.")
+        case BackupArchiveError.malformed:
+            return String(localized: "This file isn't a valid Dive Free backup.")
+        default:
+            return String(localized: "Couldn't restore the backup. Please try again.")
+        }
     }
 
     @ViewBuilder private var unitsSection: some View {
@@ -171,6 +280,13 @@ struct SettingsView: View {
             errorMessage = "Couldn't connect to Strava. Please try again."
         }
     }
+}
+
+/// An `Identifiable` wrapper so a just-written backup file can drive a
+/// `.sheet(item:)` share sheet.
+private struct SharedBackup: Identifiable {
+    let id = UUID()
+    let url: URL
 }
 
 #Preview {

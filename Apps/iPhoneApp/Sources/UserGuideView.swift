@@ -153,6 +153,7 @@ private enum UserGuide {
         photosAndVideos,
         iCloudSync,
         exportingData,
+        backupRestore,
         strava,
         safety,
         troubleshooting,
@@ -392,6 +393,27 @@ private enum UserGuide {
             .bullet("**TCX** — an alternative fitness format."),
             .tip("FIT needs GPS or heart-rate data, so a session with no location may not produce a FIT file."),
             .text("Depth, your GPS track, heart rate, water temperature, and markers are all included where available. Photos and voice notes aren't part of these single-file exports."),
+        ]
+    )
+
+    private static let backupRestore = GuideChapter(
+        title: "Backing up & restoring",
+        systemImage: "externaldrive",
+        intro: [
+            .text("Keep a complete copy of your log in a single file — handy before switching phones, or just for peace of mind. A backup gathers **everything**: your sessions, dive spots, trips, and voice notes, all in one file."),
+        ],
+        details: [
+            .subheading("How to export a backup"),
+            .step(1, "On the **Dives** tab, tap the gear icon to open **Settings**."),
+            .step(2, "Under **Backup & Restore**, tap **Export Backup**."),
+            .step(3, "The system share sheet opens — save the file to **Files**, AirDrop it, or send it wherever you like."),
+            .subheading("How to restore"),
+            .step(1, "Open **Settings ▸ Backup & Restore** and tap **Restore Backup…**."),
+            .step(2, "Pick the backup file you saved. Dive Free reads it and brings your data back."),
+            .text("Restoring is **additive and safe**: your existing dives are kept, and anything already in your log is skipped rather than duplicated. So it's fine to restore onto a phone that already has some dives."),
+            .tip("With iCloud Sync on, a restore also flows through to your other devices, so you only need to restore once."),
+            .subheading("What's not in a backup"),
+            .text("Your **photos and videos aren't inside the backup** — they live in your own Photos library, and Dive Free simply points to them. As long as those photos are still in your library (or iCloud Photos), a restored dive links back to them automatically."),
         ]
     )
 
