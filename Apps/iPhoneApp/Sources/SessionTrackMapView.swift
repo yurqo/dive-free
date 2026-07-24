@@ -27,8 +27,12 @@ struct SessionTrackMapView: View {
         self.interactive = interactive
         func inRange(_ time: Date) -> Bool { range.map { $0.contains(time) } ?? true }
 
-        self.surfacePath = session.effectiveTrack
-            .filter { inRange($0.timestamp) }
+        // Douglas–Peucker only the *drawn* polyline (a few metres of tolerance):
+        // cheaper, smoother-looking rendering. Distance/markers/dive anchors keep
+        // using the full cleaned track (via `session`), untouched by this.
+        let drawnTrack = session.effectiveTrack.filter { inRange($0.timestamp) }
+        self.surfacePath = TrackCleaner
+            .simplify(drawnTrack, toleranceMeters: 3)
             .map { $0.location.coordinate }
 
         // Dives belong to the full-session map only — a surface-leg map (range set)
