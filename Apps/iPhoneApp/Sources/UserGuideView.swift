@@ -147,6 +147,7 @@ private enum UserGuide {
         onYourWatch,
         onYourPhone,
         onYourPad,
+        croppingSessions,
         diveDetection,
         photosAndVideos,
         iCloudSync,
@@ -278,6 +279,24 @@ private enum UserGuide {
         details: [
             .text("Your dives, spots, and photos arrive on iPad automatically through iCloud, so you can plan and reminisce on the bigger screen. Everything you can do on iPhone, you can do here."),
             .tip("The iPad doesn't record dives itself — that's the watch's job — but it's the nicest way to look back on them."),
+        ]
+    )
+
+    private static let croppingSessions = GuideChapter(
+        title: "Fixing a session you forgot to stop",
+        systemImage: "scissors",
+        intro: [
+            .text("Left the watch running after you climbed out — or started it early on the boat? Then your session has a long **surface tail**: an inflated duration, a GPS track that wanders up the beach, and extra heart-rate data from before or after the diving."),
+            .text("**Cropping** trims that off. You keep the diving and drop the dead time at the start, the end, or both."),
+        ],
+        details: [
+            .subheading("How to crop"),
+            .step(1, "Open the session and tap **Edit** in the top corner, then choose **Crop Session…**."),
+            .step(2, "Drag the **Start Point** and **End Point** sliders to set the range you want to keep, or use the **‹ ›** buttons to fine-tune by one second — press and hold to move faster."),
+            .step(3, "The map greys out the part being trimmed and shows which markers will be removed. The stats — duration, distance, dives, and markers — update **live**, so you can see the result before you save."),
+            .tip("Cropping never cuts into a dive. You can only trim the **surface time** before your first dive and after your last one, so your dives are always kept."),
+            .subheading("It can't be undone"),
+            .text("Cropping is **permanent**. The trimmed GPS, heart-rate, and temperature data, along with any markers (and their voice notes) outside the range you keep, are deleted for good. Before you save, a confirmation lists exactly what will be removed. Your photos and your dives aren't affected."),
         ]
     )
 
