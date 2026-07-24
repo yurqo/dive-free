@@ -81,36 +81,118 @@ final class ScreenshotTests: XCTestCase {
         tap(tabID: tab.rawValue)
     }
 
-    /// Finds and taps whichever element with `identifier` exists and is
-    /// hittable, trying each element type SwiftUI may use for a tab across the
-    /// bottom-tab-bar (iPhone) and sidebar (iPad) layouts:
-    ///   - `app.buttons` — plain button (covers both layouts in most cases),
-    ///   - `app.tabBars.buttons` — the iPhone bottom tab bar,
-    ///   - `app.cells` — sidebar rows on iPad,
-    ///   - `app.otherElements` — a final fallback.
-    /// Waits (polling) until one is hittable, up to `timeout`.
+    /// Finds and taps whichever element with `identifier` exists, trying each
+    /// element type SwiftUI may use for a tab across the bottom-tab-bar (iPhone)
+    /// and sidebar (iPad, `.sidebarAdaptable`) layouts. On iPad the tabs render
+    /// as a sidebar collection/table, so the row may EXIST without being
+    /// `isHittable` — in that case we tap a hittable descendant or the row's
+    /// centre coordinate rather than giving up.
+    ///
+    /// Candidate queries, in order (the first few cover iPhone's bottom tab bar,
+    /// the rest the iPad sidebar):
+    ///   - `app.buttons`, `app.tabBars.buttons`,
+    ///   - `app.cells`, `app.collectionViews.cells`, `app.collectionViews.buttons`,
+    ///   - `app.tables.cells`, `app.staticTexts`,
+    ///   - a catch-all `descendants(matching: .any)` match.
+    ///
+    /// If the first pass finds nothing, a collapsed sidebar is assumed and a
+    /// sidebar-toggle button is tapped once before a second pass. If everything
+    /// fails, the full accessibility tree is attached for diagnosis.
     @discardableResult
-    private func tap(tabID identifier: String, timeout: TimeInterval = 15) -> Bool {
-        let candidates: [XCUIElement] = [
-            app.buttons[identifier],
-            app.tabBars.buttons[identifier],
-            app.cells[identifier],
-            app.otherElements[identifier],
-        ]
+    private func tap(tabID identifier: String, timeout: TimeInterval = 10) -> Bool {
+        func candidates() -> [XCUIElement] {
+            [
+                app.buttons[identifier],
+                app.tabBars.buttons[identifier],
+                app.cells[identifier],
+                app.collectionViews.cells[identifier],
+                app.collectionViews.buttons[identifier],
+                app.tables.cells[identifier],
+                app.staticTexts[identifier],
+                app.descendants(matching: .any).matching(identifier: identifier).firstMatch,
+            ]
+        }
+
+        // Attempt to interact with an element that exists. If it is hittable, tap
+        // it directly; otherwise (a present-but-non-hittable sidebar row) tap its
+        // first hittable descendant, falling back to the row's centre coordinate.
+        func interact(_ element: XCUIElement) -> Bool {
+            guard element.waitForExistence(timeout: 2) else { return false }
+
+            if element.isHittable {
+                element.tap()
+            } else if let hittableChild = firstHittableDescendant(of: element) {
+                hittableChild.tap()
+            } else {
+                // Non-hittable-but-present sidebar row: tap its geometric centre.
+                element.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+            }
+            // Let the destination render before the screenshot.
+            _ = app.windows.firstMatch.waitForExistence(timeout: 5)
+            return true
+        }
 
         let deadline = Date().addingTimeInterval(timeout)
+        var toggledSidebar = false
         repeat {
-            for element in candidates where element.exists && element.isHittable {
-                element.tap()
-                // Let the destination render before the screenshot.
-                _ = app.windows.firstMatch.waitForExistence(timeout: 5)
-                return true
+            for element in candidates() where element.exists {
+                if interact(element) { return true }
             }
+
+            // Nothing found on this pass: a collapsed sidebar may be hiding the
+            // tabs. Tap a sidebar toggle once, then retry.
+            if !toggledSidebar {
+                toggledSidebar = true
+                if revealSidebar() { continue }
+            }
+
             // Cheap poll; XCUITest re-queries the tree each access.
-            _ = candidates.first?.waitForExistence(timeout: 0.5)
+            _ = app.buttons[identifier].waitForExistence(timeout: 0.5)
         } while Date() < deadline
 
-        XCTFail("No hittable element with identifier \"\(identifier)\" appeared")
+        // Give the manager the exact structure the robust taps still missed.
+        let attachment = XCTAttachment(string: app.debugDescription)
+        attachment.name = "debug-hierarchy-\(identifier)"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+
+        XCTFail("No element with identifier \"\(identifier)\" could be tapped")
+        return false
+    }
+
+    /// Returns the first hittable descendant of `element`, or `nil` if none.
+    /// Used to reach the tappable content of a present-but-non-hittable sidebar
+    /// row on iPad.
+    private func firstHittableDescendant(of element: XCUIElement) -> XCUIElement? {
+        for type in [XCUIElement.ElementType.button, .cell, .staticText, .other] {
+            let child = element.descendants(matching: type).firstMatch
+            if child.exists && child.isHittable { return child }
+        }
+        return nil
+    }
+
+    /// Expands a collapsed iPad sidebar so the tab rows become reachable. Tries
+    /// the standard `ToggleSidebar` navigation button first, then the first
+    /// navigation-bar button whose identifier or label hints at a sidebar
+    /// toggle. Returns `true` if a toggle was tapped.
+    @discardableResult
+    private func revealSidebar() -> Bool {
+        let toggle = app.navigationBars.buttons["ToggleSidebar"]
+        if toggle.exists && toggle.isHittable {
+            toggle.tap()
+            return true
+        }
+
+        let navButtons = app.navigationBars.buttons
+        for index in 0..<navButtons.count {
+            let button = navButtons.element(boundBy: index)
+            guard button.exists && button.isHittable else { continue }
+            let hint = (button.identifier + " " + button.label).lowercased()
+            if hint.contains("sidebar") || hint.contains("toggle") {
+                button.tap()
+                return true
+            }
+        }
         return false
     }
 
