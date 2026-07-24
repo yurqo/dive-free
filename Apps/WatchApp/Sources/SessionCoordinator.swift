@@ -99,6 +99,39 @@ final class SessionCoordinator {
     /// first dive. Shown during the surface interval as recovery context.
     var lastDiveMaxDepth: Double? { sessionManager.dives.last?.maxDepthMeters }
 
+    // MARK: - Surface recovery (#12)
+
+    /// Whether the surface-recovery indicator is active this session — captured from
+    /// the detection config applied at `start()` (default true). Drives the hero
+    /// timer's colour tinting + the one-shot "rested" haptic.
+    private(set) var recoveryEnabled = true
+
+    /// The recovery multiplier applied this session (config's `recoveryMultiplier`,
+    /// default 3.0). Captured at `start()` so the recommended interval matches the
+    /// rules in force when the session began.
+    @ObservationIgnored private var recoveryMultiplier = 3.0
+
+    /// Recommended surface interval (s) for the current recovery, or `nil` when
+    /// recovery is disabled or there's no completed dive to scale from (the
+    /// pre-first-dive surface clock). Scales with the last dive's duration via
+    /// `SurfaceRecovery.recommendedInterval`, floored at `recoveryMinimumSeconds`.
+    var recommendedRecovery: TimeInterval? {
+        guard recoveryEnabled, let last = lastDiveDuration else { return nil }
+        return SurfaceRecovery.recommendedInterval(
+            lastDiveDuration: last,
+            multiplier: recoveryMultiplier,
+            minimum: DiveDetectionConfig.recoveryMinimumSeconds
+        )
+    }
+
+    /// The diver's current recovery tier, or `nil` when there's no target to measure
+    /// against (recovery off, or before the first completed dive). Drives the hero
+    /// timer's colour + the "rested" checkmark.
+    var recoveryTier: SurfaceRecovery.RecoveryTier? {
+        guard let interval = surfaceInterval, let recommended = recommendedRecovery else { return nil }
+        return SurfaceRecovery.tier(surfaceInterval: interval, recommended: recommended)
+    }
+
     /// True while the diver is below the surface threshold. The Action button
     /// drops a marker when submerged and confirms the focused menu item when at
     /// the surface.
@@ -368,6 +401,44 @@ final class SessionCoordinator {
         timeCueTask = nil
     }
 
+    // MARK: - Surface recovery cue (#12)
+
+    /// Schedules a single "rested" haptic to fire once the recommended surface
+    /// interval is reached — a one-shot `Task.sleep` rather than a polling loop, so
+    /// the watch wakes once per surface instead of every second. Pre-first-dive (no
+    /// `lastDiveDuration` → `recommendedRecovery == nil`) it never fires; disabled
+    /// recovery likewise. At most one cue per surface interval — this no-ops if the
+    /// flag is already set (so a second `onSurface` in the same interval, e.g. the
+    /// deferred-surface path, can't re-arm and double-buzz), and the flag is reset
+    /// only on submerge. The `!currentDiveConfirmed` check keeps it off during a
+    /// provisional descent.
+    private func startRecoveryCue() {
+        // Already fired this interval, or recovery off → don't (re)schedule.
+        guard recoveryEnabled, !recoveryHapticFired else { return }
+        // No target yet (pre-first-dive) → nothing to schedule.
+        guard let recommended = recommendedRecovery else { return }
+        // Fire after the time still remaining to the threshold from the CURRENT
+        // surface interval (0 if already past it, e.g. a re-entrant onSurface).
+        let remaining = max(0, recommended - (surfaceInterval ?? 0))
+        recoveryTask?.cancel()
+        recoveryTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(remaining))
+            guard !Task.isCancelled, let self,
+                  self.recoveryEnabled, !self.recoveryHapticFired, !self.currentDiveConfirmed
+            else { return }
+            DiveHapticPlayer.play(.recoveryReached)
+            self.recoveryHapticFired = true
+        }
+    }
+
+    /// Cancels the pending one-shot. Does NOT reset `recoveryHapticFired` — that's
+    /// reset only on submerge (a new recovery cycle), so a second `onSurface` in the
+    /// same interval finds the flag set and `startRecoveryCue` no-ops.
+    private func stopRecoveryCue() {
+        recoveryTask?.cancel()
+        recoveryTask = nil
+    }
+
     // MARK: - Live session mirror (watch → phone, #118)
 
     /// Pushes an immediate snapshot, then one every couple of seconds, so the
@@ -436,6 +507,12 @@ final class SessionCoordinator {
     private let modelContext: ModelContext
     /// Repeating per-second time-cue ticker, live only while submerged (#178).
     private var timeCueTask: Task<Void, Never>?
+    /// Per-second surface ticker that fires the one-shot "rested" haptic when the
+    /// recommended recovery interval is reached; live only at the surface (#12).
+    private var recoveryTask: Task<Void, Never>?
+    /// Whether the "rested" haptic has already fired for the current surface
+    /// interval, so it plays at most once per surface (reset on each submerge).
+    @ObservationIgnored private var recoveryHapticFired = false
     /// Repeating ticker that pushes live snapshots to the phone while active (#118).
     private var liveSyncTask: Task<Void, Never>?
     let workout = WorkoutController()
@@ -459,9 +536,15 @@ final class SessionCoordinator {
         sessionManager.onSubmerge = { [weak self] in
             self?.stopVoiceNote()
             self?.interaction.setSubmerged(true)
+            // Leaving the surface begins a new recovery cycle: cancel the pending
+            // one-shot and re-arm the fired flag so the next surface interval can
+            // schedule and fire its own "rested" cue.
+            self?.stopRecoveryCue()
+            self?.recoveryHapticFired = false
         }
         sessionManager.onSurface = { [weak self] in
             self?.interaction.setSubmerged(false)
+            self?.startRecoveryCue()
         }
         // Feed live workout heart rate into the session's time series.
         workout.onHeartRate = { [weak self] bpm in self?.sessionManager.recordHeartRate(bpm) }
@@ -643,7 +726,15 @@ final class SessionCoordinator {
             try await workout.start()
             // Apply the diver's synced detection config (sanitized) before starting,
             // so this session's acceptance tiers + surface-exit dwell reflect it.
-            sessionManager.setDetectionConfig(storedDetectionConfig.sanitized())
+            let config = storedDetectionConfig.sanitized()
+            sessionManager.setDetectionConfig(config)
+            // Capture the recovery bits so the UI + surface haptic task read the
+            // rules in force for THIS session (not a mid-session resync).
+            recoveryEnabled = config.recoveryEnabled
+            recoveryMultiplier = config.recoveryMultiplier
+            // Fresh session: clear any "rested" flag left set by a prior session, so
+            // the one-shot cue arms correctly for this session's first surface.
+            recoveryHapticFired = false
             try await sessionManager.startSession()
             // Fresh interaction: menu rebuilt, focused on the default marker, end disarmed.
             interaction = SessionInteraction(
@@ -678,6 +769,7 @@ final class SessionCoordinator {
         isStopping = true
         defer { isStopping = false }
         stopTimeCues()
+        stopRecoveryCue()
         stopLiveSync()
         // Tell the phone the session ended so it dismisses the banner/Live Activity.
         sendLiveSnapshot(active: false)

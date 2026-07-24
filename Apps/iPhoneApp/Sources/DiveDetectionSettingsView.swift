@@ -24,22 +24,32 @@ struct DiveDetectionSettings: Equatable, RawRepresentable {
 
     var tiers: [Tier]
     var dwellSeconds: Int
+    /// Whether the watch's surface-recovery hint (colour + buzz) is on. Mirrors
+    /// `DiveDetectionConfig.recoveryEnabled`.
+    var recoveryEnabled: Bool
+    /// Recommended surface interval = `recoveryMultiplier × the last dive's time`
+    /// (at least 1 min). Mirrors `DiveDetectionConfig.recoveryMultiplier`.
+    var recoveryMultiplier: Double
 
     /// Mirrors `DiveDetectionConfig.default`: a duck dive to 2 m (≥2 s), a normal
     /// 1.5 m dive (≥3 s), or a sustained shallow dive past 1 m (≥5 s); dive ends
-    /// after 3 s shallow.
+    /// after 3 s shallow; recovery hint on at 3×.
     static let `default` = DiveDetectionSettings(
         tiers: [
             Tier(isEnabled: true, depthMeters: 2.0, seconds: 2),
             Tier(isEnabled: true, depthMeters: 1.5, seconds: 3),
             Tier(isEnabled: true, depthMeters: 1.0, seconds: 5),
         ],
-        dwellSeconds: 3
+        dwellSeconds: 3,
+        recoveryEnabled: true,
+        recoveryMultiplier: 3.0
     )
 
-    init(tiers: [Tier], dwellSeconds: Int) {
+    init(tiers: [Tier], dwellSeconds: Int, recoveryEnabled: Bool = true, recoveryMultiplier: Double = 3.0) {
         self.tiers = tiers
         self.dwellSeconds = dwellSeconds
+        self.recoveryEnabled = recoveryEnabled
+        self.recoveryMultiplier = recoveryMultiplier
     }
 
     /// Compare by value. `RawRepresentable(String)` + `Equatable` otherwise resolves
@@ -48,7 +58,10 @@ struct DiveDetectionSettings: Equatable, RawRepresentable {
     /// explicit memberwise `==` (preferred over the protocol default) keeps
     /// `settings == .default` and `.onChange(of:)` reliable.
     static func == (lhs: DiveDetectionSettings, rhs: DiveDetectionSettings) -> Bool {
-        lhs.tiers == rhs.tiers && lhs.dwellSeconds == rhs.dwellSeconds
+        lhs.tiers == rhs.tiers
+            && lhs.dwellSeconds == rhs.dwellSeconds
+            && lhs.recoveryEnabled == rhs.recoveryEnabled
+            && lhs.recoveryMultiplier == rhs.recoveryMultiplier
     }
 
     // MARK: RawRepresentable (JSON string) for @AppStorage
@@ -62,6 +75,10 @@ struct DiveDetectionSettings: Equatable, RawRepresentable {
     private struct Blob: Codable {
         var tiers: [Tier]
         var dwellSeconds: Int
+        // Added with surface recovery — optional so a blob persisted before this
+        // feature (missing these keys) still decodes, falling back to defaults.
+        var recoveryEnabled: Bool?
+        var recoveryMultiplier: Double?
     }
 
     init?(rawValue: String) {
@@ -70,10 +87,30 @@ struct DiveDetectionSettings: Equatable, RawRepresentable {
         else { return nil }
         self.tiers = blob.tiers
         self.dwellSeconds = blob.dwellSeconds
+        self.recoveryEnabled = blob.recoveryEnabled ?? true
+        // Snap to one of the Picker's tags so the bound selection is never blank:
+        // Domain's continuous [1.5, 5.0] clamp (or a legacy/hand-edited blob) can
+        // yield e.g. 2.75, which has no tag and renders an empty Picker.
+        self.recoveryMultiplier = Self.snappedMultiplier(blob.recoveryMultiplier ?? 3.0)
+    }
+
+    /// The multiplier Picker's options; the bound value is snapped to one of these
+    /// so a selection is always shown (see `init?(rawValue:)`).
+    static let multiplierOptions: [Double] = [2.0, 2.5, 3.0]
+
+    /// Snaps an arbitrary multiplier to the nearest Picker option, so the bound
+    /// value is always exactly one of the tags.
+    static func snappedMultiplier(_ value: Double) -> Double {
+        multiplierOptions.min { abs($0 - value) < abs($1 - value) } ?? 3.0
     }
 
     var rawValue: String {
-        let blob = Blob(tiers: tiers, dwellSeconds: dwellSeconds)
+        let blob = Blob(
+            tiers: tiers,
+            dwellSeconds: dwellSeconds,
+            recoveryEnabled: recoveryEnabled,
+            recoveryMultiplier: recoveryMultiplier
+        )
         let encoder = JSONEncoder()
         // Stable key order so the persisted blob (and any sync payload) is
         // byte-identical for equal values — no spurious @AppStorage rewrites.
@@ -103,7 +140,9 @@ struct DiveDetectionSettings: Equatable, RawRepresentable {
         }
         return DiveDetectionConfig(
             surfaceExitDwellSeconds: TimeInterval(dwellSeconds),
-            thresholds: thresholds.isEmpty ? DiveDetectionConfig.default.thresholds : thresholds
+            thresholds: thresholds.isEmpty ? DiveDetectionConfig.default.thresholds : thresholds,
+            recoveryEnabled: recoveryEnabled,
+            recoveryMultiplier: recoveryMultiplier
         ).sanitized()
     }
 }
@@ -134,6 +173,22 @@ struct DiveDetectionSettingsView: View {
                 }
             } footer: {
                 Text("A dive always ends the moment you reach the surface (0 m). This is how long you can rest shallower than 1 m — without surfacing — before the dive is treated as ended.")
+            }
+
+            Section {
+                Toggle("Recovery hint", isOn: $settings.recoveryEnabled)
+                Picker("Recommended interval", selection: $settings.recoveryMultiplier) {
+                    // Tags must match `DiveDetectionSettings.multiplierOptions`, which
+                    // the decoded value is snapped to — so the selection is never blank.
+                    ForEach(DiveDetectionSettings.multiplierOptions, id: \.self) { multiplier in
+                        Text(multiplier.formatted(.number.precision(.fractionLength(0...1))) + "×").tag(multiplier)
+                    }
+                }
+                .disabled(!settings.recoveryEnabled)
+            } header: {
+                Text("Surface recovery")
+            } footer: {
+                Text("Between dives, the watch's surface timer turns green — with a buzz — once you've rested the recommended interval: this multiple of your last dive's time, and at least 1 minute. This is a common rule of thumb, not medical or safety advice — always dive with a buddy.")
             }
 
             Section {

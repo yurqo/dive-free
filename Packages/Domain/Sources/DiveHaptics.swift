@@ -13,6 +13,9 @@ public enum DiveHapticEvent: Sendable, Equatable {
     /// A user action was confirmed — an event marker was placed, or a
     /// Crown-menu action fired. Used as touch-free input acknowledgement.
     case markerPlaced
+    /// The surface interval reached the recommended recovery target (see
+    /// `SurfaceRecovery`). A one-shot cue that the diver is rested for the next dive.
+    case recoveryReached
 }
 
 /// Thresholds that control when haptic events fire.
