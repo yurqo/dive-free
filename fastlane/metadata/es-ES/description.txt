@@ -1,0 +1,28 @@
+Dive Free es el complemento para Apple Watch pensado para la apnea y el snorkel recreativos: una bonita bitácora de tu tiempo en el agua, no un ordenador de buceo.
+
+Inicia una sesión en tu Apple Watch antes de entrar al agua. Dive Free registra tu profundidad y tus inmersiones sin usar las manos, con la Digital Crown y el botón Action, para que nunca tengas que tocar una pantalla bloqueada por el agua. De vuelta en la superficie, revive cada inmersión en tu iPhone o iPad con gráficas de profundidad, mapas de tus lugares de buceo y las fotos que hiciste ese día.
+
+PRIMERO EL WATCH, SIN MANOS
+• Controla la sesión sin manos con la Digital Crown, y con el botón Action en el Apple Watch Ultra: sin tocar nada bajo el agua
+• Detección automática de inmersiones y control del intervalo en superficie
+• Profundidad en directo (hasta 6 m) y duración de la inmersión bajo el agua (Apple Watch Ultra, Series 10 y Series 11)
+• Sigue tu sesión en directo en el iPhone: un aviso dentro de la app, además de una Live Activity en la pantalla bloqueada y la Dynamic Island
+• Coloca marcadores durante una inmersión
+
+RECUERDA CADA INMERSIÓN
+• Gráfica del perfil de profundidad de cada inmersión
+• Tus lugares de buceo se agrupan automáticamente y se muestran en un mapa
+• Agrupa tus inmersiones en viajes de varios días y consulta tus totales en un pasaporte de buceo
+• Adjunta fotos y vídeos, incluidas las tomas de tu cámara submarina
+• Graba notas de voz y valora tus sesiones
+• Organiza tus fotos y vídeos de buceo en un álbum "Dive Free" en Fotos
+
+SINCRONIZA ENTRE TUS DISPOSITIVOS
+• Tu bitácora, tus lugares y tus fotos se sincronizan de forma privada entre iPhone y iPad a través de tu propia cuenta de iCloud: tus datos se quedan en tu iCloud
+
+COMPARTE
+• Exporta a Strava las inmersiones que quieras
+
+Dive Free es una bitácora y un espacio de recuerdos para apneístas, practicantes de snorkel y viajeros. NO es un ordenador de buceo ni tiene funciones de ordenador de buceo: no ofrece información de descompresión, planificación ni seguridad, y el registro de profundidad está limitado a 6 metros (aguas poco profundas). Nunca lo uses como dispositivo de seguridad. Bucea siempre dentro de tu formación, respeta las normas locales y nunca practiques apnea en solitario.
+
+El Apple Watch Ultra ofrece la mejor experiencia: registra la profundidad y te permite controlar toda la sesión bajo el agua, sin manos: inicia y detén sesiones, registra inmersiones y coloca marcadores con los botones del reloj. El Apple Watch Series 10 y 11 también registran la profundidad, y otros modelos de Apple Watch registran tus sesiones con ubicación GPS y frecuencia cardíaca.

@@ -1,0 +1,28 @@
+Dive Free is the Apple Watch companion for recreational freediving and snorkeling — a beautiful logbook for your time in the water, not a dive computer.
+
+Start a session on your Apple Watch before you get in. Dive Free tracks your depth and dives completely hands-free using the Digital Crown and Action button, so you never have to touch a water-locked screen. Back on the surface, relive every dive on your iPhone or iPad with depth charts, maps of your dive spots, and the photos you took that day.
+
+WATCH-FIRST, HANDS-FREE
+• Run a session hands-free with the Digital Crown — plus the Action button on Apple Watch Ultra — no taps needed underwater
+• Automatic dive detection and surface-interval tracking
+• Live depth (to 6 m) and dive duration underwater (Apple Watch Ultra, Series 10, and Series 11)
+• Follow your session live on iPhone — an in-app banner plus a Lock Screen Live Activity and Dynamic Island
+• Drop event markers during a dive
+
+REMEMBER EVERY DIVE
+• Depth-profile chart for each dive
+• Dive spots grouped automatically and shown on a map
+• Group your dives into multi-day trips, and track your totals in a dive passport
+• Attach photos and videos, including shots from your underwater camera
+• Record voice notes and rate your sessions
+• Organize your dive media into a "Dive Free" album in Photos
+
+SYNC ACROSS YOUR DEVICES
+• Your dive log, spots, and photos sync privately across iPhone and iPad through your own iCloud account — your data stays in your iCloud
+
+SHARE
+• Export the dives you choose to Strava
+
+Dive Free is a logbook and memory platform for recreational freedivers, snorkelers, and travelers. It is NOT a dive computer and has no dive-computer capabilities: it provides no decompression, dive-planning, or safety information, and depth tracking is capped at 6 metres (shallow water). Never use it as a safety device. Always dive within your training, follow your local rules, and never freedive alone.
+
+Apple Watch Ultra is the best experience: it tracks depth and lets you run the whole session underwater, hands-free — start and stop sessions, log dives, and drop markers with the watch's buttons. Apple Watch Series 10 and 11 also track depth, and other Apple Watch models log your sessions with GPS location and heart rate.

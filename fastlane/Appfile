@@ -1,0 +1,5 @@
+# App Store Connect app identity for Fastlane `deliver`.
+# No secrets here — the team id and ASC API key come from the environment
+# (see fastlane/Fastfile). team_id / itc_team_id are intentionally omitted so
+# the App Store Connect API key drives team resolution.
+app_identifier("org.yurko.divefree")
