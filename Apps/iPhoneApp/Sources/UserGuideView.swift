@@ -151,6 +151,7 @@ private enum UserGuide {
         diveDetection,
         photosAndVideos,
         iCloudSync,
+        exportingData,
         strava,
         safety,
         troubleshooting,
@@ -354,6 +355,26 @@ private enum UserGuide {
             .subheading("Where the watch fits"),
             .text("The watch doesn't use iCloud — it sends dives straight to your iPhone over their direct link. From there, iCloud carries them on to your iPad."),
             .tip("A brand-new dive first appears on the iPhone the watch talked to, then syncs to your other devices."),
+        ]
+    )
+
+    private static let exportingData = GuideChapter(
+        title: "Getting your data out",
+        systemImage: "square.and.arrow.up",
+        intro: [
+            .text("Your dives aren't locked in. You can export any session to standard files — to open in other apps or just to keep as a backup. Exports are free."),
+        ],
+        details: [
+            .subheading("How to export"),
+            .text("Open a session and tap **Edit** in the top corner, then choose **Export…** and pick a format. The system share sheet lets you save it to Files, AirDrop it, or send it on."),
+            .subheading("Which format?"),
+            .bullet("**UDDF** — the dive-log standard; import into Subsurface, MacDive, or divelogs.de."),
+            .bullet("**FIT** — for Garmin Connect, Strava, and other fitness tools."),
+            .bullet("**GPX** — your surface track plus markers, for maps and Google Earth."),
+            .bullet("**CSV** — a spreadsheet with one row per dive, for Numbers or Excel."),
+            .bullet("**TCX** — an alternative fitness format."),
+            .tip("FIT needs GPS or heart-rate data, so a session with no location may not produce a FIT file."),
+            .text("Depth, your GPS track, heart rate, water temperature, and markers are all included where available. Photos and voice notes aren't part of these single-file exports."),
         ]
     )
 

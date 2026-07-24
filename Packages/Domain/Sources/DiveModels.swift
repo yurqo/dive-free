@@ -324,8 +324,21 @@ public struct DiveSession: Sendable, Equatable, Codable, Identifiable {
     /// Linearly-interpolated surface position at the given instant, clamped to
     /// the track's endpoints. `nil` only when there is no track at all. Used to
     /// place dive events and surface markers along the path by timestamp.
+    ///
+    /// Recomputes `effectiveTrack` (which runs the track cleaner) on every call,
+    /// so callers that resolve many timestamps against one session — the TCX and
+    /// FIT exporters — should clean the track **once** and use
+    /// `surfacePosition(in:at:)` directly to avoid an O(samples × track) blowup.
     public func surfaceLocation(at time: Date) -> GeoPoint? {
-        let ordered = effectiveTrack
+        Self.surfacePosition(in: effectiveTrack, at: time)
+    }
+
+    /// Linearly-interpolated surface position at `time` over a **precomputed,
+    /// time-ordered** track, clamped to the track's endpoints. `nil` only when
+    /// `ordered` is empty. The pure interpolation core shared by
+    /// `surfaceLocation(at:)` and the batch exporters; behavior is byte-identical
+    /// to the former, given `ordered == effectiveTrack`.
+    public static func surfacePosition(in ordered: [TrackPoint], at time: Date) -> GeoPoint? {
         guard let first = ordered.first, let last = ordered.last else { return nil }
         if time <= first.timestamp { return first.location }
         if time >= last.timestamp { return last.location }

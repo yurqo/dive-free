@@ -15,13 +15,30 @@ struct SessionDetailView: View {
     @State private var exportStatus: ExportStatus = .idle
     @State private var showFullMap = false
 
-    /// Drives the single edit/crop sheet. Two separate `.sheet(isPresented:)`
-    /// modifiers on one view can mis-fire in SwiftUI, so both share one `.sheet(item:)`.
+    /// Drives the single edit/crop/share sheet. Multiple `.sheet(item:)` modifiers
+    /// on one view can mis-fire in SwiftUI (only one presents reliably), so they all
+    /// share one `.sheet(item:)`.
     private enum ActiveSheet: Identifiable {
         case edit, crop
-        var id: Self { self }
+        /// An exported file to hand off to the system share sheet.
+        case share(URL)
+
+        var id: String {
+            switch self {
+            case .edit: "edit"
+            case .crop: "crop"
+            case .share(let url): "share:\(url.path)"
+            }
+        }
     }
     @State private var activeSheet: ActiveSheet?
+
+    /// Set when an export can't be produced (FIT without location/time data) or a
+    /// temp-file write fails.
+    @State private var exportError: LocalizedStringKey?
+    private var isShowingExportError: Binding<Bool> {
+        Binding(get: { exportError != nil }, set: { if !$0 { exportError = nil } })
+    }
 
     var body: some View {
         let domain = session.toDomain()
@@ -86,7 +103,13 @@ struct SessionDetailView: View {
             switch sheet {
             case .edit: SessionEditView(session: session)
             case .crop: NavigationStack { SessionCropView(session: session) }
+            case .share(let url): ActivityView(activityItems: [url])
             }
+        }
+        .alert("Export failed", isPresented: isShowingExportError, presenting: exportError) { _ in
+            Button("OK", role: .cancel) {}
+        } message: { message in
+            Text(message)
         }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -98,8 +121,28 @@ struct SessionDetailView: View {
                     if domain.endTime != nil {
                         Button("Crop Session…") { activeSheet = .crop }
                     }
+                    Menu("Export…") {
+                        ForEach(ExportFormat.allCases) { format in
+                            Button(format.displayName) { export(domain, as: format) }
+                        }
+                    }
                 }
             }
+        }
+    }
+
+    /// Serializes `domain` in `format`, writes a temp file, and presents the share
+    /// sheet. Surfaces an alert when the format can't be produced (FIT without
+    /// location/time data) or the temp-file write fails — never crashes.
+    private func export(_ domain: DiveSession, as format: ExportFormat) {
+        do {
+            if let url = try format.writeTempFile(for: domain) {
+                activeSheet = .share(url)
+            } else {
+                exportError = "Not enough location/time data for FIT."
+            }
+        } catch {
+            exportError = "Couldn't write the export file. Please try again."
         }
     }
 
