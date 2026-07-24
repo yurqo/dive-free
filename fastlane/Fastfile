@@ -162,7 +162,7 @@ def stage_screenshots
 end
 
 platform :ios do
-  desc "Upload localized metadata + screenshots to App Store Connect as a DRAFT (no binary, no submit). Run `fastlane precheck` first to validate."
+  desc "Upload localized metadata + screenshots to App Store Connect as a DRAFT (no binary, no submit). Run `fastlane ios validate` first to validate."
   lane :metadata do
     key = asc_api_key
     stage_screenshots
@@ -199,8 +199,8 @@ platform :ios do
     )
   end
 
-  desc "Validate metadata with precheck only (no upload)."
-  lane :precheck do
+  desc "Validate metadata with the precheck action only (no upload)."
+  lane :validate do
     key = asc_api_key
 
     precheck(
