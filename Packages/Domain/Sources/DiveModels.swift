@@ -111,13 +111,17 @@ public enum EventKind: String, Sendable, Codable, CaseIterable {
         }
     }
 
-    /// Human-readable label.
+    /// Human-readable, localized label. Resolved against `Bundle.module` so the
+    /// Domain string catalog is consulted (a bare `String(localized:)` in a
+    /// framework would look in the main app bundle). Keys follow the
+    /// `marker.kind.<case>` scheme; English `defaultValue`s guarantee a sensible
+    /// render even before a catalog entry exists.
     public var label: String {
         switch self {
-        case .note: "Note"
-        case .wildlife: "Wildlife"
-        case .hazard: "Hazard"
-        case .photo: "Photo"
+        case .note: String(localized: "marker.kind.note", defaultValue: "Note", bundle: .module)
+        case .wildlife: String(localized: "marker.kind.wildlife", defaultValue: "Wildlife", bundle: .module)
+        case .hazard: String(localized: "marker.kind.hazard", defaultValue: "Hazard", bundle: .module)
+        case .photo: String(localized: "marker.kind.photo", defaultValue: "Photo", bundle: .module)
         }
     }
 

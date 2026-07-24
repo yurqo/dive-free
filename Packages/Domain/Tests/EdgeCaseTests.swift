@@ -47,8 +47,12 @@ struct DomainEdgeCaseTests {
         #expect(EventKind(rawValue: "custom") == nil)
         #expect(EventKind.wildlife.emoji == "🐠")
         #expect(EventKind.hazard.emoji == "⚠️")
-        #expect(EventKind.note.label == "Note")
-        #expect(EventKind.photo.label == "Photo")
+        // Labels are localized, so assert the mechanism (a non-empty resolved
+        // string per case) rather than exact English text, which breaks in
+        // non-English locales.
+        for kind in EventKind.allCases {
+            #expect(!kind.label.isEmpty)
+        }
     }
 
     @Test("decoding an unknown/legacy kind falls back to note")

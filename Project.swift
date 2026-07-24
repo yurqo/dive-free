@@ -228,7 +228,7 @@ let project = Project(
         // across minor bumps (a 1.0.x→1.1.0 jump would otherwise reset build=patch
         // backwards and TestFlight would reject it). Both targets bind their
         // Info.plist to these so the values reach the bundle.
-        "MARKETING_VERSION": "1.2.0",
+        "MARKETING_VERSION": "1.3.0",
         "CURRENT_PROJECT_VERSION": "1",
         "DEVELOPMENT_TEAM": SettingValue(stringLiteral: developmentTeam),
         "CODE_SIGN_STYLE": "Automatic",
