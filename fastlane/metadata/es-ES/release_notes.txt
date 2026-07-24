@@ -1,6 +1,7 @@
-Novedades de la 1.3.0:
+Novedades de la 1.3.1:
 • Recorta una sesión: elimina una cola de superficie olvidada (o un inicio anticipado) desde tu iPhone: arrastra el inicio y el final en el mapa, mira exactamente qué se eliminará y tus inmersiones quedan intactas.
 • Exporta tus inmersiones: comparte cualquier sesión como UDDF (bitácoras como Subsurface), FIT (Garmin/Strava), GPX, CSV o TCX. Tus datos, para llevarlos a donde quieras.
 • Trazas de superficie más limpias: un nuevo motor de suavizado dibuja las rutas GPS y las distancias más cerca de lo que realmente nadaste.
 • Aviso de recuperación en superficie: entre inmersiones, el temporizador del reloj cambia de color y vibra suavemente cuando has descansado el intervalo recomendado (una regla general, no un consejo de seguridad; sumérgete siempre acompañado).
+• Haz una copia de seguridad de todo: sesiones, puntos de inmersión, viajes y notas de voz en un solo archivo, y restáuralo en cualquier dispositivo. Es aditiva, así que no se pierde nada de lo que ya tienes en tu dispositivo.
 Además, correcciones y mejoras menores.

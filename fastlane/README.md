@@ -25,6 +25,22 @@ never submits for review.
 2. The App Store Connect API key (same one CI uses — see
    `.github/workflows/testflight.yml`).
 
+### Credentials (Keychain — no `export` needed on this Mac)
+
+On this Mac the ASC credentials are read **automatically from the macOS login
+Keychain**, so no `export` is required — `bundle exec fastlane metadata` is
+turnkey. The three values are stored as generic passwords under these labels:
+
+| Keychain label | Value |
+|---|---|
+| `app-store-connect-key-id` | ASC API Key ID |
+| `app-store-connect-issuer-id` | ASC API Issuer ID |
+| `app-store-connect-api-key` | the `.p8` private key (base64 or raw PEM) |
+
+Each value can be overridden with an environment variable — `ENV` wins over the
+Keychain. CI uses this override (the `APP_STORE_CONNECT_*` vars below, with the
+API key base64-encoded). See "Run".
+
 ## One-time setup
 
 Install the pinned Ruby and the gems into a project-local `vendor/bundle`:
@@ -40,8 +56,19 @@ checkout and never need sudo.
 
 ## Run
 
-Export the three ASC env vars, then run a lane. The API key `.p8` must be passed
-**base64-encoded** (matching the `APP_STORE_CONNECT_API_KEY` GitHub secret):
+On this Mac, credentials come from the Keychain (above), so a lane is turnkey —
+just install Ruby + gems once, then run:
+
+```sh
+mise install                 # pinned Ruby (one-time, if not already done)
+bundle install               # gems (one-time)
+bundle exec fastlane metadata
+```
+
+**Override with ENV (CI, or a different key):** each value can be supplied via an
+environment variable, which takes precedence over the Keychain. The API key must
+be passed **base64-encoded** (matching the `APP_STORE_CONNECT_API_KEY` GitHub
+secret):
 
 ```sh
 export APP_STORE_CONNECT_KEY_ID="<key id>"
@@ -51,11 +78,18 @@ export APP_STORE_CONNECT_API_KEY="$(base64 -i AuthKey_XXXXXXXX.p8)"
 bundle exec fastlane metadata
 ```
 
+### An App Store version must exist first
+
+Before `metadata` can populate a draft, a matching version (e.g. **1.3.1**) must
+already exist in App Store Connect in the **"Prepare for Submission"** state.
+Create it under the app's **App Store** tab → the **⊕** next to **iOS App** (or
+**+ Version or Platform**). `metadata` uploads a **DRAFT** and never submits.
+
 `metadata` uploads a **DRAFT** — it never submits for review. Screenshots come
 from the top-level `screenshots/` folder (regenerate with
 `Scripts/screenshots.sh`).
 
-Never commit or paste these values — they live only in the environment.
+Never commit or paste these values — they live only in the Keychain/environment.
 
 ## Operational gotchas
 

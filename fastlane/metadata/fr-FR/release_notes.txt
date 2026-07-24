@@ -1,6 +1,7 @@
-Nouveautés de la 1.3.0 :
+Nouveautés de la 1.3.1 :
 • Rognez une session — supprimez une fin en surface oubliée (ou un départ anticipé) directement sur votre iPhone : faites glisser le début et la fin sur la carte, voyez exactement ce qui sera retiré, et vos plongées restent intactes.
 • Exportez vos plongées — partagez n'importe quelle session en UDDF (carnets comme Subsurface), FIT (Garmin/Strava), GPX, CSV ou TCX. Vos données, à emporter partout.
 • Traces de surface plus nettes — un nouveau moteur de lissage dessine les tracés GPS et les distances au plus près de ce que vous avez réellement parcouru.
 • Repère de récupération en surface — entre les plongées, le minuteur de la montre change de couleur et vibre doucement une fois le temps de repos recommandé écoulé (une règle générale, pas un conseil de sécurité — plongez toujours accompagné).
+• Sauvegardez tout — sessions, spots de plongée, sorties et notes vocales — dans un seul fichier, et restaurez-le sur n'importe quel appareil. C'est additif : rien de ce qui se trouve déjà sur votre appareil n'est perdu.
 Plus des corrections et améliorations mineures.
