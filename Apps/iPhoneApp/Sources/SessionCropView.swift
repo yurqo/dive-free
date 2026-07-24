@@ -357,6 +357,30 @@ private struct CropTrackMapView: View {
     let session: DiveSession
     let range: ClosedRange<Date>
 
+    /// Current visible latitude span, driving how aggressively markers cluster.
+    /// Seeded with the same sensible default as `SessionTrackMapView`.
+    @State private var latitudeSpan: Double = 0.02
+
+    /// Marker positions resolved once at construction. `markerLocation` internally
+    /// re-runs the Kalman clean, so — like `SessionTrackMapView`'s `points` — we
+    /// resolve here instead of per camera frame. Geo/emoji depend only on `session`,
+    /// so the crop-dependent `inRange` flag is applied later, cheaply, in `clusters`.
+    private let resolvedMarkers: [MarkerPoint]
+
+    init(session: DiveSession, range: ClosedRange<Date>) {
+        self.session = session
+        self.range = range
+        self.resolvedMarkers = session.markers.compactMap { marker in
+            guard let geo = session.markerLocation(marker) else { return nil }
+            return MarkerPoint(
+                id: "marker-\(marker.id)",
+                geo: geo,
+                emoji: marker.kind.emoji,
+                timestamp: marker.timestamp
+            )
+        }
+    }
+
     private var fullPath: [CLLocationCoordinate2D] {
         session.effectiveTrack.map(\.location.coordinate)
     }
@@ -399,15 +423,119 @@ private struct CropTrackMapView: View {
                 .annotationTitles(.hidden)
             }
 
-            ForEach(session.markers) { marker in
-                if let geo = session.markerLocation(marker) {
-                    let inRange = range.contains(marker.timestamp)
-                    Annotation(marker.kind.label, coordinate: geo.coordinate) {
-                        markerView(marker.kind.emoji, inRange: inRange)
-                    }
-                    .annotationTitles(.hidden)
+            // Markers, clustered by current zoom. In-range and out-of-range
+            // markers are clustered as separate partitions, so a cluster is
+            // always entirely kept or entirely dropped — the greyed styling
+            // (which signals removal) never applies to a mixed bubble.
+            ForEach(clusters) { cluster in
+                Annotation(cluster.title, coordinate: cluster.coordinate) {
+                    clusterView(cluster)
                 }
+                .annotationTitles(.hidden)
             }
+        }
+        .onMapCameraChange(frequency: .continuous) { context in
+            latitudeSpan = context.region.span.latitudeDelta
+        }
+    }
+
+    // MARK: - Marker clustering
+
+    /// A resolved marker: its geo position, glyph, timestamp, and whether it
+    /// survives the crop. `timestamp` lets `clusters` recompute `inRange` when the
+    /// crop `range` changes without re-resolving the position (the expensive step).
+    private struct MarkerPoint: Identifiable {
+        let id: String
+        let geo: GeoPoint
+        let emoji: String
+        let timestamp: Date
+        var inRange: Bool = false
+    }
+
+    private struct Cluster: Identifiable {
+        let id: String
+        let coordinate: CLLocationCoordinate2D
+        let members: [MarkerPoint]
+        /// All members share the same partition (see `clusters`), so the first is
+        /// representative for both the emoji and the kept/dropped styling.
+        var inRange: Bool { members[0].inRange }
+        var emoji: String { members[0].emoji }
+        var count: Int { members.count }
+        var title: String { members.count == 1 ? members[0].id : "\(members.count) markers" }
+    }
+
+    private var clusters: [Cluster] {
+        // Tag each already-resolved marker kept vs dropped for the current crop
+        // range — cheap, so it's safe to redo on every (continuous) camera frame.
+        // The position resolve (the Kalman-clean cost) already happened in `init`.
+        let tagged = resolvedMarkers.map { marker -> MarkerPoint in
+            var marker = marker
+            marker.inRange = range.contains(marker.timestamp)
+            return marker
+        }
+        // Partition, then cluster each partition independently so no cluster
+        // mixes kept and dropped markers.
+        let inRange = tagged.filter(\.inRange)
+        let outOfRange = tagged.filter { !$0.inRange }
+        return clusters(of: inRange) + clusters(of: outOfRange)
+    }
+
+    /// Cluster one partition within ~5% of the visible latitude span, like the
+    /// detail map. Unlike the detail map, the crop map adds a small floor to the
+    /// threshold so that even fully zoomed in, coincident markers still coalesce
+    /// into one bubble rather than overlapping as separate glyphs.
+    private func clusters(of partition: [MarkerPoint]) -> [Cluster] {
+        let threshold = max(latitudeSpan * 0.05, 0.00005)
+        let groups = GeoClustering.cluster(partition.map(\.geo), thresholdDegrees: threshold)
+        return groups.map { indices in
+            let members = indices.map { partition[$0] }
+            // Centroid of the members so the bubble sits at their visual centre
+            // (matching the detail map), not on an arbitrary member.
+            let lat = members.map(\.geo.latitude).reduce(0, +) / Double(members.count)
+            let lon = members.map(\.geo.longitude).reduce(0, +) / Double(members.count)
+            return Cluster(
+                id: members.map(\.id).joined(separator: "+"),
+                coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon),
+                members: members
+            )
+        }
+    }
+
+    // MARK: - Annotation views
+
+    @ViewBuilder
+    private func clusterView(_ cluster: Cluster) -> some View {
+        if cluster.count > 1 {
+            countBubble(count: cluster.count, inRange: cluster.inRange)
+        } else {
+            markerView(cluster.emoji, inRange: cluster.inRange)
+        }
+    }
+
+    /// A numbered count bubble for a multi-marker cluster. In-range clusters use
+    /// the normal filled look; out-of-range clusters use the greyed/desaturated
+    /// look (reduced opacity, no material) — consistent with a single dropped marker.
+    @ViewBuilder
+    private func countBubble(count: Int, inRange: Bool) -> some View {
+        if inRange {
+            ZStack {
+                Circle().fill(.orange)
+                Text("\(count)")
+                    .font(.caption2).bold()
+                    .foregroundStyle(.white)
+            }
+            .frame(width: 30, height: 30)
+            .shadow(radius: 1)
+        } else {
+            ZStack {
+                Circle().fill(.gray)
+                Text("\(count)")
+                    .font(.caption2).bold()
+                    .foregroundStyle(.white)
+            }
+            .frame(width: 30, height: 30)
+            .grayscale(1)
+            .opacity(0.4)
         }
     }
 
