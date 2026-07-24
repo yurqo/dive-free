@@ -20,8 +20,13 @@ struct WatchSessionMapView: View {
         self.interactive = interactive
         func inRange(_ time: Date) -> Bool { range.map { $0.contains(time) } ?? true }
 
-        let path = session.effectiveTrack
-            .filter { inRange($0.timestamp) }
+        // Douglas–Peucker only the *drawn* polyline (a few metres of tolerance):
+        // cheaper, smoother-looking rendering on the small screen. Distance,
+        // markers, and dive anchors keep using the full cleaned track (via
+        // `session`), untouched by this simplification.
+        let drawnTrack = session.effectiveTrack.filter { inRange($0.timestamp) }
+        let path = TrackCleaner
+            .simplify(drawnTrack, toleranceMeters: 3)
             .map { $0.location.coordinate }
         self.surfacePath = path
 
