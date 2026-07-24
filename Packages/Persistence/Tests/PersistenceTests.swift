@@ -345,4 +345,69 @@ struct PersistenceTests {
         #expect(removed.isEmpty)
         #expect(FileManager.default.fileExists(atPath: dir.appendingPathComponent("ref.m4a").path))
     }
+
+    // MARK: - Crop vs. sync resurrection
+
+    @Test("a re-sent original session can't resurrect a cropped record")
+    func cropSurvivesReimport() throws {
+        let store = try DiveStore(inMemory: true)
+        let context = store.container.mainContext
+        let importer = SessionImporter(context: context)
+
+        // Original session: a dive at [10, 80] with surface tails and markers on
+        // both sides of the eventual crop window.
+        let t0 = Date(timeIntervalSince1970: 0)
+        let original = DiveSession(
+            startTime: t0,
+            endTime: t0.addingTimeInterval(600),
+            dives: [
+                Dive(
+                    startTime: t0.addingTimeInterval(60),
+                    endTime: t0.addingTimeInterval(120),
+                    maxDepthMeters: 10,
+                    samples: [DepthSample(timestamp: t0.addingTimeInterval(90), depthMeters: 10)]
+                )
+            ],
+            markers: [
+                EventMarker(timestamp: t0.addingTimeInterval(5), kind: .note),    // pre-crop tail
+                EventMarker(timestamp: t0.addingTimeInterval(90), kind: .note),   // inside the dive
+                EventMarker(timestamp: t0.addingTimeInterval(500), kind: .note),  // post-crop tail
+            ],
+            track: (0...10).map { TrackPoint(timestamp: t0.addingTimeInterval(Double($0) * 60), location: GeoPoint(latitude: 0, longitude: 0)) }
+        )
+        #expect(try importer.importSession(original) == true)
+
+        // Simulate a crop by running the Domain clamp/filter and writing the fields
+        // back onto the stored record (mirrors the iPhone-only applyCrop, which this
+        // Persistence target can't import). Crop to the dive window [60, 120].
+        let stored = try context.fetch(FetchDescriptor<SessionRecord>()).first!
+        let cropRange = t0.addingTimeInterval(60)...t0.addingTimeInterval(120)
+        let result = stored.toDomain().cropped(to: cropRange)
+        stored.startTime = result.session.startTime
+        stored.endTime = result.session.endTime
+        stored.track = result.session.track
+        stored.heartRateSamples = result.session.heartRateSamples
+        stored.temperatureSamples = result.session.temperatureSamples
+        try context.save()
+
+        // Sanity: the crop actually shrank the record and dropped the tail markers.
+        let croppedStart = stored.startTime
+        let croppedEnd = stored.endTime
+        let croppedTrackCount = stored.track.count
+        #expect(croppedStart == t0.addingTimeInterval(60))
+        #expect(croppedEnd == t0.addingTimeInterval(120))
+        #expect(croppedTrackCount < original.track.count)
+        #expect(result.droppedMarkers.count == 2)
+
+        // A late WCSession re-delivery of the ORIGINAL (uncropped) session with the
+        // SAME id must be treated as a duplicate — not resurrect the pre-crop bounds.
+        #expect(try importer.importSession(original) == false)
+
+        let after = try context.fetch(FetchDescriptor<SessionRecord>())
+        #expect(after.count == 1)
+        let survivor = after[0]
+        #expect(survivor.startTime == croppedStart)
+        #expect(survivor.endTime == croppedEnd)
+        #expect(survivor.track.count == croppedTrackCount)
+    }
 }

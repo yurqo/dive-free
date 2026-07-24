@@ -14,7 +14,14 @@ struct SessionDetailView: View {
     }
     @State private var exportStatus: ExportStatus = .idle
     @State private var showFullMap = false
-    @State private var showEdit = false
+
+    /// Drives the single edit/crop sheet. Two separate `.sheet(isPresented:)`
+    /// modifiers on one view can mis-fire in SwiftUI, so both share one `.sheet(item:)`.
+    private enum ActiveSheet: Identifiable {
+        case edit, crop
+        var id: Self { self }
+    }
+    @State private var activeSheet: ActiveSheet?
 
     var body: some View {
         let domain = session.toDomain()
@@ -75,10 +82,23 @@ struct SessionDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .task { reconcileVoiceNotes() }
         .fullScreenCover(isPresented: $showFullMap) { fullMap(domain) }
-        .sheet(isPresented: $showEdit) { SessionEditView(session: session) }
+        .sheet(item: $activeSheet) { sheet in
+            switch sheet {
+            case .edit: SessionEditView(session: session)
+            case .crop: NavigationStack { SessionCropView(session: session) }
+            }
+        }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button("Edit") { showEdit = true }
+                Menu("Edit") {
+                    Button("Edit Details") { activeSheet = .edit }
+                    // A live/mirrored session (no endTime) can't be cropped —
+                    // applyCrop would force-finalize it. Only offer it once the
+                    // session has ended.
+                    if domain.endTime != nil {
+                        Button("Crop Session…") { activeSheet = .crop }
+                    }
+                }
             }
         }
     }
