@@ -280,7 +280,9 @@ struct WatchSessionSummaryView: View {
         }
     }
 
-    private func sectionHeader(_ title: String) -> some View {
+    /// Small caps-style header above a block. `LocalizedStringKey` so the
+    /// call-site literals extract into the String Catalog and localize.
+    private func sectionHeader(_ title: LocalizedStringKey) -> some View {
         HStack {
             Text(title)
                 .font(.caption2)
@@ -302,7 +304,11 @@ struct WatchSessionSummaryView: View {
         .symbolVariant(pending ? .none : .fill)
     }
 
-    private func summaryRow(_ label: String, _ value: String) -> some View {
+    /// A label-left / value-right row. The label is a `LocalizedStringKey` so the
+    /// English literals at each call site auto-extract into the Watch app's String
+    /// Catalog (via `SWIFT_EMIT_LOC_STRINGS`) and localize; a plain `String`
+    /// reaches `Text` through its verbatim initializer and would not.
+    private func summaryRow(_ label: LocalizedStringKey, _ value: String) -> some View {
         HStack {
             Text(label)
                 .font(.caption2)

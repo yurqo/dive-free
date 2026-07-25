@@ -148,7 +148,12 @@ struct WatchSurfaceDetailView: View {
 }
 
 /// A label-left / value-right stat row, matching the session summary's table.
-private func statRow(_ label: String, _ value: String) -> some View {
+///
+/// The label is a `LocalizedStringKey` so the English literals at each call site
+/// auto-extract into the Watch app's String Catalog (via `SWIFT_EMIT_LOC_STRINGS`)
+/// and localize; a plain `String` reaches `Text` through its verbatim initializer
+/// and would not. The value is a preformatted figure — never translated.
+private func statRow(_ label: LocalizedStringKey, _ value: String) -> some View {
     HStack {
         Text(label)
             .font(.caption2)
@@ -163,7 +168,9 @@ private func statRow(_ label: String, _ value: String) -> some View {
 }
 
 /// Stacked value-over-label metric used by the watch segment detail screens.
-private func segmentMetric(_ label: String, _ value: String) -> some View {
+/// Label localizes via `LocalizedStringKey` (see `statRow` above); the value is a
+/// preformatted figure.
+private func segmentMetric(_ label: LocalizedStringKey, _ value: String) -> some View {
     VStack(spacing: 1) {
         Text(value)
             .font(.headline)

@@ -93,9 +93,11 @@ struct SessionEditView: View {
 
     /// A units-aware temperature entry row: shown/entered in the display unit,
     /// stored in °C. The field uses a free-text buffer so partial input isn't
-    /// reverted; empty or unparseable clears the stored value.
+    /// reverted; empty or unparseable clears the stored value. The title is a
+    /// `LocalizedStringKey` so the call-site literals extract into the String
+    /// Catalog and localize (a plain `String` would not).
     private func tempRow(
-        _ title: String,
+        _ title: LocalizedStringKey,
         text: Binding<String>,
         into keyPath: WritableKeyPath<DiveConditions, Double?>
     ) -> some View {

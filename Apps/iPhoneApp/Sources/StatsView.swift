@@ -151,7 +151,10 @@ struct StatsView: View {
                         Image(systemName: badge.icon)
                             .font(.title2)
                             .foregroundStyle(badge.unlocked ? AnyShapeStyle(.teal) : AnyShapeStyle(.secondary))
-                        Text(badge.name)
+                        // Verbatim by design: badge names are assembled at
+                        // runtime (some carry a count, e.g. "Coffee ×3"), so they
+                        // are not catalog keys — see `badges(_:)`.
+                        Text(verbatim: badge.name)
                             .font(.caption2)
                             .multilineTextAlignment(.center)
                     }
@@ -189,7 +192,12 @@ struct StatsView: View {
         return badges
     }
 
-    private func statRow(_ label: String, _ value: String) -> some View {
+    /// The label is a `LocalizedStringKey` so the English literals at each
+    /// `statRow("…", …)` call site auto-extract into the String Catalog (via
+    /// `SWIFT_EMIT_LOC_STRINGS`) and localize; a plain `String` would bind
+    /// `LabeledContent`'s verbatim `StringProtocol` initializer and always render
+    /// in English. The value is a preformatted figure — never translated.
+    private func statRow(_ label: LocalizedStringKey, _ value: String) -> some View {
         LabeledContent(label, value: value).monospacedDigit()
     }
 }

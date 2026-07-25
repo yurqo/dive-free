@@ -85,7 +85,11 @@ private struct LockScreenView: View {
         .foregroundStyle(isStale ? .secondary : .primary)
     }
 
-    private func metric(_ label: String, @ViewBuilder value: () -> some View) -> some View {
+    /// The label is a `LocalizedStringKey` so the literals at each `metric("…")`
+    /// call site extract into the widget extension's String Catalog and localize;
+    /// a plain `String` reaches `Text` through its verbatim initializer and would
+    /// always render in English.
+    private func metric(_ label: LocalizedStringKey, @ViewBuilder value: () -> some View) -> some View {
         VStack(alignment: .leading, spacing: 1) {
             Text(label).font(.caption2).foregroundStyle(.secondary)
             value().font(.callout.weight(.semibold))
