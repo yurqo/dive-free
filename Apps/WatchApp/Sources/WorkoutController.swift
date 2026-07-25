@@ -179,6 +179,17 @@ final class WorkoutController: NSObject {
         }
     }
     #endif
+
+    #if DEBUG
+    /// Publishes a fixed heart rate for SCREENSHOT CAPTURE ONLY (see
+    /// `WatchScreenshotMode`). The screenshot run never starts a workout — a
+    /// HealthKit permission sheet would cover the screen being photographed — so
+    /// without this the live screen's HR slot renders "--" instead of a number.
+    /// Absent from Release builds.
+    func setScreenshotHeartRate(_ bpm: Int) {
+        currentHeartRate = bpm
+    }
+    #endif
 }
 
 // MARK: - HKWorkoutSessionDelegate

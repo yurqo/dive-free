@@ -11,6 +11,40 @@ xcode-select --install
 
 For _fastlane_ installation instructions, see [Installing _fastlane_](https://docs.fastlane.tools/#installing-fastlane)
 
+# Screenshots
+
+The images the lanes below upload are produced by `Scripts/screenshots.sh`, which
+writes `screenshots/<locale>/<device>/NN-slug.png` for all 8 locales and is the
+single entry point for **two** pipelines:
+
+```sh
+Scripts/screenshots.sh            # both
+Scripts/screenshots.sh --ios      # iPhone + iPad only
+Scripts/screenshots.sh --watch    # Apple Watch only
+```
+
+- **iOS** (`iPhone 17 Pro Max`, `iPad Pro 13-inch (M5)`) — an XCUITest
+  (`ScreenshotTests`) walks the app and attaches the captures; the script exports
+  them from the xcresult, so each device dir also holds a `manifest.json` mapping
+  the exported UUID filenames back to `NN-slug` names.
+- **Apple Watch** (`Apple Watch Ultra 3 (49mm)`, captured at 422×514 = App Store
+  Connect's `APP_WATCH_ULTRA`) — there is no XCTest on watchOS, so there is no UI
+  automation to drive: the app is installed with `simctl` and launched once per
+  screen with `--screenshot-demo --screenshot-screen <NN-slug>` (see
+  `WatchScreenshotMode`), then photographed with `simctl io … screenshot`. These
+  files are written under their final names and have **no** `manifest.json` —
+  `readable_name_for` falls through to the filename, which is already correct.
+
+Both pipelines verify that the requested language actually applied by asking the
+app for its *resolved* localization and failing the run on a mismatch, and both
+are covered by the cross-locale byte-identical check. Nothing reaches the lanes
+below unless `Scripts/screenshots.sh` exits 0.
+
+`stage_screenshots` flattens whatever is on disk into
+`fastlane/screenshots/<asc-locale>/<device>-<NN-slug>.png` and `deliver` picks the
+App Store display type from each image's dimensions, so adding a device is a
+matter of capturing it — no lane changes.
+
 # Available Actions
 
 Recommended order when refreshing the App Store listing:
