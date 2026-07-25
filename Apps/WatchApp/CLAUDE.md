@@ -6,6 +6,16 @@ Call order: `start()` → `workout` auth/start → `sessionManager.startSession(
 
 `DiveFreeWatchApp` owns the `DiveStore` and passes its `mainContext` into `SessionCoordinator`. The watch now persists sessions locally **and** sends them to the phone.
 
+## Screenshot mode (DEBUG only)
+
+`WatchScreenshotMode` boots the app into ONE screen for App Store capture:
+`--screenshot-demo --screenshot-screen <NN-slug>` → in-memory store seeded with
+`DemoData` (Persistence, shared with the iPhone screenshots) and, for `01-live`, a
+`SessionManager` fed by a scripted depth profile so the live screen renders without
+HealthKit or a submersion sensor. There is no XCTest on watchOS, so this is how
+`Scripts/screenshots.sh --watch` drives the app — it cannot tap anything. Adding a
+screen means adding a `Screen` case AND the matching `WATCH_SCREENS` entry.
+
 ## Underwater interaction model
 
 Water Lock disables the touchscreen mid-dive, so the active-session UI is driven entirely by the **Digital Crown** and the **Action button** — no taps required.

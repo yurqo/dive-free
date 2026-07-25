@@ -67,7 +67,8 @@ struct DiveFreeApp: App {
         #if DEBUG
         // Screenshot automation: when launched with `--screenshot-demo`, bypass
         // the CloudKit/local store entirely and use a fresh in-memory store seeded
-        // with deterministic demo content (see `DemoData`). Gated on `#if DEBUG`
+        // with deterministic demo content (`DemoData`, in the Persistence package
+        // so the watch screenshots seed from the same fixtures). Gated on `#if DEBUG`
         // AND the explicit argument, so this path — and the seeding code — is
         // completely absent from Release builds (the App Store binary never
         // contains it). Short-circuits BEFORE any CloudKit setup below.

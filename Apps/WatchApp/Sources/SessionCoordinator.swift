@@ -522,9 +522,14 @@ final class SessionCoordinator {
     /// True while a surface voice note is recording. Drives the carousel selector.
     var isRecordingVoiceNote: Bool { audioRecorder.isRecording }
 
-    init(modelContext: ModelContext) {
+    /// - Parameter sessionManager: normally left `nil` so the coordinator builds
+    ///   its own against the real sensors. Injected only by the DEBUG screenshot
+    ///   mode, which supplies a manager wired to a scripted depth/location feed
+    ///   (see `WatchScreenshotMode`) so a live session can be rendered in the
+    ///   simulator without HealthKit, CoreLocation or the submersion sensor.
+    init(modelContext: ModelContext, sessionManager injected: SessionManager? = nil) {
         self.modelContext = modelContext
-        sessionManager = SessionManager(modelContext: modelContext)
+        sessionManager = injected ?? SessionManager(modelContext: modelContext)
         sessionManager.onHapticEvent = { [weak self] event in
             DiveHapticPlayer.play(event)
             DiveTonePlayer.play(for: event)
@@ -753,6 +758,38 @@ final class SessionCoordinator {
             state = .idle
         }
     }
+
+    #if DEBUG
+    /// Starts a live session for SCREENSHOT CAPTURE ONLY — never reachable in a
+    /// shipping build (`#if DEBUG` + the `--screenshot-demo` launch flag gate the
+    /// only caller, `WatchScreenshotMode`).
+    ///
+    /// It is `start()` minus everything that would need a real watch on a real
+    /// wrist: no HealthKit (`requestAuthorization()` puts a permission sheet over
+    /// the screen we are trying to photograph, and `HKWorkoutSession` does not run
+    /// in the simulator), no phone mirroring (`startLiveSync`, nothing to mirror
+    /// to). The session itself is genuine: the injected `SessionManager` streams a
+    /// scripted depth profile through the real `DiveDetector`, so the captured
+    /// screen is the real live UI reacting to a real detected dive.
+    ///
+    /// `markers` are placed `markersAfter` into the session, not at t=0: `addMarker`
+    /// is a no-op while idle, and the live screen's counter is
+    /// `currentDiveMarkerCount` — markers placed *before* the descent crosses the
+    /// surface threshold belong to no dive and show as "0". A few seconds in, the
+    /// dive has started and the count reads the way a diver's would.
+    func startScreenshotSession(markers: [MarkerKind] = [], markersAfter delay: Duration = .seconds(6)) async {
+        guard case .idle = state else { return }
+        sessionManager.setDetectionConfig(storedDetectionConfig.sanitized())
+        try? await sessionManager.startSession()
+        interaction = SessionInteraction(
+            kinds: EventKind.builtInMarkerKinds + customKinds, defaultMarkerID: defaultMarkerKindID
+        )
+        state = .active(start: sessionManager.startTime ?? Date())
+        guard !markers.isEmpty else { return }
+        try? await Task.sleep(for: delay)
+        for kind in markers { sessionManager.addMarker(kind: kind) }
+    }
+    #endif
 
     /// Ends the workout, stops the capture loop, persists locally, and queues
     /// the session for delivery to the paired iPhone.

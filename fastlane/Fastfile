@@ -270,11 +270,13 @@ def wait_before_purge_retry(attempt)
   sleep(delay)
 end
 
-# The screenshot files are exported with random UUID names (xcresulttool), but
+# The iOS screenshot files are exported with random UUID names (xcresulttool), but
 # the accompanying manifest.json records a human-readable name like
 # "01-dives_0_....png". We use that "NN-slug" prefix so deliver uploads the
 # screenshots in the intended order (deliver sorts alphabetically per locale).
-# Falls back to the raw filename when no manifest entry exists.
+# Falls back to the raw filename when no manifest entry exists — which is the
+# normal case for the WATCH captures: `simctl io … screenshot` writes to a path we
+# choose, so those files are already named "01-live.png" and carry no manifest.
 def readable_name_for(device_dir, png_basename)
   manifest = File.join(device_dir, "manifest.json")
   return png_basename unless File.exist?(manifest)
@@ -294,7 +296,7 @@ rescue JSON::ParserError
 end
 
 # Stage repo screenshots into the flat per-locale layout deliver expects.
-# Reads  screenshots/<short>/<device>/*.png (+ manifest.json)
+# Reads  screenshots/<short>/<device>/*.png (+ manifest.json on the iOS dirs)
 # Writes fastlane/screenshots/<asc-locale>/<device>-<NN-slug>.png
 # deliver detects the device from image dimensions; the device prefix + the
 # NN- ordering prefix keep the display order stable. Recreated fresh on every run.
