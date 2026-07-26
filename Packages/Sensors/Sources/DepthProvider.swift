@@ -41,13 +41,21 @@ public struct MockDepthProvider: DepthProvider {
     public var interval: Double
     /// One full descent/ascent profile (meters), looped.
     public var profile: [Double]
+    /// When set, the temperature stream emits this exact value forever instead of
+    /// the default 18–22 °C sine. Screenshot capture uses it so the water-temp
+    /// readout is byte-deterministic across runs (a varying pixel would make two
+    /// captures of the same screen differ for reasons unrelated to language — see
+    /// `Scripts/screenshots.sh`). `nil` keeps the lively sine for previews/dev.
+    public var fixedTemperatureCelsius: Double?
 
     public init(
         interval: Double = 0.5,
-        profile: [Double] = MockDepthProvider.defaultProfile
+        profile: [Double] = MockDepthProvider.defaultProfile,
+        fixedTemperatureCelsius: Double? = nil
     ) {
         self.interval = interval
         self.profile = profile
+        self.fixedTemperatureCelsius = fixedTemperatureCelsius
     }
 
     /// A smooth 0 → 9 m → 0 descent/ascent at 0.25 m per sample — 0.5 m/s at the
@@ -87,12 +95,15 @@ public struct MockDepthProvider: DepthProvider {
 
     public func temperatureStream() -> AsyncStream<TemperatureSample> {
         let interval = interval
+        let fixed = fixedTemperatureCelsius
         return AsyncStream { continuation in
             let task = Task {
                 var tick = 0
                 while !Task.isCancelled {
-                    // Gentle synthetic ~18–22 °C profile for previews/simulator.
-                    continuation.yield(TemperatureSample(timestamp: Date(), celsius: 20 + 2 * sin(Double(tick) / 8)))
+                    // Fixed value for screenshots (deterministic); otherwise a
+                    // gentle synthetic ~18–22 °C profile for previews/simulator.
+                    let celsius = fixed ?? (20 + 2 * sin(Double(tick) / 8))
+                    continuation.yield(TemperatureSample(timestamp: Date(), celsius: celsius))
                     tick += 1
                     try? await Task.sleep(for: .seconds(interval))
                 }

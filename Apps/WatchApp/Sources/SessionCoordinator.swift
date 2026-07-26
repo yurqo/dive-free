@@ -777,17 +777,33 @@ final class SessionCoordinator {
     /// `currentDiveMarkerCount` — markers placed *before* the descent crosses the
     /// surface threshold belong to no dive and show as "0". A few seconds in, the
     /// dive has started and the count reads the way a diver's would.
-    func startScreenshotSession(markers: [MarkerKind] = [], markersAfter delay: Duration = .seconds(6)) async {
-        guard case .idle = state else { return }
+    ///
+    /// Returns `true` only once the session is genuinely `.active`. The caller
+    /// (`WatchScreenshotRootView`) gates its "screen ready" handshake on this, so a
+    /// thrown `startSession()` (returns `false`) means the ready marker is never
+    /// written and `Scripts/screenshots.sh` fails the capture rather than
+    /// photographing the idle Start screen `WatchRootView` shows while `.idle`. The
+    /// throw is therefore NOT swallowed into a silent `.idle`.
+    @discardableResult
+    func startScreenshotSession(markers: [MarkerKind] = [], markersAfter delay: Duration = .seconds(6)) async -> Bool {
+        guard case .idle = state else { return false }
         sessionManager.setDetectionConfig(storedDetectionConfig.sanitized())
-        try? await sessionManager.startSession()
+        do {
+            try await sessionManager.startSession()
+        } catch {
+            state = .idle
+            return false
+        }
         interaction = SessionInteraction(
             kinds: EventKind.builtInMarkerKinds + customKinds, defaultMarkerID: defaultMarkerKindID
         )
         state = .active(start: sessionManager.startTime ?? Date())
-        guard !markers.isEmpty else { return }
-        try? await Task.sleep(for: delay)
-        for kind in markers { sessionManager.addMarker(kind: kind) }
+        if !markers.isEmpty {
+            try? await Task.sleep(for: delay)
+            for kind in markers { sessionManager.addMarker(kind: kind) }
+        }
+        if case .active = state { return true }
+        return false
     }
     #endif
 

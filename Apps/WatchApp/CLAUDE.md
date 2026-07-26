@@ -4,7 +4,7 @@
 
 Call order: `start()` → `workout` auth/start → `sessionManager.startSession()`. `stop()` → `workout.end()` → `sessionManager.stopSession()` (persists to SwiftData) → `sync.send()`.
 
-`DiveFreeWatchApp` owns the `DiveStore` and passes its `mainContext` into `SessionCoordinator`. The watch now persists sessions locally **and** sends them to the phone.
+`DiveFreeWatchApp` builds the `ModelContainer` (via `DiveStore`) and passes its `mainContext` into `SessionCoordinator`. The watch persists sessions locally **and** sends them to the phone.
 
 ## Screenshot mode (DEBUG only)
 

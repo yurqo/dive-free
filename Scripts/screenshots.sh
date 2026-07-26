@@ -47,8 +47,8 @@
 # uk_UA` — because there is no xctestrun in the way. Same mechanism the iOS test
 # ends up using, one link shorter.
 #
-# Because a silent regression here is so expensive, it is verified twice on BOTH
-# paths:
+# Because a silent regression here is so expensive, the language is checked two
+# ways — though the SECOND net differs by platform (see below):
 #   1. DIRECTLY, and this is the one that matters — the app publishes its RESOLVED
 #      localization (`Bundle.main.preferredLocalizations.first`, DEBUG +
 #      `--screenshot-demo` only) and the run fails unless it matches what was
@@ -58,11 +58,22 @@
 #      back with `simctl get_app_container` — fail-closed: a missing or unreadable
 #      file is a failure, and the file is deleted before every launch so a stale one
 #      cannot vouch for the next locale. Either way a failed locale lands in
-#      `failed` below, which forces `exit 1`.
-#   2. Indirectly, as a backstop — a cross-locale md5 check over the captured PNGs
-#      (see `check_locales_differ`). Kept, but never trusted on its own: image
-#      diffs are defeated by rendering noise, and on the wrong-language run a few
-#      jittering map-thumbnail pixels were enough to clear every `en` pair.
+#      `failed` below, which forces `exit 1`. This is the PRIMARY net on both paths,
+#      and on the watch it is the SOLE net for the `01-live` screen (see 2b).
+#   2. Indirectly, as a backstop — a cross-locale md5 check. Kept, but never trusted
+#      on its own: image diffs are defeated by rendering noise, and on the
+#      wrong-language run a few jittering map-thumbnail pixels were enough to clear
+#      every `en` pair. It comes in two flavours because the platforms differ:
+#      2a. iOS — a WHOLE-image compare (`check_locales_differ`). The simulator clock
+#          is pinned to 9:41 (`simctl status_bar override`), so the only per-locale
+#          difference is the localized text; identical bytes ⇒ language not applied.
+#      2b. watch — `simctl status_bar override` is REJECTED on watchOS, so the OS
+#          clock is baked into every capture and no two watch PNGs are ever
+#          byte-identical. A whole-image compare would therefore be vacuous. So the
+#          watch backstop (`check_watch_locales_differ`) compares a status-bar-
+#          CROPPED region instead, and skips `01-live` entirely (its dive clock
+#          ticks every second, so even the crop is never stable) — that screen rests
+#          on net 1 alone.
 #
 # Prerequisites:
 #   - `tuist generate` has been run (DiveFree.xcworkspace + the ScreenshotTests /
@@ -116,21 +127,36 @@ WATCH_DEVICES=(
 
 # The watch screens to capture, as `NN-slug:dwell-seconds`. The slug is BOTH the
 # `--screenshot-screen` argument and the output filename, and must match a case in
-# `WatchScreenshotMode.Screen`; the dwell is how long to let the screen settle
-# before the shot.
+# `WatchScreenshotMode.Screen` (an unknown slug is a hard error there, not a
+# fallback). Keep this list in step with that enum.
 #
-# `01-live` dwells far longer than the rest on purpose: it is a real, running
-# session (a scripted depth feed through the real dive detector), and the dwell IS
-# the dive clock on screen — ~24 s produces a plausible "0:2x" freedive rather than
-# a "0:03" that would read as a mistake. The others are static; they only need
-# enough time to lay out and draw their charts.
+# The dwell is a POST-READY settle: capture waits for the app to confirm the screen
+# rendered (see `wait_watch_ready`) and only then sleeps `dwell` before shooting —
+# so this is no longer load-bearing for correctness, only for polish. `01-live`
+# gets the longest one because the dwell is the dive clock advancing on screen: the
+# app places its markers ~6 s in (when the marker becomes ready), then this settle
+# carries the clock to a plausible mid-dive "0:2x" rather than a just-started
+# "0:0x". The static screens only need a moment for charts to finish drawing.
 WATCH_SCREENS=(
-    "01-live:24"
-    "02-summary:8"
-    "03-profile:8"
-    "04-sessions:8"
-    "05-start:6"
+    "01-live:14"
+    "02-summary:3"
+    "03-profile:3"
+    "04-sessions:3"
+    "05-start:2"
 )
+
+# Screens EXCLUDED from the watch cross-locale byte check (see
+# `check_watch_locales_differ`). `01-live` is a running session whose central dive
+# clock ticks every second, so even a status-bar-cropped comparison can never be
+# byte-stable across two captures — its language is covered by
+# `verify_watch_language` alone. The four static screens ARE byte-checked.
+WATCH_BYTE_EXCLUDE=("01-live")
+
+# Pixels cropped off the TOP and BOTTOM of each watch capture before the
+# cross-locale byte comparison, to drop the volatile OS clock (top) and page dots
+# (bottom). 64 clears the ~55 px clock band with margin on the 514 px-tall Ultra;
+# it only affects the comparison crop, never the shipped full-size PNG.
+WATCH_CROP_STRIP_PX=64
 
 # Which pipelines to run. Both by default; `--ios` / `--watch` narrow it.
 RUN_IOS=1
@@ -510,6 +536,80 @@ clear_watch_language() {
     rm -f "$file"
 }
 
+# Path of the "screen ready" marker the app writes once the intended screen has
+# actually rendered with its data (see `WatchScreenshotMode.publishScreenReady`).
+watch_ready_file() {
+    local udid="$1"
+    local container
+    container=$(xcrun simctl get_app_container "$udid" "$WATCH_BUNDLE_ID" data 2>/dev/null) || return 1
+    [ -n "$container" ] || return 1
+    echo "$container/Documents/screenshot-ready.txt"
+}
+
+# Remove the ready marker before a launch, so a marker left by the PREVIOUS
+# capture can never be mistaken for this one having rendered.
+clear_watch_ready() {
+    local file
+    file=$(watch_ready_file "$1") || return 0
+    rm -f "$file"
+}
+
+# Poll until the app announces the EXPECTED screen is rendered and populated, or
+# fail after `timeout` seconds. This is the fail-closed replacement for a blind
+# `sleep`: a screen that stalls, throws on start, or renders the wrong view never
+# writes its marker (or writes a different slug), so we time out and fail the
+# capture instead of photographing whatever happened to be on screen. Matching the
+# slug also catches a screen that rendered the wrong content under the right name.
+wait_watch_ready() {
+    local udid="$1" screen="$2" timeout="${3:-40}"
+    local file waited=0 got
+    file=$(watch_ready_file "$udid") || {
+        echo "       !! could not resolve the app data container — cannot confirm the screen rendered" >&2
+        return 1
+    }
+    while [ "$waited" -lt "$timeout" ]; do
+        if [ -s "$file" ]; then
+            got=$(/usr/bin/tr -d '[:space:]' < "$file")
+            [ "$got" = "$screen" ] && return 0
+        fi
+        sleep 1
+        waited=$((waited + 1))
+    done
+    echo "       !! $screen never signalled ready within ${timeout}s (marker: $(cat "$file" 2>/dev/null || echo none))." >&2
+    echo "          Refusing to capture: the app did not confirm the intended screen rendered" >&2
+    echo "          with its data (a start failure, a stall, or a wrong/renamed slug)." >&2
+    return 1
+}
+
+# Fail unless a PNG is RGB with no alpha channel. Every screenshot App Store
+# Connect has accepted is RGB; an RGBA image is rejected server-side, and because
+# the upload runs `overwrite_screenshots: true` a rejection can leave the listing
+# with the old set deleted and the new one failed. We capture with `--mask=black`
+# (which flattens the rounded-corner mask to opaque black, yielding RGB), and this
+# asserts that actually happened rather than trusting the flag. Reads the PNG IHDR
+# colour-type byte directly — no image library — where 2/0 are alpha-free
+# (truecolour / greyscale) and 4/6 carry alpha; a `tRNS` chunk anywhere also
+# counts as alpha.
+assert_no_alpha() {
+    local png="$1"
+    /usr/bin/python3 - "$png" <<'PY'
+import sys, struct
+path = sys.argv[1]
+with open(path, "rb") as handle:
+    data = handle.read()
+if data[:8] != b"\x89PNG\r\n\x1a\n":
+    sys.exit("not a PNG: %s" % path)
+# IHDR is the first chunk: 8-byte signature, 4-byte length, "IHDR", then
+# width(4) height(4) bitdepth(1) colortype(1)…
+color_type = data[25]
+if color_type in (4, 6):
+    sys.exit("%s has an alpha channel (PNG colour type %d)" % (path, color_type))
+# A palette or truecolour image can still carry transparency via a tRNS chunk.
+if b"tRNS" in data:
+    sys.exit("%s carries a tRNS transparency chunk" % path)
+PY
+}
+
 # THE check for the watch path: fail unless the app resolved the language we asked
 # for. Fail-closed — an unreadable container, a missing file, or an empty file all
 # count as failures, because "we could not tell" must never read as "it is fine".
@@ -550,21 +650,30 @@ verify_watch_language() {
     return 0
 }
 
-# Launch one screen, let it settle, verify the language, photograph it.
-# Prints its own progress; returns non-zero if anything went wrong (the caller
-# counts that as a failed combination, which forces `exit 1`).
+# Launch one screen, wait for it to CONFIRM it rendered, verify the language,
+# photograph it as RGB. Prints its own progress; returns non-zero if anything went
+# wrong (the caller counts that as a failed combination, which forces `exit 1`).
 capture_watch_screen() {
     local udid="$1" screen="$2" dwell="$3" lang="$4" app_locale="$5" dest="$6"
 
-    # Start from a clean slate: no previous instance, no previous locale's probe.
+    # Start from a clean slate: kill any previous instance and give the OS a moment
+    # to tear it down. On a first install→terminate→launch, launching too soon
+    # returned a PID for a process that came up with NO launch arguments applied
+    # (English Start screen, no probe) — the settle plus --terminate-running-process
+    # below close that race.
     xcrun simctl terminate "$udid" "$WATCH_BUNDLE_ID" >/dev/null 2>&1 || true
+    sleep 1
+    # Drop both markers so neither a previous locale's language probe nor a previous
+    # screen's ready marker can vouch for this launch.
     clear_watch_language "$udid"
+    clear_watch_ready "$udid"
 
     # The launch arguments are the whole mechanism: `--screenshot-demo` +
     # `--screenshot-screen` pick the seeded store and the screen (see
     # `WatchScreenshotMode`), `-AppleLanguages`/`-AppleLocale` land in the app's
     # NSArgumentDomain and localize it — the same override fastlane's `snapshot`
-    # uses, and the same one the iOS test applies.
+    # uses, and the same one the iOS test applies. `--terminate-running-process`
+    # guarantees a fresh process even if the terminate above has not fully landed.
     #
     # ARGUMENT ORDER IS LORE, NOT STYLE: the `-Apple…` pair must come FIRST. With
     # `--screenshot-demo` immediately after the bundle id, `simctl` treats it as one
@@ -572,21 +681,30 @@ capture_watch_screen() {
     # then launches with no demo store and no language override, and prints a PID as
     # if all was well. That is a wrong-language screenshot with a zero exit code, so
     # the single-dash arguments lead and the double-dash ones trail.
-    if ! xcrun simctl launch "$udid" "$WATCH_BUNDLE_ID" \
+    if ! xcrun simctl launch --terminate-running-process "$udid" "$WATCH_BUNDLE_ID" \
         -AppleLanguages "($lang)" -AppleLocale "$app_locale" \
         --screenshot-demo --screenshot-screen "$screen" >/dev/null 2>&1; then
         echo "       !! simctl launch failed for $screen" >&2
         return 1
     fi
 
-    # Let the screen render. For `01-live` the dwell is also the dive clock the
-    # capture shows (see WATCH_SCREENS).
+    # Fail closed: wait for the app to confirm THIS screen rendered with its data,
+    # rather than blindly sleeping and photographing whatever is up.
+    wait_watch_ready "$udid" "$screen" || return 1
+
+    # Post-ready settle. For `01-live` this is also the dive clock advancing to a
+    # plausible mid-dive value; for the static screens it lets charts finish drawing.
     sleep "$dwell"
 
     verify_watch_language "$udid" "$lang" || return 1
 
-    if ! xcrun simctl io "$udid" screenshot "$dest/$screen.png" >/dev/null 2>&1; then
+    # `--mask=black` yields an RGB (alpha-free) PNG; `assert_no_alpha` proves it.
+    if ! xcrun simctl io "$udid" screenshot --mask=black "$dest/$screen.png" >/dev/null 2>&1; then
         echo "       !! simctl io screenshot failed for $screen" >&2
+        return 1
+    fi
+    if ! assert_no_alpha "$dest/$screen.png"; then
+        echo "       !! $screen.png is not alpha-free — App Store Connect would reject it" >&2
         return 1
     fi
     xcrun simctl terminate "$udid" "$WATCH_BUNDLE_ID" >/dev/null 2>&1 || true
@@ -825,6 +943,112 @@ print("==> Cross-locale sanity check passed (%d screen comparisons, none identic
 ' "$@"
 }
 
+# The watch equivalent of `check_locales_differ`, for ONE watch device — but on a
+# CROP of each capture rather than the whole PNG.
+#
+# WHY it cannot be the whole PNG: watchOS draws its own clock into every
+# screenshot and `simctl status_bar override` is rejected on watchOS (unlike iOS,
+# where the clock is pinned to 9:41), so the wall clock changes minute to minute
+# and no two watch captures are ever byte-identical. A whole-image comparison
+# therefore can NEVER fire — it would "pass" without ever detecting a
+# language-not-applied set, the exact vacuous check this guards against. Cropping
+# the volatile top/bottom bands (the clock, and the page-indicator dots) away
+# leaves a deterministic, localized middle: if two locales rendered the SAME
+# language their crops are byte-identical and this fires.
+#
+# `01-live` is deliberately NOT byte-checked here (it is passed in the exclude
+# list): it is a running session whose central dive clock ticks every second, so
+# even its crop differs between two captures of the same locale. Its language is
+# covered by `verify_watch_language` alone — the primary, fail-closed net that all
+# five screens rely on regardless.
+#
+# Usage: check_watch_locales_differ <root> <device> <strip_px> <locale>… -- <slug>…
+check_watch_locales_differ() {
+    /usr/bin/python3 -c '
+import hashlib, os, struct, subprocess, sys, tempfile
+
+root, device, strip = sys.argv[1], sys.argv[2], int(sys.argv[3])
+rest = sys.argv[4:]
+separator = rest.index("--")
+locales, slugs = rest[:separator], rest[separator + 1:]
+
+def png_size(path):
+    with open(path, "rb") as handle:
+        head = handle.read(24)
+    if head[:8] != b"\x89PNG\r\n\x1a\n":
+        raise ValueError("%s is not a PNG" % path)
+    width, height = struct.unpack(">II", head[16:24])
+    return width, height
+
+def cropped_digest(path, tmpdir):
+    """md5 of `path` with `strip` px removed from top AND bottom.
+
+    sips centred crop only (its --cropOffset is a no-op on this toolchain), so
+    cropping to height-2*strip drops the clock at the top and the page dots at the
+    bottom symmetrically — both volatile — while keeping the localized middle.
+    """
+    width, height = png_size(path)
+    crop_h = max(1, height - 2 * strip)
+    out = os.path.join(tmpdir, "crop.png")
+    subprocess.run(
+        ["sips", "-c", str(crop_h), str(width), path, "--out", out],
+        check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
+    with open(out, "rb") as handle:
+        return hashlib.md5(handle.read()).hexdigest()
+
+problems = []
+compared = 0
+with tempfile.TemporaryDirectory() as tmpdir:
+    for slug in slugs:
+        per_locale = {}
+        for locale in locales:
+            path = os.path.join(root, locale, device, slug + ".png")
+            if not os.path.isfile(path):
+                problems.append(
+                    "    !! %s: missing for locale %s — that capture did not "
+                    "complete, so it was never verified" % (path, locale)
+                )
+                continue
+            try:
+                per_locale[locale] = cropped_digest(path, tmpdir)
+            except Exception as error:  # noqa: BLE001 — any failure is fatal here
+                problems.append("    !! %s: could not crop/hash — %s" % (path, error))
+
+        present = [locale for locale in locales if locale in per_locale]
+        if len(present) < 2:
+            problems.append(
+                "    !! %s %s: only %d locale(s) comparable — concluded nothing"
+                % (device, slug, len(present))
+            )
+        for i, left in enumerate(present):
+            for right in present[i + 1:]:
+                compared += 1
+                if per_locale[left] == per_locale[right]:
+                    problems.append(
+                        "    !! %s: locales %s and %s produced byte-identical %s "
+                        "(status-bar cropped) — the language override is not being "
+                        "applied to that screen." % (device, left, right, slug)
+                    )
+
+if not compared:
+    problems.append("    !! nothing was compared at all — the check reached no conclusion")
+
+if problems:
+    print("==> Watch cross-locale sanity check FAILED", file=sys.stderr)
+    for problem in problems:
+        print(problem, file=sys.stderr)
+    print("", file=sys.stderr)
+    print("    Do NOT upload these. The watch language arrives as", file=sys.stderr)
+    print("    -AppleLanguages/-AppleLocale launch arguments on `simctl launch`", file=sys.stderr)
+    print("    (see capture_watch_screen); verify_watch_language is the primary net.", file=sys.stderr)
+    sys.exit(1)
+
+print("==> Watch cross-locale sanity check passed (%d cropped comparisons across %s, "
+      "none identical)" % (compared, device))
+' "$@"
+}
+
 # ---------------------------------------------------------------------------
 # Main.
 # ---------------------------------------------------------------------------
@@ -1058,15 +1282,44 @@ done
 # Backstop only — the run has already refused to capture any locale whose app did
 # not resolve the requested language (`assertRequestedLanguageApplied` in
 # ScreenshotTests on iOS, `verify_watch_language` on the watch). This re-checks the
-# captured bytes, and also hard-fails on images it cannot identify (see
-# `check_locales_differ`).
+# captured bytes and hard-fails on images it cannot identify.
 #
-# Checked across ALL configured devices, not just the ones this invocation
-# captured: whatever is on disk is what fastlane will upload, so a `--watch` run
-# still has to be happy with the iPhone dirs sitting next to it.
+# The iOS and watch checks are SEPARATE because the comparison differs: iOS pins
+# the clock to 9:41 so whole PNGs are comparable (`check_locales_differ`), whereas
+# watchOS bakes an uncontrollable clock into every shot, so the watch check
+# compares a status-bar-cropped region and skips the running `01-live` screen
+# (`check_watch_locales_differ`). Both run over whatever is on disk, since that is
+# what fastlane will upload.
 identical=0
-if [ "$captured" -gt 0 ]; then
-    check_locales_differ "$OUTPUT_ROOT" "${LOCALES[@]}" -- "${ALL_DEVICES[@]}" || identical=1
+
+# iOS whole-image check, over the iOS devices only.
+if [ "$captured" -gt 0 ] && [ "${#DEVICES[@]}" -gt 0 ]; then
+    # Only meaningful once at least one iOS device dir exists (a `--watch`-only run
+    # leaves none). Guard so that run does not fail on "no output directory".
+    if /usr/bin/find "$OUTPUT_ROOT" -type d -path "*/${DEVICES[0]}" -print -quit 2>/dev/null | grep -q .; then
+        check_locales_differ "$OUTPUT_ROOT" "${LOCALES[@]}" -- "${DEVICES[@]}" || identical=1
+    fi
+fi
+
+# Watch cropped check, per watch device, over the byte-checkable (static) screens.
+if [ "$captured" -gt 0 ] && [ "${#WATCH_DEVICES[@]}" -gt 0 ]; then
+    # Static slugs = WATCH_SCREENS minus WATCH_BYTE_EXCLUDE.
+    watch_static_slugs=()
+    for entry in "${WATCH_SCREENS[@]}"; do
+        slug="${entry%%:*}"
+        excluded=0
+        for skip in "${WATCH_BYTE_EXCLUDE[@]}"; do
+            [ "$slug" = "$skip" ] && { excluded=1; break; }
+        done
+        [ "$excluded" -eq 0 ] && watch_static_slugs+=("$slug")
+    done
+    for device in "${WATCH_DEVICES[@]}"; do
+        # Only if this watch device actually has output on disk.
+        if /usr/bin/find "$OUTPUT_ROOT" -type d -path "*/$device" -print -quit 2>/dev/null | grep -q .; then
+            check_watch_locales_differ "$OUTPUT_ROOT" "$device" "$WATCH_CROP_STRIP_PX" \
+                "${LOCALES[@]}" -- "${watch_static_slugs[@]}" || identical=1
+        fi
+    done
 fi
 
 echo "==> Done"

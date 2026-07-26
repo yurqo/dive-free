@@ -23,6 +23,7 @@
 require "base64"
 require "fileutils"
 require "json"
+require "set"
 require "shellwords"
 require "spaceship"
 
@@ -300,13 +301,69 @@ end
 # Writes fastlane/screenshots/<asc-locale>/<device>-<NN-slug>.png
 # deliver detects the device from image dimensions; the device prefix + the
 # NN- ordering prefix keep the display order stable. Recreated fresh on every run.
-def stage_screenshots
-  FileUtils.rm_rf(SCREENSHOTS_PATH)
-  FileUtils.mkdir_p(SCREENSHOTS_PATH)
+# The set of "device/readable-name" identifiers a locale contributes, e.g.
+# {"Apple Watch Ultra 3 (49mm)/01-live.png", "iPhone 17 Pro Max/01-dives.png", …}.
+# Uses the SAME readable_name_for the staging step uses, so this measures exactly
+# what would be uploaded.
+def screenshot_complement_for(short_dir)
+  complement = []
+  Dir.glob(File.join(short_dir, "*")).sort.each do |device_dir|
+    next unless File.directory?(device_dir)
 
+    device = File.basename(device_dir)
+    Dir.glob(File.join(device_dir, "*.png")).sort.each do |png|
+      complement << "#{device}/#{readable_name_for(device_dir, File.basename(png))}"
+    end
+  end
+  complement
+end
+
+# Refuse to stage an INCOMPLETE set. `Scripts/screenshots.sh` exiting non-zero is
+# not enforced here — `metadata`/`screenshots_only` can be run directly — so if one
+# locale's capture failed (its dir left empty) and someone uploads anyway, deliver
+# would upload that locale short while `overwrite_screenshots: true` deletes the
+# fuller set already live on ASC. Guard against it: every locale that has ANY
+# screenshots must have the SAME complement (device × screen) as the richest
+# locale. Since all locales capture identically, the richest defines "complete";
+# any locale missing a file another locale has is a failed/partial capture and
+# aborts the upload before a single byte is deleted on ASC.
+def assert_complete_screenshot_set
+  per_locale = {}
+  LOCALE_MAP.each_key do |short|
+    short_dir = File.join(SOURCE_SCREENSHOTS_DIR, short)
+    next unless Dir.exist?(short_dir)
+
+    complement = screenshot_complement_for(short_dir)
+    per_locale[short] = complement unless complement.empty?
+  end
+
+  return if per_locale.empty? # "Staged 0" is handled by the caller.
+
+  expected = per_locale.values.map(&:to_set).reduce(:|) # union = the full complement
+  incomplete = per_locale.filter_map do |short, complement|
+    missing = (expected - complement.to_set).to_a.sort
+    "  #{short}: missing #{missing.join(', ')}" unless missing.empty?
+  end
+  return if incomplete.empty?
+
+  UI.user_error!(
+    "Incomplete screenshot set — refusing to upload (a partial upload plus " \
+    "overwrite_screenshots would delete the fuller set already on ASC). " \
+    "Re-run Scripts/screenshots.sh for the affected locale(s):\n#{incomplete.join("\n")}"
+  )
+end
+
+def stage_screenshots
   unless Dir.exist?(SOURCE_SCREENSHOTS_DIR)
     UI.user_error!("No screenshots found at #{SOURCE_SCREENSHOTS_DIR} — run Scripts/screenshots.sh first.")
   end
+
+  # Refuse an incomplete set BEFORE touching the staged dir, so a refusal leaves the
+  # previous staged output intact and copies nothing (see the guard's comment).
+  assert_complete_screenshot_set
+
+  FileUtils.rm_rf(SCREENSHOTS_PATH)
+  FileUtils.mkdir_p(SCREENSHOTS_PATH)
 
   total = 0
   LOCALE_MAP.each do |short, asc_locale|
