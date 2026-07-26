@@ -527,6 +527,12 @@ final class SessionCoordinator {
     ///   mode, which supplies a manager wired to a scripted depth/location feed
     ///   (see `WatchScreenshotMode`) so a live session can be rendered in the
     ///   simulator without HealthKit, CoreLocation or the submersion sensor.
+    ///
+    ///   This parameter is intentionally NOT behind `#if DEBUG`: it is a stored
+    ///   dependency threaded through a designated initializer, so gating it would
+    ///   mean maintaining two init signatures. It defaults to `nil` and only the
+    ///   DEBUG-only `WatchScreenshotMode` ever passes a value, so shipping behaviour
+    ///   is identical — the widened signature is inert in Release.
     init(modelContext: ModelContext, sessionManager injected: SessionManager? = nil) {
         self.modelContext = modelContext
         sessionManager = injected ?? SessionManager(modelContext: modelContext)

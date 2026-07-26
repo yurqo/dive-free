@@ -164,6 +164,11 @@ RUN_WATCH=1
 
 # Output roots (git-ignored — see .gitignore).
 OUTPUT_ROOT="screenshots"
+# Manifest (one device name per line) of the full device complement the listing is
+# meant to carry — written every run, read by fastlane's `stage_screenshots` to
+# refuse an incomplete upload. Its NAME is shared with the Fastfile
+# (EXPECTED_DEVICES_FILENAME there); keep the two in step.
+EXPECTED_DEVICES_FILE="expected-devices.txt"
 # Temporary result bundles / build products / logs land here; cleaned up on exit.
 RESULT_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/divefree-screenshots.XXXXXX")"
 
@@ -586,10 +591,12 @@ wait_watch_ready() {
 # the upload runs `overwrite_screenshots: true` a rejection can leave the listing
 # with the old set deleted and the new one failed. We capture with `--mask=black`
 # (which flattens the rounded-corner mask to opaque black, yielding RGB), and this
-# asserts that actually happened rather than trusting the flag. Reads the PNG IHDR
-# colour-type byte directly — no image library — where 2/0 are alpha-free
-# (truecolour / greyscale) and 4/6 carry alpha; a `tRNS` chunk anywhere also
-# counts as alpha.
+# asserts that actually happened rather than trusting the flag. No image library —
+# it reads the PNG IHDR colour-type byte (2/0 = alpha-free truecolour/greyscale,
+# 4/6 = alpha) and, for completeness, walks the CHUNK LIST up to IDAT for a tRNS
+# (palette/colour-key transparency). It parses chunks rather than scanning the raw
+# bytes so a chance 4-byte "tRNS" match inside the compressed IDAT pixel stream
+# cannot spuriously reject a valid opaque capture.
 assert_no_alpha() {
     local png="$1"
     /usr/bin/python3 - "$png" <<'PY'
@@ -604,9 +611,17 @@ if data[:8] != b"\x89PNG\r\n\x1a\n":
 color_type = data[25]
 if color_type in (4, 6):
     sys.exit("%s has an alpha channel (PNG colour type %d)" % (path, color_type))
-# A palette or truecolour image can still carry transparency via a tRNS chunk.
-if b"tRNS" in data:
-    sys.exit("%s carries a tRNS transparency chunk" % path)
+# Walk the chunk list (length-prefixed) only until IDAT; tRNS, if present, always
+# precedes IDAT. This never reads into the compressed pixel data.
+offset = 8
+while offset + 8 <= len(data):
+    length = struct.unpack(">I", data[offset:offset + 4])[0]
+    chunk_type = data[offset + 4:offset + 8]
+    if chunk_type == b"IDAT":
+        break
+    if chunk_type == b"tRNS":
+        sys.exit("%s carries a tRNS transparency chunk" % path)
+    offset += 12 + length  # 4 length + 4 type + length data + 4 CRC
 PY
 }
 
@@ -621,8 +636,13 @@ PY
 # App Store Connect before. Only the app knows what it resolved, so it writes it
 # down and we compare.
 #
-# Compared on the LANGUAGE SUBTAG so a `pt` request still matches a `pt-BR`
-# resolution (the `pt-BR` output folder asks the app for plain `pt`).
+# `requested` is the ALREADY-MAPPED language code (`lang_for_locale`, so `pt-BR`
+# arrives as `pt`), and the app resolves exactly that — verified: `pt` resolves to
+# `pt`, not `pt-BR`. So the comparison is EXACT, case-insensitive. It deliberately
+# does NOT loosen to the primary subtag: that would accept a different script for
+# the same language (e.g. `zh-Hant` for a requested `zh-Hans`, or `sr-Latn` for
+# `sr-Cyrl`) — a wrong-language set that reads as passing. Exact match on the mapped
+# code is both sufficient here and safe against that.
 verify_watch_language() {
     local udid="$1" requested="$2"
     local file resolved
@@ -638,8 +658,8 @@ verify_watch_language() {
         return 1
     fi
     resolved=$(/usr/bin/tr -d '[:space:]' < "$file")
-    if [ "$(echo "${resolved%%-*}" | /usr/bin/tr '[:upper:]' '[:lower:]')" \
-         != "$(echo "${requested%%-*}" | /usr/bin/tr '[:upper:]' '[:lower:]')" ]; then
+    if [ "$(echo "$resolved" | /usr/bin/tr '[:upper:]' '[:lower:]')" \
+         != "$(echo "$requested" | /usr/bin/tr '[:upper:]' '[:lower:]')" ]; then
         echo "       !! Language override NOT applied: requested \"$requested\" but the app" >&2
         echo "          resolved \"$resolved\". These screenshots would be in the wrong" >&2
         echo "          language — check that the -AppleLanguages/-AppleLocale launch" >&2
@@ -1068,6 +1088,23 @@ echo "    results   : $RESULT_ROOT"
 echo
 
 mkdir -p "$OUTPUT_ROOT"
+
+# Declare the FULL intended device complement for the listing — every run, whether
+# or not `--ios`/`--watch` narrows what is actually captured this time. fastlane's
+# `stage_screenshots` reads this and REFUSES to upload unless every listed device
+# is present for every locale.
+#
+# WHY it must list the full set even on a narrowed run: deliver deletes screenshots
+# per locale scoped by LANGUAGE ONLY, not by display type (see
+# deliver/upload_screenshots.rb `delete_screenshots`), under
+# `overwrite_screenshots: true`. So uploading an iPhone-only `en-US` would DELETE
+# the live Apple Watch set for `en-US` and never replace it. Emitting the full
+# expected set here means an `--ios`-only run (or a watch capture that failed for
+# every locale) is caught by the staging guard and never reaches deliver.
+: > "$OUTPUT_ROOT/$EXPECTED_DEVICES_FILE"
+for device in "${ALL_DEVICES[@]}"; do
+    echo "$device" >> "$OUTPUT_ROOT/$EXPECTED_DEVICES_FILE"
+done
 
 # Drop output from device names we no longer capture (see the function comment:
 # fastlane would otherwise upload both generations). Pruned against BOTH device
