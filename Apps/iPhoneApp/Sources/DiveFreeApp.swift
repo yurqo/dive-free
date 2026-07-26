@@ -254,8 +254,57 @@ struct DiveFreeApp: App {
                     // so a background WC launch runs it without a rendered scene.
                     cloudSync.start()
                 }
+                // Lets the screenshot UI test verify the language override actually
+                // took effect. No-op in Release and outside `--screenshot-demo`.
+                .screenshotLanguageProbe()
         }
         .modelContainer(container)
+    }
+}
+
+extension View {
+    /// Publishes the *resolved* localization of this process to the screenshot UI
+    /// test, as an accessibility identifier of the form `screenshot.lang.<code>`
+    /// (e.g. `screenshot.lang.uk`), where the code is
+    /// `Bundle.main.preferredLocalizations.first` — i.e. the localization iOS
+    /// actually picked for this launch, not the one we asked for.
+    ///
+    /// WHY: `Scripts/screenshots.sh` reuses one build across all 8 locales via
+    /// `test-without-building -xctestrun`, a path on which `-testLanguage` is
+    /// silently ignored. The failure mode is catastrophically quiet — every locale
+    /// renders in the simulator's language and 8 identical sets get uploaded to App
+    /// Store Connect (which happened once, 80 wrong PNGs). Every indirect proxy for
+    /// "did the language apply" is unreliable: the image-diff check the script also
+    /// runs was verified to pass on the exact historical data that shipped those 80
+    /// Ukrainian screenshots, because a few pixels of map-thumbnail jitter made the
+    /// sets differ anyway. So the app states its resolved localization out loud and
+    /// `ScreenshotTests` asserts it equals what was requested — a direct check that
+    /// cannot be fooled by rendering noise.
+    ///
+    /// Cost in shipping builds: none. The whole body is `#if DEBUG`, and even in
+    /// DEBUG it only renders when the process was launched with
+    /// `--screenshot-demo` (the same flag that swaps in the in-memory demo store).
+    /// The probe itself is a 1pt clear glyph: present in the accessibility tree,
+    /// invisible in the captured PNG.
+    func screenshotLanguageProbe() -> some View {
+        #if DEBUG
+        overlay(alignment: .topLeading) {
+            if ProcessInfo.processInfo.arguments.contains("--screenshot-demo") {
+                // `Text` (not `Color.clear`) because SwiftUI only surfaces this as a
+                // queryable element if it has content; `.foregroundStyle(.clear)`
+                // keeps it in the accessibility tree while `.opacity(0)`/`.hidden()`
+                // would remove it — the identifier has to stay findable.
+                Text(verbatim: "·")
+                    .font(.system(size: 1))
+                    .foregroundStyle(.clear)
+                    .accessibilityIdentifier(
+                        "screenshot.lang.\(Bundle.main.preferredLocalizations.first ?? "unknown")"
+                    )
+            }
+        }
+        #else
+        self
+        #endif
     }
 }
 

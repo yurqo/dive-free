@@ -35,7 +35,110 @@ final class ScreenshotTests: XCTestCase {
 
         app = XCUIApplication()
         app.launchArguments += ["--screenshot-demo"]
+        applyLanguageOverridesFromEnvironment()
         app.launch()
+        assertRequestedLanguageApplied()
+    }
+
+    /// Fails the test unless the app *resolved* the language we requested.
+    ///
+    /// This is the check that guards the expensive silent failure: `-testLanguage`
+    /// is ignored on the `test-without-building -xctestrun` path, so a broken
+    /// override produces a full set of perfectly valid-looking screenshots in the
+    /// wrong language. Nothing about the images themselves reveals that — the
+    /// script's cross-locale image diff was verified to *pass* on the exact data
+    /// that shipped 80 Ukrainian screenshots to App Store Connect (a handful of
+    /// jittering map-thumbnail pixels was enough to make the sets differ).
+    ///
+    /// So we ask the app instead: under `--screenshot-demo` it publishes
+    /// `Bundle.main.preferredLocalizations.first` as an accessibility identifier
+    /// `screenshot.lang.<code>` (see `View.screenshotLanguageProbe()`), and we
+    /// compare that against `SCREENSHOT_LANGUAGE`. Failing here makes this locale's
+    /// `xcodebuild` invocation exit non-zero, which `Scripts/screenshots.sh` counts
+    /// as a failed combination and turns into `exit 1` — nothing reaches fastlane.
+    ///
+    /// No `SCREENSHOT_LANGUAGE` (running straight from Xcode) means no requested
+    /// language to compare against, so the check is skipped.
+    private func assertRequestedLanguageApplied() {
+        let requested = ProcessInfo.processInfo.environment["SCREENSHOT_LANGUAGE"] ?? ""
+        guard !requested.isEmpty else { return }
+
+        // Match on the PREFIX, not on `screenshot.lang.<requested>`, so a mismatch
+        // can name the language the app actually used — the single most useful fact
+        // when this fires ("asked for uk, got en" = override not applied at all).
+        //
+        // Scoped to `staticTexts` because the probe IS a `Text`, and because this
+        // runs on the critical path of every locale × device run: a
+        // `descendants(matching: .any)` predicate forces a full accessibility-tree
+        // snapshot on each poll, against a screen full of map thumbnails and list
+        // rows. The typed query is roughly an order of magnitude cheaper.
+        let probe = app.staticTexts
+            .matching(NSPredicate(format: "identifier BEGINSWITH %@", Self.languageProbePrefix))
+            .firstMatch
+        guard probe.waitForExistence(timeout: 30) else {
+            XCTFail("""
+                The language probe (\(Self.languageProbePrefix)*) never appeared, so \
+                the resolved language could not be verified (requested \
+                "\(requested)"). NOTE: this is a missing/late probe, NOT a \
+                wrong-language result — the app may simply have been too slow to \
+                render, or the probe may be gone (View.screenshotLanguageProbe() \
+                removed, app not launched with --screenshot-demo, or not a DEBUG \
+                build). Refusing to capture unverified screenshots either way.
+                """)
+            return
+        }
+
+        let resolved = probe.identifier.replacingOccurrences(
+            of: Self.languageProbePrefix, with: ""
+        )
+        // EXACT (case-insensitive) compare, deliberately. The probe reports
+        // `Bundle.main.preferredLocalizations.first`, which is always one of the
+        // bundle's own localization codes (en es fr it de pt ja uk) — exactly the
+        // codes `Scripts/screenshots.sh` requests — so there is nothing to
+        // normalize. Any loosening (e.g. comparing only the subtag before "-") would
+        // be pure downside the day a script variant is added: it would accept
+        // `zh-Hant` for a requested `zh-Hans` and ship wrong-script screenshots.
+        guard resolved.caseInsensitiveCompare(requested) == .orderedSame else {
+            XCTFail("""
+                Language override NOT applied: requested "\(requested)" but the app \
+                resolved "\(resolved)". These screenshots would be in the wrong \
+                language. Check that Scripts/screenshots.sh still patches \
+                SCREENSHOT_LANGUAGE / TestLanguage into the per-locale .xctestrun and \
+                that the requested code exists in Localizable.xcstrings.
+                """)
+            return
+        }
+    }
+
+    /// Identifier prefix the app's language probe uses (see `screenshotLanguageProbe`).
+    private static let languageProbePrefix = "screenshot.lang."
+
+    /// Forces the app under test into a specific language/region by launch
+    /// argument, driven by `SCREENSHOT_LANGUAGE` / `SCREENSHOT_LOCALE` in the
+    /// test runner's environment.
+    ///
+    /// WHY this exists instead of relying on `xcodebuild -testLanguage`
+    /// / `-testRegion`: those flags are silently IGNORED on the
+    /// `test-without-building -xctestrun …` path that `Scripts/screenshots.sh`
+    /// uses to reuse one build across every locale. The symptom is nasty because
+    /// it is invisible — every locale renders in the *simulator's* device
+    /// language. (That shipped 80 wrong screenshots to App Store Connect once,
+    /// which is why `assertRequestedLanguageApplied()` now verifies the *resolved*
+    /// localization on every launch.) Overriding `-AppleLanguages` / `-AppleLocale`
+    /// at launch is what fastlane's own `snapshot` does, and it works on every path.
+    ///
+    /// When neither variable is set (e.g. running this test straight from Xcode)
+    /// nothing is injected and the app uses the device default, as before.
+    private func applyLanguageOverridesFromEnvironment() {
+        let environment = ProcessInfo.processInfo.environment
+        // `-AppleLanguages` takes a plist-style array *string*: "(uk)".
+        if let language = environment["SCREENSHOT_LANGUAGE"], !language.isEmpty {
+            app.launchArguments += ["-AppleLanguages", "(\(language))"]
+        }
+        // `-AppleLocale` drives number/date/measurement formatting: "uk_UA".
+        if let locale = environment["SCREENSHOT_LOCALE"], !locale.isEmpty {
+            app.launchArguments += ["-AppleLocale", locale]
+        }
     }
 
     override func tearDownWithError() throws {
