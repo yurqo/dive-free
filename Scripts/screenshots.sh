@@ -263,6 +263,28 @@ prune_stale_device_dirs() {
     return 0
 }
 
+# Empty every `<locale>/<device>` output dir for one device, up front.
+#
+# WHY up front and not just per-locale: the per-locale `rm -rf "$dest"` inside the
+# capture loop only protects locales the loop reaches. All three DEVICE-level
+# bailouts (`udid_for_device` failing, `build-for-testing` failing, no `.xctestrun`
+# produced) `continue` before that loop runs even once, so without this the device
+# keeps the PREVIOUS run's PNGs for all 8 locales. Those are the dangerous ones:
+# `prune_stale_device_dirs` won't touch them (the device IS configured), the
+# sanity check hashes them as if fresh, and `fastlane ios metadata` reads the
+# folder rather than our exit code — so a later lane run happily uploads
+# yesterday's, possibly wrong-language, set for a device that captured nothing
+# today. Clearing here makes the header's invariant true for devices as well as
+# locales: a combination that fails leaves an EMPTY dir, never stale PNGs.
+clear_device_output() {
+    local root="$1" device="$2"
+    shift 2
+    local locale
+    for locale in "$@"; do
+        rm -rf "$root/$locale/$device"
+    done
+}
+
 # Locate the `.xctestrun` file produced by `build-for-testing` under a
 # derived-data path. Prints its path; returns non-zero if none is found.
 find_xctestrun() {
@@ -390,6 +412,12 @@ with open(dest, "wb") as handle:
 # genuinely text-free screen is ever added (an allowlist has to be *chosen*, so it
 # can be reviewed; a tolerance silently absorbs whatever fits under it).
 #
+# Every input problem is also fatal — a locale/device dir that is missing, empty,
+# unmapped, partially mapped, or ambiguous, and a run where fewer than two locales
+# ended up comparable. A check that quietly compares nothing and prints "passed" is
+# worse than no check, so "I could not conclude" is reported as failure, never as
+# success (the summary line states how many comparisons were made).
+#
 # Usage: check_locales_differ <root> <locale>… -- <device>…
 check_locales_differ() {
     /usr/bin/python3 -c '
@@ -405,24 +433,35 @@ locales, devices = rest[:separator], rest[separator + 1:]
 # comment naming the screen and why it carries no localized pixels.
 LOCALE_INVARIANT = set()
 
-class NoSlugMap(Exception):
-    """A device dir holds PNGs but no manifest we can key them by."""
+class Unusable(Exception):
+    """A device dir we cannot draw a conclusion from — always fatal."""
 
 def slug_hashes(device_dir):
     """{"03-trips": "<md5>"} for one <locale>/<device> directory.
 
-    Raises NoSlugMap when the directory has PNGs that cannot be mapped to slugs.
-    That has to be fatal rather than best-effort: without the manifest the keys
-    fall back to the exported random-UUID filenames, which never match across
-    locales, so every comparison below silently succeeds and the script reports
-    "passed" having compared exactly nothing. The `xcparse` fallback documented in
-    the header produces precisely that state (no manifest.json), which is how a
-    tooling downgrade could re-ship a wrong-language set.
+    Every way this can fail to produce a full, keyed set raises Unusable. Nothing
+    here is best-effort ON PURPOSE: anything less than "every PNG mapped to a
+    distinct slug" means the loop below compares fewer screens than it appears to,
+    and a check that silently compares nothing prints "passed" — the exact shape of
+    the failure that shipped 80 wrong-language screenshots. The three ways out:
+
+      - no PNGs at all: the locale/device produced nothing (a failed or skipped
+        combination), so there is nothing to conclude and it must not read as a
+        clean bill of health for that locale;
+      - PNGs but nothing mapped: no/unreadable manifest.json, so keys would fall
+        back to the exported random-UUID filenames, which never match across
+        locales — every comparison then trivially "passes". The `xcparse` fallback
+        documented in the header produces precisely that state;
+      - PNGs only PARTIALLY mapped: a manifest that names 1 of 5 attachments would
+        quietly leave 4 screens uncompared (this is what a future `xcresulttool`
+        that nests or renames exports would look like);
+      - two PNGs on one slug: the second overwrites the first, so a screen we
+        believe we compared was never compared.
     """
     pngs = sorted(entry for entry in os.listdir(device_dir)
                   if entry.lower().endswith(".png"))
     if not pngs:
-        return {}
+        raise Unusable("%s: no PNGs — nothing to compare for this locale" % device_dir)
 
     names = {}
     manifest = os.path.join(device_dir, "manifest.json")
@@ -443,23 +482,26 @@ def slug_hashes(device_dir):
                 slug = re.sub(r"_\d+_[0-9A-Fa-f-]+\.png\Z", "", human)
                 names[exported] = os.path.splitext(slug)[0]
 
-    mapped = [entry for entry in pngs if entry in names]
-    if not mapped:
-        raise NoSlugMap(
+    unmapped = [entry for entry in pngs if entry not in names]
+    if len(unmapped) == len(pngs):
+        raise Unusable(
             "%s: %d PNG(s) but no usable slug map (missing/unreadable "
             "manifest.json)" % (device_dir, len(pngs))
         )
+    if unmapped:
+        raise Unusable(
+            "%s: %d of %d PNG(s) missing from manifest.json (%s) — they would be "
+            "silently left out of the comparison"
+            % (device_dir, len(unmapped), len(pngs), ", ".join(unmapped))
+        )
 
     hashes = {}
-    for entry in mapped:
+    for entry in pngs:
         slug = names[entry]
         with open(os.path.join(device_dir, entry), "rb") as handle:
             digest = hashlib.md5(handle.read()).hexdigest()
-        # Two PNGs collapsing onto one slug would make the previous line
-        # overwrite a screen we then never compare — cheap to detect, silent
-        # otherwise.
         if slug in hashes:
-            raise NoSlugMap(
+            raise Unusable(
                 "%s: two screenshots map to the same slug %r — the manifest "
                 "cannot be trusted to identify screens" % (device_dir, slug)
             )
@@ -467,22 +509,39 @@ def slug_hashes(device_dir):
     return hashes
 
 problems = []
+# Number of slug comparisons actually performed. Counted so that "nothing was
+# comparable" can never be reported as a pass — see the tail of this script.
+compared = 0
 for device in devices:
     per_locale = {}
     for locale in locales:
         device_dir = os.path.join(root, locale, device)
+        # A missing dir is a problem, not a skip: every configured locale/device is
+        # attempted, and each gets its dir created before the run, so an absent one
+        # means the combination never completed.
         if not os.path.isdir(device_dir):
+            problems.append(
+                "    !! %s: no output directory — that locale/device did not "
+                "complete, so its screenshots were never verified" % device_dir
+            )
             continue
         try:
             per_locale[locale] = slug_hashes(device_dir)
-        except NoSlugMap as error:
+        except Unusable as error:
             problems.append("    !! %s" % error)
 
     present = [locale for locale in locales if per_locale.get(locale)]
+    if len(present) < 2:
+        problems.append(
+            "    !! %s: only %d locale(s) comparable — this check concluded "
+            "nothing for this device" % (device, len(present))
+        )
     for i, left in enumerate(present):
         for right in present[i + 1:]:
+            shared = set(per_locale[left]) & set(per_locale[right])
+            compared += len(shared)
             identical = sorted(
-                slug for slug in set(per_locale[left]) & set(per_locale[right])
+                slug for slug in shared
                 if slug not in LOCALE_INVARIANT
                 and per_locale[left][slug] == per_locale[right][slug]
             )
@@ -493,6 +552,13 @@ for device in devices:
                     "applied to those screens."
                     % (device, left, right, ", ".join(identical))
                 )
+
+if not compared:
+    # Belt and braces on top of the per-directory errors above: whatever new way
+    # the inputs go wrong, an empty comparison must never print "passed".
+    problems.append(
+        "    !! nothing was compared at all — the check reached no conclusion"
+    )
 
 if problems:
     print("==> Cross-locale sanity check FAILED", file=sys.stderr)
@@ -507,7 +573,8 @@ if problems:
     print("    ScreenshotTests.setUpWithError). Check that all of it is still wired.", file=sys.stderr)
     sys.exit(1)
 
-print("==> Cross-locale sanity check passed (no screen identical across locales)")
+print("==> Cross-locale sanity check passed (%d screen comparisons, none identical "
+      "across locales)" % compared)
 ' "$@"
 }
 
@@ -534,6 +601,11 @@ failed=0
 
 for device in "${DEVICES[@]}"; do
     echo "==> Device: $device"
+
+    # Drop this device's previous output the moment it is in play — BEFORE the
+    # three bailouts below, each of which skips the locale loop (and its
+    # per-locale clear) entirely. See `clear_device_output`.
+    clear_device_output "$OUTPUT_ROOT" "$device" "${LOCALES[@]}"
 
     # "<udid> <booted-by-us|already-booted>" — the boot flag has to come back
     # through stdout and be recorded HERE, in the parent shell: the command

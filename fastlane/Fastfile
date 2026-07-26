@@ -52,6 +52,13 @@ LOCALE_MAP = {
 # truncated list would make `screenshots_purge` report success on a half-done job.
 ASC_PAGE_LIMIT = 200
 
+# Base delay between `screenshots_purge` attempts, scaled by attempt number
+# (5s, 10s, 15s, 20s). What the retries are up against is App Store Connect's
+# eventual consistency — a delete acknowledged with 200 that has not propagated
+# yet — so the attempts have to be spread over real time to be worth anything.
+# deliver waits the same 5s in its own screenshot verification loop.
+ASC_PURGE_RETRY_DELAY = 5
+
 # Credential cache. A mutable constant rather than an instance variable because
 # top-level Fastfile methods are invoked against different receivers depending on
 # the caller, so `@ivar` memoization would not reliably be shared.
@@ -169,8 +176,14 @@ def editable_app_store_version(app)
     states::PREPARE_FOR_SUBMISSION, # never submitted — the normal case
     states::DEVELOPER_REJECTED,     # we pulled it back
     states::REJECTED,               # review rejected it
-    states::METADATA_REJECTED       # review rejected the metadata
+    states::METADATA_REJECTED,      # review rejected the metadata
+    # The uploaded build failed processing. Nothing is with App Review and the
+    # version stays fully editable, so its screenshots are ours to replace.
+    states::INVALID_BINARY
   ]
+  # Deliberately NOT in the list: WAITING_FOR_REVIEW (and IN_REVIEW, which the
+  # lookup cannot return anyway) — deleting screenshots from a submission in
+  # Apple's queue is the thing this guard exists to prevent.
 
   # `app_store_state` is the older field name; ASC now returns `appVersionState`.
   state = version.app_version_state || version.app_store_state
@@ -186,16 +199,38 @@ def editable_app_store_version(app)
   version
 end
 
+# List one localization's screenshot sets, or nil if App Store Connect errored.
+#
+# The listing needs its own rescue, not just the per-delete one: spaceship wraps
+# any failure of this fetch in `Spaceship::AppStoreScreenshotError` and raises it
+# from inside `get_app_screenshot_sets` itself (see
+# connect_api/models/app_store_version_localization.rb), i.e. from outside any
+# block we hand it. Unrescued, a 503 while listing `ja` after en/es/fr/de were
+# already wiped would abort the lane with a backtrace and leave the version
+# half-purged — the exact outcome the retry loop exists to prevent. nil means
+# "this attempt is incomplete", which the caller retries.
+def fetch_screenshot_sets(localization)
+  # `get_app_screenshot_sets` includes "appScreenshots" by default.
+  localization.get_app_screenshot_sets(limit: ASC_PAGE_LIMIT)
+rescue StandardError => error
+  UI.error("    could not list #{localization.locale} screenshot sets: #{error.message}")
+  nil
+end
+
 # Delete every screenshot set in one localization. Returns [deleted, failed].
 #
 # Each delete is rescued individually, the way deliver does it
 # (deliver/lib/deliver/upload_screenshots.rb): a single API hiccup must not
-# abandon the remaining locales half-purged.
+# abandon the remaining locales half-purged. A failure to even list the sets
+# counts as one failure, so the attempt is reported as incomplete.
 def purge_screenshot_sets(localization)
+  sets = fetch_screenshot_sets(localization)
+  return [0, 1] if sets.nil?
+
   deleted = 0
   failed = 0
 
-  localization.get_app_screenshot_sets(limit: ASC_PAGE_LIMIT).each do |set|
+  sets.each do |set|
     set.delete!
     deleted += 1
   rescue StandardError => error
@@ -207,18 +242,32 @@ def purge_screenshot_sets(localization)
 end
 
 # Count the screenshots that still exist across `localizations`, re-fetched from
-# App Store Connect rather than read from the objects we already hold.
+# App Store Connect rather than read from the objects we already hold. Returns
+# nil if any listing failed — "could not verify", which is NOT the same as zero
+# and must never be reported as a successful purge.
 #
 # This exists because the ASC API returns 200 for a delete that did not happen —
 # deliver re-fetches and counts for exactly this reason, and this lane is here to
 # fix stale screenshots, so an unverified "deleted!" would be worse than useless.
 def remaining_screenshot_count(localizations)
-  localizations.sum do |localization|
-    # `get_app_screenshot_sets` includes "appScreenshots" by default.
-    localization.get_app_screenshot_sets(limit: ASC_PAGE_LIMIT).sum do |set|
-      Array(set.app_screenshots).size
-    end
+  total = 0
+
+  localizations.each do |localization|
+    sets = fetch_screenshot_sets(localization)
+    return nil if sets.nil?
+
+    total += sets.sum { |set| Array(set.app_screenshots).size }
   end
+
+  total
+end
+
+# Pause between purge attempts, lengthening with each one (5s, 10s, 15s, 20s).
+# Retrying immediately would only re-observe the same not-yet-propagated state.
+def wait_before_purge_retry(attempt)
+  delay = ASC_PURGE_RETRY_DELAY * attempt
+  UI.message("    waiting #{delay}s for App Store Connect to settle…")
+  sleep(delay)
 end
 
 # The screenshot files are exported with random UUID names (xcresulttool), but
@@ -285,6 +334,19 @@ def stage_screenshots
   UI.message("Staged #{total} screenshots into #{SCREENSHOTS_PATH}")
 end
 
+# Recommended order when refreshing the App Store listing (kept HERE, not only in
+# README.md: fastlane's README is generated by `fastlane docs` and its own footer
+# says so, so hand-edits there are not a durable home):
+#
+#   fastlane ios validate           # 1. check the metadata text
+#   fastlane ios screenshots_purge  # 2. clear stale/duplicate screenshots
+#   fastlane ios metadata           # 3. upload metadata + screenshots
+#
+# Step 2 matters because `deliver`'s `overwrite_screenshots` has been observed to
+# leave duplicates behind (uk once ended up with every screenshot twice). Purging
+# first makes the upload deterministic: what is in screenshots/ is exactly what ASC
+# ends up with. See each lane's `desc` (which DOES survive README regeneration) and
+# the guardrails in `editable_app_store_version` / `screenshots_purge`.
 platform :ios do
   desc "Upload localized metadata + screenshots to App Store Connect as a DRAFT (no binary, no submit). Run `fastlane ios validate` first to validate."
   lane :metadata do
@@ -358,8 +420,10 @@ platform :ios do
     # Delete, then verify, then retry: the ASC API answers 200 to deletes it did
     # not perform (the same reason deliver retries up to 5 times).
     tries = 5
+    attempt = 0
     loop do
       tries -= 1
+      attempt += 1
 
       targets.each do |localization|
         deleted, failed = purge_screenshot_sets(localization)
@@ -368,20 +432,31 @@ platform :ios do
         UI.message(message)
       end
 
+      # nil = a listing failed, so the state is unknown; only a hard zero counts
+      # as done.
       remaining = remaining_screenshot_count(targets)
-      if remaining.zero?
+      if remaining == 0
         UI.success("All screenshots purged for: #{targets.map(&:locale).join(', ')}.")
         UI.message("Now run `fastlane ios metadata` to upload the fresh set.")
         break
       end
 
+      reason = if remaining.nil?
+                 "could not confirm the purge (App Store Connect failed a listing)"
+               else
+                 "#{remaining} screenshot(s) survived the purge"
+               end
+
       if tries.zero?
         UI.user_error!(
-          "#{remaining} screenshot(s) still exist after 5 attempts — App Store Connect " \
-          "is not honouring the deletes. Retry later, or clear them in the web UI."
+          "Giving up after #{attempt} attempts: #{reason}.\n" \
+          "App Store Connect is not honouring the deletes. Retry later, or clear " \
+          "the screenshots in the web UI."
         )
       end
-      UI.error("#{remaining} screenshot(s) survived the purge — retrying (#{tries} attempt(s) left)")
+
+      UI.error("#{reason} — retrying (#{tries} attempt(s) left)")
+      wait_before_purge_retry(attempt)
     end
   end
 

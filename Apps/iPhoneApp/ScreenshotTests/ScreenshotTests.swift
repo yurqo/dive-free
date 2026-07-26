@@ -66,16 +66,24 @@ final class ScreenshotTests: XCTestCase {
         // Match on the PREFIX, not on `screenshot.lang.<requested>`, so a mismatch
         // can name the language the app actually used — the single most useful fact
         // when this fires ("asked for uk, got en" = override not applied at all).
-        let probe = app.descendants(matching: .any)
+        //
+        // Scoped to `staticTexts` because the probe IS a `Text`, and because this
+        // runs on the critical path of every locale × device run: a
+        // `descendants(matching: .any)` predicate forces a full accessibility-tree
+        // snapshot on each poll, against a screen full of map thumbnails and list
+        // rows. The typed query is roughly an order of magnitude cheaper.
+        let probe = app.staticTexts
             .matching(NSPredicate(format: "identifier BEGINSWITH %@", Self.languageProbePrefix))
             .firstMatch
         guard probe.waitForExistence(timeout: 30) else {
             XCTFail("""
-                No \(Self.languageProbePrefix)* element found, so the resolved \
-                language could not be verified (requested "\(requested)"). Either the \
-                app was not launched with --screenshot-demo, or this is not a DEBUG \
-                build, or View.screenshotLanguageProbe() was removed. Refusing to \
-                capture unverified screenshots.
+                The language probe (\(Self.languageProbePrefix)*) never appeared, so \
+                the resolved language could not be verified (requested \
+                "\(requested)"). NOTE: this is a missing/late probe, NOT a \
+                wrong-language result — the app may simply have been too slow to \
+                render, or the probe may be gone (View.screenshotLanguageProbe() \
+                removed, app not launched with --screenshot-demo, or not a DEBUG \
+                build). Refusing to capture unverified screenshots either way.
                 """)
             return
         }
@@ -83,10 +91,14 @@ final class ScreenshotTests: XCTestCase {
         let resolved = probe.identifier.replacingOccurrences(
             of: Self.languageProbePrefix, with: ""
         )
-        // Compare language subtags only: the script requests `pt` for the `pt-BR`
-        // output folder, and iOS may answer with a regionalized code (`pt-BR`,
-        // `zh-Hans`) for a bundle localization we asked for by language alone.
-        guard Self.languageSubtag(resolved) == Self.languageSubtag(requested) else {
+        // EXACT (case-insensitive) compare, deliberately. The probe reports
+        // `Bundle.main.preferredLocalizations.first`, which is always one of the
+        // bundle's own localization codes (en es fr it de pt ja uk) — exactly the
+        // codes `Scripts/screenshots.sh` requests — so there is nothing to
+        // normalize. Any loosening (e.g. comparing only the subtag before "-") would
+        // be pure downside the day a script variant is added: it would accept
+        // `zh-Hant` for a requested `zh-Hans` and ship wrong-script screenshots.
+        guard resolved.caseInsensitiveCompare(requested) == .orderedSame else {
             XCTFail("""
                 Language override NOT applied: requested "\(requested)" but the app \
                 resolved "\(resolved)". These screenshots would be in the wrong \
@@ -100,12 +112,6 @@ final class ScreenshotTests: XCTestCase {
 
     /// Identifier prefix the app's language probe uses (see `screenshotLanguageProbe`).
     private static let languageProbePrefix = "screenshot.lang."
-
-    /// `"pt-BR"` -> `"pt"`, lowercased. Used so a regionalized resolution still
-    /// matches a language-only request.
-    private static func languageSubtag(_ code: String) -> String {
-        code.lowercased().split(separator: "-").first.map(String.init) ?? code.lowercased()
-    }
 
     /// Forces the app under test into a specific language/region by launch
     /// argument, driven by `SCREENSHOT_LANGUAGE` / `SCREENSHOT_LOCALE` in the
