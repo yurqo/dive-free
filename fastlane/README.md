@@ -13,35 +13,6 @@ For _fastlane_ installation instructions, see [Installing _fastlane_](https://do
 
 # Available Actions
 
-Recommended order when refreshing the App Store listing:
-
-```sh
-[bundle exec] fastlane ios validate            # 1. check the metadata text
-[bundle exec] fastlane ios screenshots_purge   # 2. clear stale/duplicate screenshots
-[bundle exec] fastlane ios metadata            # 3. upload metadata + screenshots
-```
-
-Step 2 matters because `deliver`'s `overwrite_screenshots` has been observed to
-leave duplicates behind (uk once ended up with every screenshot twice). Purging
-first makes the upload deterministic: what is in `screenshots/` is exactly what
-App Store Connect ends up with.
-
-What `screenshots_purge` will and will not touch:
-
-- **Version**: only one that is *not with App Review* — `PREPARE_FOR_SUBMISSION`,
-  `DEVELOPER_REJECTED`, `REJECTED`, `METADATA_REJECTED` or `INVALID_BINARY` (a
-  build that failed processing leaves the version fully editable). It aborts on
-  anything else — notably `WAITING_FOR_REVIEW`, which the underlying spaceship
-  "editable version" lookup does match — and can never reach the live version.
-- **Locales**: only the ones `metadata` uploads (the `LOCALE_MAP` locales). Any
-  other localization present on the version is reported as skipped and left
-  alone — there are no local screenshots to restore it with.
-- **Verification**: deletes are re-checked against App Store Connect and retried
-  up to 5 times, spaced 5/10/15/20s apart to let deletes propagate, because the
-  API returns success for deletes it did not perform. Transient API errors are
-  retried too; the lane fails rather than claiming a purge it could not confirm.
-  A full run against an unhealthy API therefore takes up to ~1 minute.
-
 ## iOS
 
 ### ios metadata
