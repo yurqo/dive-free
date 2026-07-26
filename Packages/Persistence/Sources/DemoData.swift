@@ -2,7 +2,6 @@
 import Foundation
 import SwiftData
 import Domain
-import Persistence
 
 /// DEBUG-only demo-data seeding for screenshot automation.
 ///
@@ -10,9 +9,16 @@ import Persistence
 /// spots, and a trip at real, photogenic freediving locations so App Store
 /// screenshots have believable content (depth charts, maps, stats, badges).
 ///
+/// Lives in `Persistence` — rather than in either app — because BOTH screenshot
+/// pipelines seed from it: the iPhone/iPad XCUITest run (`DiveFreeApp`) and the
+/// watch `simctl` run (`WatchScreenshotMode`). One fixture set means the two
+/// stores can never drift apart, and `Persistence` is the lowest module that
+/// owns every type seeded here (`SessionRecord`, `Spot`, `Trip`) — `Domain` is
+/// deliberately dependency-free and has no store to seed.
+///
 /// Everything here is wrapped in `#if DEBUG` and reached only via the
-/// `--screenshot-demo` launch argument (see `DiveFreeApp`), so it is completely
-/// absent from Release builds — the App Store binary never contains it.
+/// `--screenshot-demo` launch argument, so it is completely absent from Release
+/// builds — the App Store binary never contains it.
 ///
 /// **Deterministic:** all timestamps are computed relative to a fixed base date
 /// (`baseDate`, 2026-06-01), never `Date()`, and every value is fixed — so each
@@ -22,7 +28,7 @@ import Persistence
 /// back to date/area), so no English text leaks into non-English screenshots.
 /// Location names are proper-noun place names, which read correctly in any
 /// locale. Dates, numbers, and marker labels localize themselves.
-enum DemoData {
+public enum DemoData {
     /// Fixed base date all fixtures are computed from. NOT `Date()` — keeps the
     /// seeded content identical across runs and locales.
     private static let baseDate: Date = {
@@ -64,7 +70,7 @@ enum DemoData {
 
     /// Builds the demo store contents and saves them. Idempotent per fresh
     /// (in-memory) context — call once against a new store.
-    static func seed(into context: ModelContext) {
+    public static func seed(into context: ModelContext) {
         // --- Spots ---------------------------------------------------------
         let amedSpot = Spot(
             name: amed.name,
@@ -206,6 +212,21 @@ enum DemoData {
         session2.trip = trip
 
         try? context.save()
+    }
+
+    /// The seeded session the watch summary/profile screenshots drill into: the
+    /// NEWEST one, so it is the row sitting at the TOP of the watch session list
+    /// (which sorts newest-first). The five App Store shots then read as one story —
+    /// the list shot and the detail shots are the same dive — instead of the detail
+    /// belonging to a session the list never shows. It still has a dive, markers,
+    /// heart-rate + temperature series and a surface track to draw. Deterministic:
+    /// `seed(into:)` always produces the same sessions. `nil` if never seeded.
+    public static func featuredSession(in context: ModelContext) -> SessionRecord? {
+        var descriptor = FetchDescriptor<SessionRecord>(
+            sortBy: [SortDescriptor(\.startTime, order: .reverse)]
+        )
+        descriptor.fetchLimit = 1
+        return (try? context.fetch(descriptor))?.first
     }
 
     // MARK: - Fixture builders

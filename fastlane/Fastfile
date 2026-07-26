@@ -23,6 +23,7 @@
 require "base64"
 require "fileutils"
 require "json"
+require "set"
 require "shellwords"
 require "spaceship"
 
@@ -33,6 +34,12 @@ SCREENSHOTS_PATH = File.expand_path("screenshots", __dir__).freeze
 # Where the screenshot pipeline (Scripts/screenshots.sh) drops its output.
 # Layout: screenshots/<short-locale>/<device>/*.png
 SOURCE_SCREENSHOTS_DIR = File.expand_path("../screenshots", __dir__).freeze
+
+# Manifest the script writes at the root of SOURCE_SCREENSHOTS_DIR listing the FULL
+# device complement the listing must carry (one device name per line). The staging
+# guard validates against it so an incomplete capture can never reach deliver. Name
+# is shared with Scripts/screenshots.sh (EXPECTED_DEVICES_FILE there).
+EXPECTED_DEVICES_FILENAME = "expected-devices.txt".freeze
 
 # short-locale (screenshots/ folder) -> App Store Connect locale code.
 LOCALE_MAP = {
@@ -270,11 +277,13 @@ def wait_before_purge_retry(attempt)
   sleep(delay)
 end
 
-# The screenshot files are exported with random UUID names (xcresulttool), but
+# The iOS screenshot files are exported with random UUID names (xcresulttool), but
 # the accompanying manifest.json records a human-readable name like
 # "01-dives_0_....png". We use that "NN-slug" prefix so deliver uploads the
 # screenshots in the intended order (deliver sorts alphabetically per locale).
-# Falls back to the raw filename when no manifest entry exists.
+# Falls back to the raw filename when no manifest entry exists — which is the
+# normal case for the WATCH captures: `simctl io … screenshot` writes to a path we
+# choose, so those files are already named "01-live.png" and carry no manifest.
 def readable_name_for(device_dir, png_basename)
   manifest = File.join(device_dir, "manifest.json")
   return png_basename unless File.exist?(manifest)
@@ -294,17 +303,117 @@ rescue JSON::ParserError
 end
 
 # Stage repo screenshots into the flat per-locale layout deliver expects.
-# Reads  screenshots/<short>/<device>/*.png (+ manifest.json)
+# Reads  screenshots/<short>/<device>/*.png (+ manifest.json on the iOS dirs)
 # Writes fastlane/screenshots/<asc-locale>/<device>-<NN-slug>.png
 # deliver detects the device from image dimensions; the device prefix + the
 # NN- ordering prefix keep the display order stable. Recreated fresh on every run.
-def stage_screenshots
-  FileUtils.rm_rf(SCREENSHOTS_PATH)
-  FileUtils.mkdir_p(SCREENSHOTS_PATH)
+# The set of "device/readable-name" identifiers a locale contributes, e.g.
+# {"Apple Watch Ultra 3 (49mm)/01-live.png", "iPhone 17 Pro Max/01-dives.png", …}.
+# Uses the SAME readable_name_for the staging step uses, so this measures exactly
+# what would be uploaded.
+def screenshot_complement_for(short_dir)
+  complement = []
+  Dir.glob(File.join(short_dir, "*")).sort.each do |device_dir|
+    next unless File.directory?(device_dir)
 
+    device = File.basename(device_dir)
+    Dir.glob(File.join(device_dir, "*.png")).sort.each do |png|
+      complement << "#{device}/#{readable_name_for(device_dir, File.basename(png))}"
+    end
+  end
+  complement
+end
+
+# The FULL device complement the listing must carry, read from the manifest
+# `Scripts/screenshots.sh` writes every run (EXPECTED_DEVICES_FILENAME). Fails
+# CLOSED when the manifest is missing: staging without knowing the intended device
+# set is precisely the unsafe path — a union of whatever happens to be on disk
+# cannot notice that a whole device class was never captured.
+def expected_devices
+  manifest = File.join(SOURCE_SCREENSHOTS_DIR, EXPECTED_DEVICES_FILENAME)
+  unless File.exist?(manifest)
+    UI.user_error!(
+      "Missing #{EXPECTED_DEVICES_FILENAME} in #{SOURCE_SCREENSHOTS_DIR} — run " \
+      "Scripts/screenshots.sh (it writes the expected device list). Refusing to " \
+      "stage without it: a partial upload plus overwrite_screenshots would delete " \
+      "device sets already live on App Store Connect."
+    )
+  end
+  devices = File.readlines(manifest).map(&:strip).reject(&:empty?)
+  UI.user_error!("#{EXPECTED_DEVICES_FILENAME} is empty — re-run Scripts/screenshots.sh.") if devices.empty?
+  devices
+end
+
+# Refuse to stage an INCOMPLETE set. `Scripts/screenshots.sh` exiting non-zero is
+# not enforced here — `metadata`/`screenshots_only` can be run directly — so if a
+# capture failed and someone uploads anyway, deliver would upload the short set
+# while `overwrite_screenshots: true` deletes the fuller set already live on ASC.
+# deliver deletes per locale scoped by LANGUAGE, across ALL display types (see
+# deliver/upload_screenshots.rb `delete_screenshots`), so a missing device class is
+# just as destructive as a missing screen. Two guards:
+#   1. Device coverage — every device in the run's manifest must have screenshots in
+#      at least one locale. This is the ONLY check that catches a whole device class
+#      absent everywhere (an `--ios`-only run, or a watch capture that failed for all
+#      8 locales): the per-locale union below can't, because a class missing from
+#      every locale simply never enters the union.
+#   2. Per-locale completeness — every locale that has ANY screenshots must match the
+#      richest locale's complement (device × screen). Since all locales capture
+#      identically, the richest defines "complete"; any locale short a file another
+#      has is a failed/partial capture.
+# Both abort before a single byte is deleted on ASC.
+def assert_complete_screenshot_set
+  devices = expected_devices # fails closed if the manifest is missing/empty
+
+  per_locale = {}
+  LOCALE_MAP.each_key do |short|
+    short_dir = File.join(SOURCE_SCREENSHOTS_DIR, short)
+    next unless Dir.exist?(short_dir)
+
+    complement = screenshot_complement_for(short_dir)
+    per_locale[short] = complement unless complement.empty?
+  end
+
+  return if per_locale.empty? # "Staged 0" is handled by the caller.
+
+  expected = per_locale.values.map(&:to_set).reduce(:|) # union = the full complement
+
+  # Guard 1: a device class present in the manifest but in NO locale's output.
+  present_devices = expected.map { |entry| entry.split("/", 2).first }.to_set
+  absent_devices = devices.reject { |device| present_devices.include?(device) }
+  unless absent_devices.empty?
+    UI.user_error!(
+      "No screenshots for #{absent_devices.join(', ')} in ANY locale — refusing to " \
+      "upload. deliver deletes a locale's screenshots across every display type, so " \
+      "uploading without these would strip their live sets from App Store Connect. " \
+      "Run a full Scripts/screenshots.sh (not a narrowed --ios/--watch) before uploading."
+    )
+  end
+
+  # Guard 2: per-locale gaps against the richest complement.
+  incomplete = per_locale.filter_map do |short, complement|
+    missing = (expected - complement.to_set).to_a.sort
+    "  #{short}: missing #{missing.join(', ')}" unless missing.empty?
+  end
+  return if incomplete.empty?
+
+  UI.user_error!(
+    "Incomplete screenshot set — refusing to upload (a partial upload plus " \
+    "overwrite_screenshots would delete the fuller set already on ASC). " \
+    "Re-run Scripts/screenshots.sh for the affected locale(s):\n#{incomplete.join("\n")}"
+  )
+end
+
+def stage_screenshots
   unless Dir.exist?(SOURCE_SCREENSHOTS_DIR)
     UI.user_error!("No screenshots found at #{SOURCE_SCREENSHOTS_DIR} — run Scripts/screenshots.sh first.")
   end
+
+  # Refuse an incomplete set BEFORE touching the staged dir, so a refusal leaves the
+  # previous staged output intact and copies nothing (see the guard's comment).
+  assert_complete_screenshot_set
+
+  FileUtils.rm_rf(SCREENSHOTS_PATH)
+  FileUtils.mkdir_p(SCREENSHOTS_PATH)
 
   total = 0
   LOCALE_MAP.each do |short, asc_locale|
