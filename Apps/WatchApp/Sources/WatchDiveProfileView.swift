@@ -134,7 +134,12 @@ struct WatchSurfaceDetailView: View {
 
                 HStack(spacing: 16) {
                     segmentMetric("Distance", DistanceFormat.string(segment.distanceMeters))
-                    segmentMetric("Time", Duration.seconds(segment.duration).formatted(.time(pattern: .minuteSecond)))
+                    // "Duration", not "Time": this is an elapsed span, and it
+                    // matches the iPhone surface detail's label. "Time" is also
+                    // the depth/metric charts' x-axis key, translated there as
+                    // clock time (es "Hora", ja "時刻") — sharing it would
+                    // caption this duration with the wrong sense.
+                    segmentMetric("Duration", Duration.seconds(segment.duration).formatted(.time(pattern: .minuteSecond)))
                 }
 
                 watchMetricCharts(heartRate: session.heartRateSamples, temperature: session.temperatureSamples, in: range)
@@ -148,11 +153,23 @@ struct WatchSurfaceDetailView: View {
 }
 
 /// A label-left / value-right stat row, matching the session summary's table.
-private func statRow(_ label: String, _ value: String) -> some View {
+///
+/// The label is a `LocalizedStringKey` so the English literals at each call site
+/// auto-extract into the Watch app's String Catalog (via `SWIFT_EMIT_LOC_STRINGS`)
+/// and localize; a plain `String` reaches `Text` through its verbatim initializer
+/// and would not. The value is a preformatted figure — never translated.
+///
+/// Both sides are held to a single line (scaling down before truncating): a
+/// translated label runs much longer than its English source — "Dive time" is
+/// "Tempo di immersione" in Italian — and a wrapped label would make rows
+/// unevenly tall on a 40/41 mm face, breaking the aligned table.
+private func statRow(_ label: LocalizedStringKey, _ value: String) -> some View {
     HStack {
         Text(label)
             .font(.caption2)
             .foregroundStyle(.secondary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.6)
         Spacer()
         Text(value)
             .font(.caption)
@@ -163,7 +180,10 @@ private func statRow(_ label: String, _ value: String) -> some View {
 }
 
 /// Stacked value-over-label metric used by the watch segment detail screens.
-private func segmentMetric(_ label: String, _ value: String) -> some View {
+/// Label localizes via `LocalizedStringKey` (see `statRow` above); the value is a
+/// preformatted figure. The label scales down rather than wrapping so a long
+/// translation ("Intervalle moy.") keeps the two metrics the same height.
+private func segmentMetric(_ label: LocalizedStringKey, _ value: String) -> some View {
     VStack(spacing: 1) {
         Text(value)
             .font(.headline)
@@ -173,6 +193,8 @@ private func segmentMetric(_ label: String, _ value: String) -> some View {
         Text(label)
             .font(.caption2)
             .foregroundStyle(.secondary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.6)
     }
 }
 

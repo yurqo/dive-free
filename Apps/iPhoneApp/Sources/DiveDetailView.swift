@@ -106,8 +106,12 @@ struct SurfaceDetailView: View {
 
 /// Wraps a metric chart in a titled `Section`, omitting it entirely when the
 /// chart has no points in range (e.g. no temperature on a non-Ultra watch).
+///
+/// The title is a `LocalizedStringKey` so the literals at each call site extract
+/// into the String Catalog and localize; a plain `String` would bind `Section`'s
+/// verbatim `StringProtocol` initializer and always render in English.
 @MainActor @ViewBuilder
-private func metricChartSection(_ title: String, _ chart: MetricChartView) -> some View {
+private func metricChartSection(_ title: LocalizedStringKey, _ chart: MetricChartView) -> some View {
     if !chart.isEmpty {
         Section(title) { chart }
     }

@@ -41,7 +41,11 @@ struct LiveSessionRow: View {
         .padding(.vertical, 4)
     }
 
-    private func stat(_ label: String, value: String) -> some View {
+    /// The label is a `LocalizedStringKey` so the literals at each `stat("…", …)`
+    /// call site extract into the String Catalog and localize (a plain `String`
+    /// reaches `Text` through its verbatim initializer and would not). The value
+    /// is a preformatted figure — never translated.
+    private func stat(_ label: LocalizedStringKey, value: String) -> some View {
         VStack(alignment: .leading, spacing: 1) {
             Text(label).font(.caption2).foregroundStyle(.secondary)
             Text(value).font(.callout.weight(.semibold).monospacedDigit())
