@@ -178,13 +178,15 @@ enum WatchScreenshotMode {
     @MainActor
     static func makeDemoSessionManager(modelContext: ModelContext) -> SessionManager {
         SessionManager(
+            // A DEBUG-only wrapper supplies a FIXED water temperature so the live
+            // screen's readout is byte-identical across captures (the mock's default
+            // sine would vary pixel-to-pixel). Kept here, behind `#if DEBUG`, rather
+            // than as a parameter on `MockDepthProvider` so no screenshot-only
+            // surface is added to the shipped `Sensors` framework.
             sensors: SensorManager(
-                provider: MockDepthProvider(
-                    interval: 0.5,
-                    profile: diveProfile,
-                    // Fixed so the live screen's water-temp readout is the same in
-                    // every capture (the default sine would vary pixel-to-pixel).
-                    fixedTemperatureCelsius: demoTemperatureCelsius
+                provider: ScreenshotDepthProvider(
+                    base: MockDepthProvider(interval: 0.5, profile: diveProfile),
+                    temperatureCelsius: demoTemperatureCelsius
                 )
             ),
             location: FixedLocationProvider(),
@@ -219,6 +221,33 @@ enum WatchScreenshotMode {
         let descent = Array(stride(from: 0.2, through: target, by: 0.2))
         return descent + Array(repeating: target, count: 14_400)
     }()
+}
+
+/// Wraps a `MockDepthProvider` for depth but emits a FIXED water temperature, so
+/// the live screen's temp readout is deterministic across captures. DEBUG/
+/// screenshot only — keeps the screenshot-specific temperature out of the shipped
+/// `Sensors` framework (`MockDepthProvider` stays as-is).
+private struct ScreenshotDepthProvider: DepthProvider {
+    let base: MockDepthProvider
+    let temperatureCelsius: Double
+
+    func start() async throws { try await base.start() }
+    func stop() { base.stop() }
+    func depthStream() -> AsyncStream<DepthSample> { base.depthStream() }
+
+    func temperatureStream() -> AsyncStream<TemperatureSample> {
+        let celsius = temperatureCelsius
+        return AsyncStream { continuation in
+            let task = Task {
+                while !Task.isCancelled {
+                    continuation.yield(TemperatureSample(timestamp: Date(), celsius: celsius))
+                    try? await Task.sleep(for: .seconds(0.5))
+                }
+                continuation.finish()
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
 }
 
 /// A `LocationProviding` that reports one fixed, plausible dive-spot coordinate,
