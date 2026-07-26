@@ -41,16 +41,20 @@ SOURCE_SCREENSHOTS_DIR = File.expand_path("../screenshots", __dir__).freeze
 # is shared with Scripts/screenshots.sh (EXPECTED_DEVICES_FILE there).
 EXPECTED_DEVICES_FILENAME = "expected-devices.txt".freeze
 
-# short-locale (screenshots/ folder) -> App Store Connect locale code.
+# short-locale (screenshots/ folder) -> App Store Connect locale code(s).
+# One source locale can feed several ASC locales: `es` populates both es-ES and
+# es-MX from the same Spanish capture/metadata (we have no Mexico-specific copy,
+# and an es-MX localization exists on the listing — leaving it empty looks
+# unfinished). Values are ALWAYS arrays so every call site iterates uniformly.
 LOCALE_MAP = {
-  "en"    => "en-US",
-  "es"    => "es-ES",
-  "fr"    => "fr-FR",
-  "it"    => "it",
-  "de"    => "de-DE",
-  "pt-BR" => "pt-BR",
-  "ja"    => "ja",
-  "uk"    => "uk"
+  "en"    => ["en-US"],
+  "es"    => ["es-ES", "es-MX"],
+  "fr"    => ["fr-FR"],
+  "it"    => ["it"],
+  "de"    => ["de-DE"],
+  "pt-BR" => ["pt-BR"],
+  "ja"    => ["ja"],
+  "uk"    => ["uk"]
 }.freeze
 
 # Spaceship's `.all` helpers return a single page (`resp.to_models`, no
@@ -416,25 +420,29 @@ def stage_screenshots
   FileUtils.mkdir_p(SCREENSHOTS_PATH)
 
   total = 0
-  LOCALE_MAP.each do |short, asc_locale|
+  LOCALE_MAP.each do |short, asc_locales|
     short_dir = File.join(SOURCE_SCREENSHOTS_DIR, short)
     next unless Dir.exist?(short_dir)
 
-    dest_dir = File.join(SCREENSHOTS_PATH, asc_locale)
-    FileUtils.mkdir_p(dest_dir)
+    # One source folder can fan out to several ASC locales (e.g. es -> es-ES,
+    # es-MX). Stage the identical files into each.
+    asc_locales.each do |asc_locale|
+      dest_dir = File.join(SCREENSHOTS_PATH, asc_locale)
+      FileUtils.mkdir_p(dest_dir)
 
-    Dir.glob(File.join(short_dir, "*")).sort.each do |device_dir|
-      next unless File.directory?(device_dir)
+      Dir.glob(File.join(short_dir, "*")).sort.each do |device_dir|
+        next unless File.directory?(device_dir)
 
-      device = File.basename(device_dir)
-      # Sanitize the device name for a filename prefix (spaces/parens -> "-").
-      device_prefix = device.gsub(/[^0-9A-Za-z]+/, "-").gsub(/-+/, "-").gsub(/^-|-$/, "")
+        device = File.basename(device_dir)
+        # Sanitize the device name for a filename prefix (spaces/parens -> "-").
+        device_prefix = device.gsub(/[^0-9A-Za-z]+/, "-").gsub(/-+/, "-").gsub(/^-|-$/, "")
 
-      Dir.glob(File.join(device_dir, "*.png")).sort.each do |png|
-        readable = readable_name_for(device_dir, File.basename(png))
-        dest = File.join(dest_dir, "#{device_prefix}-#{readable}")
-        FileUtils.cp(png, dest)
-        total += 1
+        Dir.glob(File.join(device_dir, "*.png")).sort.each do |png|
+          readable = readable_name_for(device_dir, File.basename(png))
+          dest = File.join(dest_dir, "#{device_prefix}-#{readable}")
+          FileUtils.cp(png, dest)
+          total += 1
+        end
       end
     end
   end
@@ -519,7 +527,8 @@ platform :ios do
     # version with nothing able to put the images back. deliver scopes its own
     # deletion the same way.
     localizations = version.get_app_store_version_localizations(limit: ASC_PAGE_LIMIT)
-    targets, skipped = localizations.partition { |localization| LOCALE_MAP.values.include?(localization.locale) }
+    purgeable_locales = LOCALE_MAP.values.flatten
+    targets, skipped = localizations.partition { |localization| purgeable_locales.include?(localization.locale) }
 
     skipped.each do |localization|
       UI.important("  #{localization.locale}: SKIPPED — not in LOCALE_MAP, `metadata` could not restore it")
