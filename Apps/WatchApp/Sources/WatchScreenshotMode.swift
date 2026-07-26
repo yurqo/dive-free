@@ -56,17 +56,31 @@ enum WatchScreenshotMode {
     }
 
     /// The screen requested on the command line, or `nil` when this is not a
-    /// screenshot launch. An unknown/missing slug falls back to `.start` rather
-    /// than crashing — the script's own screen list is the source of truth and a
-    /// mismatch shows up as a wrong-looking PNG, which is easier to diagnose than
-    /// a launch that dies before rendering anything.
+    /// screenshot launch.
+    ///
+    /// An unknown or missing slug is a HARD ERROR, not a fallback. The old fallback
+    /// to `.start` meant a slug rename (or a `WATCH_SCREENS`/`Screen` drift) shipped
+    /// a second Start-screen shot in place of the intended screen — silently, with
+    /// exit code 0. Crashing here writes no "screen ready" marker, so
+    /// `Scripts/screenshots.sh` fails the capture instead (fail closed). DEBUG-only,
+    /// so no shipping build can reach it.
     static var screen: Screen? {
         guard isEnabled else { return nil }
         let arguments = ProcessInfo.processInfo.arguments
         guard let flagIndex = arguments.firstIndex(of: screenFlag),
               arguments.index(after: flagIndex) < arguments.endIndex
-        else { return .start }
-        return Screen(rawValue: arguments[arguments.index(after: flagIndex)]) ?? .start
+        else {
+            fatalError("\(demoFlag) requires \(screenFlag) <NN-slug>, but none was given")
+        }
+        let raw = arguments[arguments.index(after: flagIndex)]
+        guard let screen = Screen(rawValue: raw) else {
+            fatalError("""
+                Unknown \(screenFlag) "\(raw)". Known slugs: \
+                \(Screen.allCases.map(\.rawValue).joined(separator: ", ")). \
+                Keep WATCH_SCREENS in Scripts/screenshots.sh in step with Screen.
+                """)
+        }
+        return screen
     }
 
     // MARK: - Resolved-language probe
@@ -103,6 +117,37 @@ enum WatchScreenshotMode {
         )
     }
 
+    // MARK: - Screen-ready handshake
+
+    /// File the app writes ONCE the intended screen has actually rendered with its
+    /// data, containing that screen's slug. `Scripts/screenshots.sh` polls for it
+    /// (matching the requested slug) before it photographs, and fails the capture
+    /// if it never appears.
+    static let readyFileName = "screenshot-ready.txt"
+
+    /// Announces that `screen` is on screen and populated. Called from the point in
+    /// `WatchScreenshotRootView` where the screen's data is guaranteed present — for
+    /// the live screen, only after the session is genuinely `.active`.
+    ///
+    /// WHY the handshake replaced a fixed `sleep`: a plain timed wait photographs
+    /// whatever is up when the timer fires, so a cold-launch stall, a thrown
+    /// `startSession()`, or a slug that rendered the wrong view all shipped a
+    /// valid-looking-but-wrong PNG with exit code 0. With the marker, the script
+    /// captures only what the app has confirmed is the right, populated screen, and
+    /// a screen that never renders is a timeout → a failed capture, never a shipped
+    /// one. Fail-closed: a failed write means no file, which the script treats as
+    /// failure.
+    static func publishScreenReady(_ screen: Screen) {
+        guard isEnabled else { return }
+        guard let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
+        else { return }
+        try? screen.rawValue.write(
+            to: documents.appendingPathComponent(readyFileName),
+            atomically: true,
+            encoding: .utf8
+        )
+    }
+
     // MARK: - Demo store
 
     /// A fresh in-memory store seeded with the shared `DemoData` fixtures — the
@@ -133,7 +178,15 @@ enum WatchScreenshotMode {
     @MainActor
     static func makeDemoSessionManager(modelContext: ModelContext) -> SessionManager {
         SessionManager(
-            sensors: SensorManager(provider: MockDepthProvider(interval: 0.5, profile: diveProfile)),
+            sensors: SensorManager(
+                provider: MockDepthProvider(
+                    interval: 0.5,
+                    profile: diveProfile,
+                    // Fixed so the live screen's water-temp readout is the same in
+                    // every capture (the default sine would vary pixel-to-pixel).
+                    fixedTemperatureCelsius: demoTemperatureCelsius
+                )
+            ),
             location: FixedLocationProvider(),
             modelContext: modelContext
         )
@@ -146,6 +199,10 @@ enum WatchScreenshotMode {
     /// Heart rate shown on the live screen. Fixed (not a random walk) so the shot
     /// is reproducible; ~78 bpm is a plausible working rate for a freediver.
     static let demoHeartRate = 78
+
+    /// Water temperature shown on the live screen. Fixed for reproducibility; 24 °C
+    /// is a plausible tropical dive temperature and matches the demo spot (Amed).
+    static let demoTemperatureCelsius = 24.0
 
     /// Descend at ~0.4 m/s to 5.8 m, then hold there indefinitely.
     ///
@@ -208,13 +265,27 @@ struct WatchScreenshotRootView: View {
 
     var body: some View {
         content
+            // Static screens are populated the instant they appear (their data is
+            // seeded synchronously, and `.summary`/`.profile` fatalError rather than
+            // render empty), so announce readiness on appear. `.live` is the
+            // exception: while idle `WatchRootView` shows the Start page, so it must
+            // announce readiness only after the session is actually active — done in
+            // the task below, never here.
+            .onAppear {
+                if screen != .live { WatchScreenshotMode.publishScreenReady(screen) }
+            }
             .task {
                 guard screen == .live else { return }
                 // Before the start, because `startScreenshotSession` only returns
                 // once it has placed its markers a few seconds in.
                 session.workout.setScreenshotHeartRate(WatchScreenshotMode.demoHeartRate)
                 // The real start path minus HealthKit (see `startScreenshotSession`).
-                await session.startScreenshotSession(markers: WatchScreenshotMode.demoMarkers)
+                // Announce ready ONLY on success: a thrown startSession() returns
+                // false, no marker is written, and the script fails the capture
+                // rather than photographing the idle Start screen.
+                if await session.startScreenshotSession(markers: WatchScreenshotMode.demoMarkers) {
+                    WatchScreenshotMode.publishScreenReady(.live)
+                }
             }
     }
 
@@ -227,6 +298,9 @@ struct WatchScreenshotRootView: View {
         case .sessions:
             WatchSessionListView()
         case .summary:
+            // fatalError, not an empty branch: a seeding regression must fail the
+            // capture, not emit a blank black PNG that passes every downstream check
+            // and gets uploaded. DEBUG-only, so it costs users nothing.
             if let record = featured {
                 NavigationStack {
                     // Same destination the session list pushes (title included), so
@@ -234,6 +308,8 @@ struct WatchScreenshotRootView: View {
                     WatchSessionSummaryView(session: record.toDomain())
                         .navigationTitle(record.startTime.formatted(.dateTime.month(.abbreviated).day().hour().minute()))
                 }
+            } else {
+                fatalError("Screenshot demo store has no featured session — DemoData.seed regressed")
             }
         case .profile:
             if let dive = featuredDive {
@@ -246,6 +322,8 @@ struct WatchScreenshotRootView: View {
                         temperatureSamples: dive.session.temperatureSamples
                     )
                 }
+            } else {
+                fatalError("Screenshot demo store has no featured dive — DemoData.seed regressed")
             }
         }
     }
@@ -255,8 +333,8 @@ struct WatchScreenshotRootView: View {
         DemoData.featuredSession(in: modelContext)
     }
 
-    /// The featured session's first dive (the deeper of its two), with its 1-based
-    /// number — what a diver would open from the summary's segment list.
+    /// The featured session's first dive, with its 1-based number — what a diver
+    /// would open from the summary's segment list.
     private var featuredDive: (session: DiveSession, dive: Dive, number: Int)? {
         guard let session = featured?.toDomain() else { return nil }
         let ordered = session.dives.sorted { $0.startTime < $1.startTime }

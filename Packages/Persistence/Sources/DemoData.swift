@@ -214,14 +214,17 @@ public enum DemoData {
         try? context.save()
     }
 
-    /// The seeded session the watch screenshots put on screen: the earliest one
-    /// (Amed, day 0), which is also the richest — two dives, two markers, heart
-    /// rate + temperature series and a surface track, so the summary, the depth
-    /// profile and the segment list all have something to draw. Deterministic:
-    /// `seed(into:)` always produces the same four sessions in the same order.
-    /// `nil` if the store was never seeded.
+    /// The seeded session the watch summary/profile screenshots drill into: the
+    /// NEWEST one, so it is the row sitting at the TOP of the watch session list
+    /// (which sorts newest-first). The five App Store shots then read as one story —
+    /// the list shot and the detail shots are the same dive — instead of the detail
+    /// belonging to a session the list never shows. It still has a dive, markers,
+    /// heart-rate + temperature series and a surface track to draw. Deterministic:
+    /// `seed(into:)` always produces the same sessions. `nil` if never seeded.
     public static func featuredSession(in context: ModelContext) -> SessionRecord? {
-        var descriptor = FetchDescriptor<SessionRecord>(sortBy: [SortDescriptor(\.startTime)])
+        var descriptor = FetchDescriptor<SessionRecord>(
+            sortBy: [SortDescriptor(\.startTime, order: .reverse)]
+        )
         descriptor.fetchLimit = 1
         return (try? context.fetch(descriptor))?.first
     }
