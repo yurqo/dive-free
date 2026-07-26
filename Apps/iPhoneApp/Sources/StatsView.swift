@@ -146,15 +146,12 @@ struct StatsView: View {
     private func badgesSection(_ stats: DiveStats) -> some View {
         Section("Badges") {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 90), spacing: 12)], spacing: 12) {
-                ForEach(badges(stats), id: \.name) { badge in
+                ForEach(badges(stats), id: \.id) { badge in
                     VStack(spacing: 6) {
                         Image(systemName: badge.icon)
                             .font(.title2)
                             .foregroundStyle(badge.unlocked ? AnyShapeStyle(.teal) : AnyShapeStyle(.secondary))
-                        // Verbatim by design: badge names are assembled at
-                        // runtime (some carry a count, e.g. "Coffee ×3"), so they
-                        // are not catalog keys — see `badges(_:)`.
-                        Text(verbatim: badge.name)
+                        Text(badge.name)
                             .font(.caption2)
                             .multilineTextAlignment(.center)
                     }
@@ -167,15 +164,19 @@ struct StatsView: View {
         }
     }
 
-    private func badges(_ stats: DiveStats) -> [(name: String, icon: String, unlocked: Bool)] {
-        var badges: [(name: String, icon: String, unlocked: Bool)] = [
-            ("10 Dives", "drop.fill", stats.totalDives >= 10),
-            ("50 Dives", "drop.fill", stats.totalDives >= 50),
-            ("100 Dives", "drop.fill", stats.totalDives >= 100),
-            ("5 Spots", "mappin.circle.fill", stats.spotsVisited >= 5),
-            ("10 Spots", "mappin.circle.fill", stats.spotsVisited >= 10),
-            ("3 Countries", "globe", stats.countriesVisited >= 3),
-            ("10 Days", "calendar", stats.daysDiving >= 10),
+    /// Names are `LocalizedStringResource` so every literal here — including the
+    /// two that interpolate a count, which extract as `%lld` keys — lands in the
+    /// String Catalog and renders translated. `id` is the stable, never-displayed
+    /// identity for `ForEach` (the name changes with both locale and count).
+    private func badges(_ stats: DiveStats) -> [Badge] {
+        var badges: [Badge] = [
+            Badge("dives.10", "10 Dives", "drop.fill", stats.totalDives >= 10),
+            Badge("dives.50", "50 Dives", "drop.fill", stats.totalDives >= 50),
+            Badge("dives.100", "100 Dives", "drop.fill", stats.totalDives >= 100),
+            Badge("spots.5", "5 Spots", "mappin.circle.fill", stats.spotsVisited >= 5),
+            Badge("spots.10", "10 Spots", "mappin.circle.fill", stats.spotsVisited >= 10),
+            Badge("countries.3", "3 Countries", "globe", stats.countriesVisited >= 3),
+            Badge("days.10", "10 Days", "calendar", stats.daysDiving >= 10),
         ]
         // Supporter badge + Coffee/Supporter achievements (tip jar). Gated the same
         // way as the purchase UI, but also shown to anyone who already has purchases
@@ -184,12 +185,27 @@ struct StatsView: View {
             let coffee = support.coffeeCount
             let months = support.supporterMonths
             badges += [
-                ("Supporter", "heart.fill", support.isSupporter),
-                (coffee > 0 ? "Coffee ×\(coffee)" : "Coffee", "cup.and.saucer.fill", coffee > 0),
-                (months > 0 ? "\(months) mo Supporter" : "Supporter Months", "calendar.badge.clock", months > 0),
+                Badge("supporter", "Supporter", "heart.fill", support.isSupporter),
+                Badge("coffee", coffee > 0 ? "Coffee ×\(coffee)" : "Coffee", "cup.and.saucer.fill", coffee > 0),
+                Badge("supporter.months", months > 0 ? "\(months) mo Supporter" : "Supporter Months", "calendar.badge.clock", months > 0),
             ]
         }
         return badges
+    }
+
+    /// One milestone tile in the Badges grid.
+    private struct Badge {
+        let id: String
+        let name: LocalizedStringResource
+        let icon: String
+        let unlocked: Bool
+
+        init(_ id: String, _ name: LocalizedStringResource, _ icon: String, _ unlocked: Bool) {
+            self.id = id
+            self.name = name
+            self.icon = icon
+            self.unlocked = unlocked
+        }
     }
 
     /// The label is a `LocalizedStringKey` so the English literals at each

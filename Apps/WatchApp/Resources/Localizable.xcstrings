@@ -362,19 +362,19 @@
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Superficie media"
+            "value": "Intervalo medio"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Surface moy."
+            "value": "Intervalle moy."
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Superficie media"
+            "value": "Intervallo medio"
           }
         },
         "ja": {
@@ -392,13 +392,13 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ø Oberfläche"
+            "value": "Ø Pause"
           }
         },
         "pt": {
           "stringUnit": {
             "state": "translated",
-            "value": "Superfície méd."
+            "value": "Intervalo méd."
           }
         }
       }
@@ -1641,6 +1641,52 @@
           "stringUnit": {
             "state": "translated",
             "value": "Solta o marcador selecionado debaixo d'água, ou confirma o item de menu selecionado na superfície."
+          }
+        }
+      }
+    },
+    "Duration": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Duración"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Durée"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Durata"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "時間"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Тривалість"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dauer"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Duração"
           }
         }
       }
@@ -2930,6 +2976,52 @@
           "stringUnit": {
             "state": "translated",
             "value": "Localização do ponto de mergulho e trajeto de superfície mais precisos. Consome a bateria mais rápido. Vale para a sua próxima sessão."
+          }
+        }
+      }
+    },
+    "No GPS fix": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sin posición GPS"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pas de position GPS"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nessuna posizione GPS"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GPS位置なし"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Немає GPS-позиції"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kein GPS-Fix"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sem posição GPS"
           }
         }
       }

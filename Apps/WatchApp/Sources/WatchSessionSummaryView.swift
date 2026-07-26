@@ -147,8 +147,11 @@ struct WatchSessionSummaryView: View {
     private var totalDiveTime: TimeInterval { session.dives.map(\.duration).reduce(0, +) }
     private var longestDive: TimeInterval? { session.dives.map(\.duration).max() }
 
+    /// Coordinates, or a localized "no fix" message. `summaryRow`'s value is a
+    /// preformatted `String`, so the lookup happens here via `String(localized:)`
+    /// — otherwise this row would pair a translated label with English text.
     private var locationText: String {
-        guard let location = session.location else { return "No GPS fix" }
+        guard let location = session.location else { return String(localized: "No GPS fix") }
         return String(format: "%.4f, %.4f", location.latitude, location.longitude)
     }
 
@@ -308,11 +311,18 @@ struct WatchSessionSummaryView: View {
     /// English literals at each call site auto-extract into the Watch app's String
     /// Catalog (via `SWIFT_EMIT_LOC_STRINGS`) and localize; a plain `String`
     /// reaches `Text` through its verbatim initializer and would not.
+    ///
+    /// Both sides are held to a single line (scaling down before truncating): a
+    /// translated label runs much longer than its English source — "Longest dive"
+    /// is "Plongée la plus longue" in French — and a wrapped label would make
+    /// rows unevenly tall on a 40/41 mm face, breaking this aligned table.
     private func summaryRow(_ label: LocalizedStringKey, _ value: String) -> some View {
         HStack {
             Text(label)
                 .font(.caption2)
                 .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
             Spacer()
             Text(value)
                 .font(.caption)
