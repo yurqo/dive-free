@@ -2,17 +2,38 @@ import Foundation
 import SwiftData
 import Domain
 
-/// Assembles a ``BackupArchive`` from the SwiftData store (export) and rebuilds the
-/// store's models from an archive (restore). This is the *testable core* of DiveFree's
-/// backup & restore — it owns the model ↔ DTO mapping, dedupe, and relationship linking,
-/// and delegates the two impure edges (reading/writing voice-note audio bytes) to
-/// injected closures so the app wires in VoiceNoteStore while tests stay filesystem-free.
+/// Assembles a DiveFree backup from the SwiftData store (export) and rebuilds the store
+/// from an unzipped backup (restore). This is the *testable core* of backup & restore —
+/// it owns the model ↔ manifest mapping, dedupe, and relationship linking.
 ///
-/// Restore is faithfully **additive**: it reproduces the archive as-is (each spot's exact
-/// center, each session's exact assignment) and never overwrites edits the user made on
-/// the target device. It deliberately does *not* run the proximity ``SpotAssigner`` —
-/// that would recenter archived spots and could spawn near-duplicates, breaking a
-/// deterministic restore. (Auto-assignment of new live sessions happens elsewhere.)
+/// ## Layering — Persistence never touches PhotoKit/UIKit
+///
+/// A backup is a **ZIP container**: a `manifest.json` (the ``BackupArchive``) plus
+/// discrete media files. This type builds the manifest and *stages the file tree* into a
+/// caller-provided directory; the caller (the app) then zips it with ``ZipContainer``.
+/// Every impure edge — resolving a voice note's bytes, a photo's thumbnail, or writing a
+/// full-resolution original out of the Photos library — is deferred to an **injected
+/// closure**. That keeps Persistence Foundation-only (no PhotoKit) and keeps this type
+/// filesystem-deterministic and unit-testable, with the app wiring VoiceNoteStore /
+/// PhotoKit into the closures.
+///
+/// ## Staging layout produced / consumed
+///
+/// ```
+/// manifest.json                 the encoded BackupArchive
+/// voice/<audioFileName>         voice-note originals   (only if includeVoiceNotes)
+/// thumbnails/<photoID>.jpg      small gallery thumbnails (always attempted)
+/// photos/<photoID>.<ext>        full-res photo originals (only if includePhotos)
+/// videos/<photoID>.<ext>        full-res video originals (only if includeVideos)
+/// ```
+///
+/// ## Restore is faithfully additive
+///
+/// Restore reproduces the archive as-is and never overwrites edits the user made on the
+/// target device: sessions dedupe by id, spots/trips/photos upsert by id, and a
+/// relationship is only ever set when it's currently `nil` (never re-pointed). It
+/// deliberately does *not* run the proximity ``SpotAssigner`` — that would recenter
+/// archived spots and could spawn near-duplicates, breaking a deterministic restore.
 ///
 /// `@MainActor` because it reads/writes through a SwiftData `ModelContext`, which is
 /// main-actor isolated.
@@ -24,16 +45,68 @@ public struct BackupRestore {
         self.context = context
     }
 
+    // MARK: - Photo resolution handle
+
+    /// The minimal, PhotoKit-free description of a photo the app needs to resolve its
+    /// bytes during export. Passed to the export closures so the app can try a local
+    /// (fast, device-only) resolution first and fall back to the cross-device cloud
+    /// identifier.
+    public struct PhotoRef: Sendable, Equatable {
+        /// The `PhotoRecord.id` (also the file basename used in the staging tree).
+        public var id: UUID
+        /// `PHAsset.localIdentifier` — device-local, fast, may be stale on another device.
+        public var assetIdentifier: String?
+        /// `PHCloudIdentifier.stringValue` — stable across devices for iCloud relink.
+        public var assetCloudIdentifier: String?
+        /// Whether the asset is a video (drives which media toggle / staging dir applies).
+        public var isVideo: Bool
+
+        public init(id: UUID, assetIdentifier: String?, assetCloudIdentifier: String?, isVideo: Bool) {
+            self.id = id
+            self.assetIdentifier = assetIdentifier
+            self.assetCloudIdentifier = assetCloudIdentifier
+            self.isVideo = isVideo
+        }
+    }
+
     // MARK: - Export
 
-    /// Builds a full ``BackupArchive`` from every session, spot, and trip in the store.
+    /// Builds the ``BackupArchive`` manifest for every session, spot, trip, and photo in
+    /// the store and **stages the backup's file tree** into `stagingDir` (creating it if
+    /// needed). The caller zips `stagingDir` afterwards (see ``ZipContainer``).
+    ///
+    /// Metadata always travels; heavy media is opt-in per `options`. Thumbnails are
+    /// always attempted so a restored gallery works offline even from a metadata-only
+    /// backup.
     ///
     /// - Parameters:
-    ///   - appVersion: the producing app version (informational, stored in the archive).
-    ///   - audioBytes: resolves a marker's voice-note file name to its raw bytes (the
-    ///     app passes VoiceNoteStore / the marker's `audioData`). Returning `nil` omits
-    ///     that clip from the archive.
-    public func makeArchive(appVersion: String? = nil, audioBytes: (String) -> Data?) throws -> BackupArchive {
+    ///   - stagingDir: an (ideally empty) directory to write `manifest.json` and the
+    ///     media subtrees into.
+    ///   - appVersion: the producing app version (informational, stored in the manifest).
+    ///   - options: which heavy media to bundle (voice/photos/videos).
+    ///   - audioBytes: resolves a marker's voice-note file name to its raw bytes (the app
+    ///     passes VoiceNoteStore); falls back to the marker's own `audioData`. Only
+    ///     consulted when `options.includeVoiceNotes`.
+    ///   - thumbnailBytes: resolves a photo's small thumbnail bytes; falls back to the
+    ///     record's stored `thumbnailData`. Always attempted.
+    ///   - writePhotoMedia: resolves a photo/video's full-resolution original and *writes*
+    ///     it to the given URL, returning whether it succeeded. Only called for a kind
+    ///     whose toggle is on. Streaming a large video to disk stays in the app layer.
+    /// - Returns: the ``BackupArchive`` that was written to `manifest.json` (handy for a
+    ///   size estimate and for tests).
+    @discardableResult
+    public func stageArchive(
+        into stagingDir: URL,
+        appVersion: String? = nil,
+        options: BackupExportOptions,
+        audioBytes: (String) -> Data? = { _ in nil },
+        thumbnailBytes: (PhotoRef) -> Data? = { _ in nil },
+        writePhotoMedia: (PhotoRef, URL) -> Bool = { _, _ in false }
+    ) throws -> BackupArchive {
+        let fm = FileManager.default
+        try fm.createDirectory(at: stagingDir, withIntermediateDirectories: true)
+
+        // --- Sessions / spots / trips metadata ---
         let sessionRecords = try context.fetch(FetchDescriptor<SessionRecord>())
         let sessions = sessionRecords.map { $0.toDomain() }
 
@@ -63,34 +136,100 @@ public struct BackupRestore {
             )
         }
 
-        // Collect every referenced voice-note file name (deduped) across all sessions'
-        // markers, then resolve bytes. Prefer the on-disk file via the injected
-        // closure; fall back to the marker's own CloudKit-synced `audioData` so a
-        // clip that only ever synced as a blob (never materialized to disk) is still
-        // captured. Only include clips we can resolve one way or the other.
-        var audio: [String: Data] = [:]
-        for record in sessionRecords {
-            for marker in (record.markers ?? []) {
-                guard let fileName = marker.audioFileName, audio[fileName] == nil else { continue }
-                if let bytes = audioBytes(fileName) ?? marker.audioData {
-                    audio[fileName] = bytes
+        // --- Voice notes (opt-in) ---
+        // Resolve each referenced clip once (deduped by file name). Prefer the on-disk
+        // file via the injected closure; fall back to the marker's CloudKit-synced blob
+        // so a clip that only ever synced as bytes is still captured. Manifest markers
+        // already reference `audioFileName`, so no manifest change is needed for audio.
+        if options.includeVoiceNotes {
+            let voiceDir = stagingDir.appendingPathComponent("voice", isDirectory: true)
+            var wrote: Set<String> = []
+            for record in sessionRecords {
+                for marker in (record.markers ?? []) {
+                    guard let fileName = marker.audioFileName, !wrote.contains(fileName) else { continue }
+                    guard let bytes = audioBytes(fileName) ?? marker.audioData else { continue }
+                    try fm.createDirectory(at: voiceDir, withIntermediateDirectories: true)
+                    try bytes.write(to: voiceDir.appendingPathComponent(fileName), options: .atomic)
+                    wrote.insert(fileName)
                 }
             }
         }
 
-        return BackupArchive(
+        // --- Photos (metadata always; thumbnail always attempted; media opt-in) ---
+        let thumbsDir = stagingDir.appendingPathComponent("thumbnails", isDirectory: true)
+        let photosDir = stagingDir.appendingPathComponent("photos", isDirectory: true)
+        let videosDir = stagingDir.appendingPathComponent("videos", isDirectory: true)
+
+        var photoBackups: [PhotoBackup] = []
+        for record in try context.fetch(FetchDescriptor<PhotoRecord>()) {
+            // Skip a model already deleted underneath us (reading its properties would
+            // trap — the deleted-model crash pattern this codebase guards against).
+            guard record.modelContext != nil else { continue }
+
+            let ref = PhotoRef(
+                id: record.id,
+                assetIdentifier: record.assetIdentifier,
+                assetCloudIdentifier: record.assetCloudIdentifier,
+                isVideo: record.isVideo
+            )
+
+            // Thumbnail: always attempt. Injected closure first, then the stored blob.
+            var thumbnailFileName: String?
+            if let thumb = thumbnailBytes(ref) ?? record.thumbnailData {
+                let name = "\(record.id.uuidString).jpg"
+                try fm.createDirectory(at: thumbsDir, withIntermediateDirectories: true)
+                try thumb.write(to: thumbsDir.appendingPathComponent(name), options: .atomic)
+                thumbnailFileName = name
+            }
+
+            // Full-res media: only for the matching toggle. The extension is a label —
+            // restore locates the file by name; Phase 3 (the closure) decides what bytes
+            // to write. We name videos `.mov` and photos `.jpg` by convention.
+            var mediaFileName: String?
+            let includeMedia = record.isVideo ? options.includeVideos : options.includePhotos
+            if includeMedia {
+                let name = "\(record.id.uuidString).\(record.isVideo ? "mov" : "jpg")"
+                let dir = record.isVideo ? videosDir : photosDir
+                try fm.createDirectory(at: dir, withIntermediateDirectories: true)
+                let dest = dir.appendingPathComponent(name)
+                if writePhotoMedia(ref, dest) {
+                    mediaFileName = name
+                } else {
+                    // The closure may have written a partial file before failing; drop it
+                    // so a broken original never ships (and stays out of the manifest).
+                    try? fm.removeItem(at: dest)
+                }
+            }
+
+            photoBackups.append(PhotoBackup(
+                id: record.id,
+                sessionID: record.session?.id,
+                spotID: record.spot?.id,
+                markerID: record.marker?.id,
+                assetCloudIdentifier: record.assetCloudIdentifier,
+                isVideo: record.isVideo,
+                createdAt: record.createdAt,
+                thumbnailFileName: thumbnailFileName,
+                mediaFileName: mediaFileName
+            ))
+        }
+
+        let archive = BackupArchive(
             exportedAt: Date(),
             appVersion: appVersion,
             sessions: sessions,
             spots: spots,
             trips: trips,
-            audio: audio
+            photos: photoBackups
         )
+        try archive.encoded().write(to: stagingDir.appendingPathComponent("manifest.json"), options: .atomic)
+        return archive
     }
 
     // MARK: - Restore
 
-    /// Counts describing what a ``restore(from:isTombstoned:materializeAudio:)`` call did.
+    /// Counts describing what a ``restore(fromStagingDirectory:isTombstoned:materializeAudio:reimportPhoto:)``
+    /// call did.
     public struct RestoreSummary: Sendable, Equatable {
         public var sessionsImported: Int
         public var sessionsSkipped: Int
@@ -99,6 +238,12 @@ public struct BackupRestore {
         public var tripsCreated: Int
         public var tripsLinked: Int
         public var audioRestored: Int
+        /// New `PhotoRecord`s created from the manifest (existing ids dedupe, not counted).
+        public var photosRestored: Int
+        /// Photos whose full-resolution bytes were bundled *and* the app's `reimportPhoto`
+        /// closure consumed them to establish a local asset id (relinks without a bundled
+        /// file are not counted here).
+        public var photosReimported: Int
 
         public init(
             sessionsImported: Int = 0,
@@ -107,7 +252,9 @@ public struct BackupRestore {
             spotsLinked: Int = 0,
             tripsCreated: Int = 0,
             tripsLinked: Int = 0,
-            audioRestored: Int = 0
+            audioRestored: Int = 0,
+            photosRestored: Int = 0,
+            photosReimported: Int = 0
         ) {
             self.sessionsImported = sessionsImported
             self.sessionsSkipped = sessionsSkipped
@@ -116,46 +263,74 @@ public struct BackupRestore {
             self.tripsCreated = tripsCreated
             self.tripsLinked = tripsLinked
             self.audioRestored = audioRestored
+            self.photosRestored = photosRestored
+            self.photosReimported = photosReimported
         }
     }
 
-    /// Restores an archive into the store. **Additive** — never wipes existing data;
-    /// sessions dedupe by id, spots/trips upsert by id.
+    /// Restores an already-unzipped backup staging directory into the store. **Additive**
+    /// — never wipes existing data; sessions dedupe by id, spots/trips/photos upsert by
+    /// id, relationships are only set when currently `nil`.
     ///
     /// - Parameters:
-    ///   - archive: the decoded archive to restore.
+    ///   - dir: the unzipped staging directory (the caller unzips the `.zip` first).
     ///   - isTombstoned: whether a session id was deleted on this device and must not be
-    ///     resurrected (defaults to never).
+    ///     resurrected (defaults to never — an explicit restore usually wants everything).
     ///   - materializeAudio: writes a restored clip's bytes to disk (the app passes
-    ///     VoiceNoteStore; defaults to a no-op). Called once per archive audio entry;
-    ///     returns `true` if it actually wrote the file (so `audioRestored` counts only
-    ///     real writes, not clips that already existed on disk).
+    ///     VoiceNoteStore; defaults to a no-op). Called once per bundled `voice/<name>`
+    ///     file; returns `true` if it actually wrote (so `audioRestored` counts real
+    ///     writes, not clips already present).
+    ///   - reimportPhoto: given a ``PhotoBackup`` and the bundled full-res file URL (or
+    ///     `nil` when none was bundled), returns the `PHAsset.localIdentifier` to store —
+    ///     the app relinks if the asset still resolves, else re-imports the bundled bytes
+    ///     to Photos, else returns `nil`. Defaults to a no-op returning `nil`.
     /// - Returns: a ``RestoreSummary`` of what changed.
+    /// - Throws: ``BackupArchiveError`` if `manifest.json` is missing/undecodable;
+    ///   rethrows filesystem/SwiftData errors.
     @discardableResult
     public func restore(
-        from archive: BackupArchive,
+        fromStagingDirectory dir: URL,
         isTombstoned: @MainActor @escaping (UUID) -> Bool = { _ in false },
-        materializeAudio: (String, Data) -> Bool = { _, _ in false }
+        materializeAudio: (String, Data) -> Bool = { _, _ in false },
+        reimportPhoto: (PhotoBackup, URL?) -> String? = { _, _ in nil }
     ) throws -> RestoreSummary {
+        let fm = FileManager.default
         var summary = RestoreSummary()
 
-        // 1. Materialize audio to disk so on-device playback finds the file. Count only
-        //    clips the closure actually wrote (it returns false for ones already present).
-        for (fileName, data) in archive.audio {
+        // Decode the manifest.
+        let manifestURL = dir.appendingPathComponent("manifest.json")
+        guard let manifestData = try? Data(contentsOf: manifestURL) else {
+            throw BackupArchiveError.malformed("manifest.json is missing from the backup")
+        }
+        let archive = try BackupArchive.decode(manifestData)
+
+        // 1. Load bundled voice notes (small; safe to hold in memory) and materialize
+        //    each to disk so on-device playback finds the file. `audioByName` also feeds
+        //    the cross-device `audioData` mirror below.
+        var audioByName: [String: Data] = [:]
+        let voiceDir = dir.appendingPathComponent("voice", isDirectory: true)
+        if let files = try? fm.contentsOfDirectory(at: voiceDir, includingPropertiesForKeys: nil) {
+            for file in files {
+                if let data = try? Data(contentsOf: file) {
+                    audioByName[file.lastPathComponent] = data
+                }
+            }
+        }
+        for (fileName, data) in audioByName {
             if materializeAudio(fileName, data) {
                 summary.audioRestored += 1
             }
         }
 
-        // 2. Import sessions (dedupe by id, honour tombstones). Mirror the archive's
-        //    audio bytes into each marker's `audioData` so cross-device playback works
-        //    even when the on-disk file is absent.
+        // 2. Import sessions (dedupe by id, honour tombstones). Mirror bundled audio into
+        //    each marker's `audioData` so cross-device playback works even when the
+        //    on-disk file is absent.
         let importer = SessionImporter(
             context: context,
             mirrorAudio: { marker in
                 guard marker.audioData == nil,
                       let fileName = marker.audioFileName,
-                      let bytes = archive.audio[fileName]
+                      let bytes = audioByName[fileName]
                 else { return false }
                 marker.audioData = bytes
                 return true
@@ -170,17 +345,15 @@ public struct BackupRestore {
             }
         }
 
-        // Fetch every session once and index by id, so spot/trip linking is a dict
-        // lookup rather than a per-id store round-trip. (Sessions from step 2 are now
-        // present; ids not here — tombstoned/absent — simply won't be linked.)
+        // Index sessions once (present after step 2; tombstoned/absent ids simply won't
+        // be found and won't be linked).
         let sessionsByID = Dictionary(
             try context.fetch(FetchDescriptor<SessionRecord>()).map { ($0.id, $0) },
             uniquingKeysWith: { first, _ in first }
         )
 
-        // 3. Create-if-missing + link spots. Additive: an existing spot's fields are
-        //    left untouched, and a session already assigned to a spot on this device is
-        //    NOT re-linked (only nil→set), so user re-assignments survive a restore.
+        // 3. Create-if-missing + link spots (additive: existing fields untouched; a
+        //    session already assigned is NOT re-linked — only nil→set).
         for sb in archive.spots {
             let spot = try existingSpot(id: sb.id) ?? {
                 let created = Spot(
@@ -225,6 +398,66 @@ public struct BackupRestore {
                     session.trip = trip
                     summary.tripsLinked += 1
                 }
+            }
+        }
+
+        // 5. Recreate/dedupe photos by id; reattach to session/spot/marker; restore the
+        //    thumbnail; relink or re-import the original via the app closure.
+        let markersByID = Dictionary(
+            try context.fetch(FetchDescriptor<MarkerRecord>())
+                .compactMap { $0.modelContext != nil ? ($0.id, $0) : nil },
+            uniquingKeysWith: { first, _ in first }
+        )
+        let spotsByID = Dictionary(
+            try context.fetch(FetchDescriptor<Spot>()).map { ($0.id, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        var photosByID = Dictionary(
+            try context.fetch(FetchDescriptor<PhotoRecord>())
+                .compactMap { $0.modelContext != nil ? ($0.id, $0) : nil },
+            uniquingKeysWith: { first, _ in first }
+        )
+
+        for pb in archive.photos {
+            let record: PhotoRecord
+            if let existing = photosByID[pb.id] {
+                record = existing
+            } else {
+                let created = PhotoRecord(id: pb.id, createdAt: pb.createdAt, isVideo: pb.isVideo)
+                context.insert(created)
+                photosByID[pb.id] = created
+                summary.photosRestored += 1
+                record = created
+            }
+
+            record.assetCloudIdentifier = pb.assetCloudIdentifier
+
+            // Reattach relationships (additive: only nil→set, so a link the user changed
+            // on this device is preserved).
+            if record.session == nil, let sid = pb.sessionID { record.session = sessionsByID[sid] }
+            if record.spot == nil, let spid = pb.spotID { record.spot = spotsByID[spid] }
+            if record.marker == nil, let mid = pb.markerID { record.marker = markersByID[mid] }
+
+            // Thumbnail bytes → cross-device blob (drives the offline gallery).
+            if let thumbName = pb.thumbnailFileName {
+                let turl = dir.appendingPathComponent("thumbnails", isDirectory: true).appendingPathComponent(thumbName)
+                if let tdata = try? Data(contentsOf: turl) {
+                    record.thumbnailData = tdata
+                }
+            }
+
+            // Full-res original: hand the app the bundled file (if any) and let it decide
+            // relink-vs-reimport. Store whatever local id it returns.
+            var mediaURL: URL?
+            if let mediaName = pb.mediaFileName {
+                let sub = pb.isVideo ? "videos" : "photos"
+                let murl = dir.appendingPathComponent(sub, isDirectory: true).appendingPathComponent(mediaName)
+                if fm.fileExists(atPath: murl.path) { mediaURL = murl }
+            }
+            let localID = reimportPhoto(pb, mediaURL)
+            record.assetIdentifier = localID
+            if mediaURL != nil, localID != nil {
+                summary.photosReimported += 1
             }
         }
 
