@@ -237,6 +237,68 @@ struct BackupRestoreTests {
         #expect(archive.photos.filter { !$0.isVideo }.allSatisfy { $0.mediaFileName == nil })
     }
 
+    @Test("staged names and the manifest carry the original's real extension, sanitized")
+    func exportUsesRealMediaExtension() throws {
+        let source = try seedSourceStore()
+        let context = source.store.container.mainContext
+
+        // PhotoKit reports what the bytes actually are — HEIC stills, MP4 clips — and the
+        // staged file must say so, or the re-import on restore silently drops it.
+        let staging = try makeStagingDir()
+        let archive = try BackupRestore(context: context).stageArchive(
+            into: staging,
+            options: BackupExportOptions(includePhotos: true, includeVideos: true),
+            mediaFileExtension: { $0.isVideo ? "MP4" : "heic" },
+            writePhotoMedia: { ref, url in try? Data("orig-\(ref.id)".utf8).write(to: url); return true }
+        )
+        #expect(names(in: staging, sub: "photos").allSatisfy { $0.hasSuffix(".heic") })
+        #expect(names(in: staging, sub: "videos") == ["\(source.videoPhotoID.uuidString).mp4"])
+        #expect(
+            archive.photos.first { $0.id == source.videoPhotoID }?.mediaFileName
+                == "\(source.videoPhotoID.uuidString).mp4"
+        )
+
+        // Restore finds those files by their manifest names, whatever the extension.
+        let dest = try DiveStore(inMemory: true)
+        var seen: [UUID: URL] = [:]
+        _ = try BackupRestore(context: dest.container.mainContext).restore(
+            fromStagingDirectory: staging,
+            reimportPhoto: { pb, url in
+                if let url { seen[pb.id] = url }
+                return "reimported-\(pb.id)"
+            }
+        )
+        #expect(seen.count == 4)
+        #expect(seen[source.videoPhotoID]?.pathExtension == "mp4")
+
+        // A path-ish extension is scrubbed to a plain suffix — it can't escape the tree.
+        let hostile = try makeStagingDir()
+        let hostileArchive = try BackupRestore(context: context).stageArchive(
+            into: hostile,
+            options: BackupExportOptions(includePhotos: true),
+            mediaFileExtension: { _ in "../../ev/il" },
+            writePhotoMedia: { _, url in try? Data("x".utf8).write(to: url); return true }
+        )
+        #expect(
+            hostileArchive.photos.filter { !$0.isVideo }
+                .allSatisfy { $0.mediaFileName == "\($0.id.uuidString).evil" }
+        )
+        #expect(names(in: hostile, sub: "photos").count == 3)
+
+        // Nothing usable reported → the jpg/mov convention still applies.
+        let fallback = try makeStagingDir()
+        let fallbackArchive = try BackupRestore(context: context).stageArchive(
+            into: fallback,
+            options: BackupExportOptions(includeVideos: true),
+            mediaFileExtension: { _ in "" },
+            writePhotoMedia: { _, url in try? Data("x".utf8).write(to: url); return true }
+        )
+        #expect(
+            fallbackArchive.photos.first { $0.isVideo }?.mediaFileName
+                == "\(source.videoPhotoID.uuidString).mov"
+        )
+    }
+
     // MARK: - Round-trip via staging
 
     @Test("export then restore recreates sessions, spot/trip links, photos, and mirrors audio")
@@ -526,6 +588,77 @@ struct BackupRestoreTests {
         let restored = try context.fetch(FetchDescriptor<PhotoRecord>()).first { $0.id == source.sessionPhotoID }
         #expect(restored?.assetIdentifier == "existing-local-id")
         #expect(restored?.assetCloudIdentifier == "existing-cloud-id")  // not clobbered by "cloud-session"
+    }
+
+    @Test("restore does not overwrite an existing photo's thumbnail")
+    func preservesExistingPhotoThumbnail() throws {
+        let source = try seedSourceStore()
+        let staging = try makeStagingDir()
+        _ = try BackupRestore(context: source.store.container.mainContext).stageArchive(
+            into: staging, options: BackupExportOptions())  // metadata + thumbnails
+
+        let dest = try DiveStore(inMemory: true)
+        let context = dest.container.mainContext
+        // A record this device already holds, with a freshly regenerated thumbnail. The
+        // archive carries an older thumbnail for the same id; since `thumbnailData` is
+        // CloudKit-mirrored, overwriting it would push the stale blob to every device.
+        let existing = PhotoRecord(id: source.sessionPhotoID, thumbnailData: Data("fresh-thumb".utf8))
+        context.insert(existing)
+        try context.save()
+
+        _ = try BackupRestore(context: context).restore(fromStagingDirectory: staging)
+
+        let photos = try context.fetch(FetchDescriptor<PhotoRecord>())
+        let kept = photos.first { $0.id == source.sessionPhotoID }
+        #expect(kept?.thumbnailData == Data("fresh-thumb".utf8))  // not the archived "thumb-session"
+
+        // Still additive the other way: a record with no thumbnail gets one (nil→set).
+        #expect(photos.first { $0.id == source.spotPhotoID }?.thumbnailData == Data("thumb-spot".utf8))
+    }
+
+    // MARK: - No dangling media references in the manifest
+
+    @Test("a lean backup emits no audioFileName for voice notes it didn't bundle")
+    func leanBackupStripsUnbundledAudioReference() throws {
+        let source = try seedSourceStore()
+        let context = source.store.container.mainContext
+        let staging = try makeStagingDir()
+        let archive = try BackupRestore(context: context).stageArchive(
+            into: staging,
+            options: BackupExportOptions()  // voice notes OFF (the default)
+        )
+
+        // Nothing bundled → the manifest must not claim a clip that isn't in the zip.
+        #expect(!exists(staging, "voice"))
+        let exported = archive.sessions.flatMap(\.markers)
+        #expect(!exported.isEmpty)
+        #expect(exported.allSatisfy { $0.audioFileName == nil })
+
+        // Only the *exported copies* are stripped; the live records keep their audio.
+        let live = try context.fetch(FetchDescriptor<SessionRecord>()).flatMap { $0.markers ?? [] }
+        #expect(live.contains { $0.audioFileName == "voice-1.m4a" })
+
+        // Restoring it produces markers with no audio reference rather than a broken one.
+        let dest = try DiveStore(inMemory: true)
+        _ = try BackupRestore(context: dest.container.mainContext).restore(fromStagingDirectory: staging)
+        let restored = try dest.container.mainContext
+            .fetch(FetchDescriptor<SessionRecord>())
+            .flatMap { $0.markers ?? [] }
+        #expect(!restored.isEmpty)
+        #expect(restored.allSatisfy { $0.audioFileName == nil })
+    }
+
+    @Test("voice notes on, but a clip's bytes don't resolve → its reference is dropped too")
+    func unresolvableVoiceNoteReferenceDropped() throws {
+        let source = try seedSourceStore()
+        let staging = try makeStagingDir()
+        let archive = try BackupRestore(context: source.store.container.mainContext).stageArchive(
+            into: staging,
+            options: BackupExportOptions(includeVoiceNotes: true),
+            audioBytes: { _ in nil }  // the clip is gone from disk and has no mirrored blob
+        )
+        #expect(!exists(staging, "voice"))
+        #expect(archive.sessions.flatMap(\.markers).allSatisfy { $0.audioFileName == nil })
     }
 
     // MARK: - Tombstone

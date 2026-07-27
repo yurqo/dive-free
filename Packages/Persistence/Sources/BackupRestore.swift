@@ -27,6 +27,11 @@ import Domain
 /// videos/<photoID>.<ext>        full-res video originals (only if includeVideos)
 /// ```
 ///
+/// `<ext>` is the original's *real* extension (heic/dng/png/mp4/…), reported by the
+/// caller — the bytes are whatever the Photos library stores, and mislabelling them
+/// breaks the re-import on restore. Restore locates every file by the name recorded in
+/// the manifest, so the extension is never assumed.
+///
 /// ## Restore is faithfully additive
 ///
 /// Restore reproduces the archive as-is and never overwrites edits the user made on the
@@ -89,6 +94,9 @@ public struct BackupRestore {
     ///     consulted when `options.includeVoiceNotes`.
     ///   - thumbnailBytes: resolves a photo's small thumbnail bytes; falls back to the
     ///     record's stored `thumbnailData`. Always attempted.
+    ///   - mediaFileExtension: the **real** file extension of the original the caller is
+    ///     about to write (`heic`, `dng`, `mp4`, …), so the staged file and the manifest
+    ///     name match the bytes. `nil` falls back to `jpg`/`mov`.
     ///   - writePhotoMedia: resolves a photo/video's full-resolution original and *writes*
     ///     it to the given URL, returning whether it succeeded. Only called for a kind
     ///     whose toggle is on. Streaming a large video to disk stays in the app layer.
@@ -101,6 +109,7 @@ public struct BackupRestore {
         options: BackupExportOptions,
         audioBytes: (String) -> Data? = { _ in nil },
         thumbnailBytes: (PhotoRef) -> Data? = { _ in nil },
+        mediaFileExtension: (PhotoRef) -> String? = { _ in nil },
         writePhotoMedia: (PhotoRef, URL) -> Bool = { _, _ in false }
     ) throws -> BackupArchive {
         let fm = FileManager.default
@@ -108,7 +117,6 @@ public struct BackupRestore {
 
         // --- Sessions / spots / trips metadata ---
         let sessionRecords = try context.fetch(FetchDescriptor<SessionRecord>())
-        let sessions = sessionRecords.map { $0.toDomain() }
 
         let spots = try context.fetch(FetchDescriptor<Spot>()).map { spot in
             SpotBackup(
@@ -141,18 +149,35 @@ public struct BackupRestore {
         // file via the injected closure; fall back to the marker's CloudKit-synced blob
         // so a clip that only ever synced as bytes is still captured. Manifest markers
         // already reference `audioFileName`, so no manifest change is needed for audio.
+        var bundledAudio: Set<String> = []
         if options.includeVoiceNotes {
             let voiceDir = stagingDir.appendingPathComponent("voice", isDirectory: true)
-            var wrote: Set<String> = []
             for record in sessionRecords {
                 for marker in (record.markers ?? []) {
-                    guard let fileName = marker.audioFileName, !wrote.contains(fileName) else { continue }
+                    guard let fileName = marker.audioFileName, !bundledAudio.contains(fileName) else { continue }
                     guard let bytes = audioBytes(fileName) ?? marker.audioData else { continue }
                     try fm.createDirectory(at: voiceDir, withIntermediateDirectories: true)
                     try bytes.write(to: voiceDir.appendingPathComponent(fileName), options: .atomic)
-                    wrote.insert(fileName)
+                    bundledAudio.insert(fileName)
                 }
             }
+        }
+
+        // Never let the manifest reference a clip the zip doesn't contain. A lean backup
+        // (voice notes off — the default) that still carried `audioFileName` would restore
+        // markers whose voice note can't play; the same goes for a clip whose bytes didn't
+        // resolve. The reference is dropped from the **exported copies only** —
+        // `toDomain()` returns detached value types, so the live SwiftData markers keep
+        // their audio.
+        let sessions = sessionRecords.map { record -> DiveSession in
+            var session = record.toDomain()
+            session.markers = session.markers.map { marker in
+                guard let name = marker.audioFileName, !bundledAudio.contains(name) else { return marker }
+                var stripped = marker
+                stripped.audioFileName = nil
+                return stripped
+            }
+            return session
         }
 
         // --- Photos (metadata always; thumbnail always attempted; media opt-in) ---
@@ -182,13 +207,18 @@ public struct BackupRestore {
                 thumbnailFileName = name
             }
 
-            // Full-res media: only for the matching toggle. The extension is a label —
-            // restore locates the file by name; Phase 3 (the closure) decides what bytes
-            // to write. We name videos `.mov` and photos `.jpg` by convention.
+            // Full-res media: only for the matching toggle. The extension must describe
+            // the bytes the closure actually writes — `PHAssetResourceManager` emits the
+            // *original* encoding (HEIC/DNG/PNG stills, `.mp4` clips), and a mislabelled
+            // file fails to re-import on restore, silently dropping the user's originals.
+            // `mediaFileExtension` reports the real one; the `jpg`/`mov` fallback only
+            // applies when the caller can't tell us (e.g. tests).
             var mediaFileName: String?
             let includeMedia = record.isVideo ? options.includeVideos : options.includePhotos
             if includeMedia {
-                let name = "\(record.id.uuidString).\(record.isVideo ? "mov" : "jpg")"
+                let ext = Self.sanitizedExtension(mediaFileExtension(ref))
+                    ?? (record.isVideo ? "mov" : "jpg")
+                let name = "\(record.id.uuidString).\(ext)"
                 let dir = record.isVideo ? videosDir : photosDir
                 try fm.createDirectory(at: dir, withIntermediateDirectories: true)
                 let dest = dir.appendingPathComponent(name)
@@ -442,8 +472,11 @@ public struct BackupRestore {
             if record.spot == nil, let spid = pb.spotID { record.spot = spotsByID[spid] }
             if record.marker == nil, let mid = pb.markerID { record.marker = markersByID[mid] }
 
-            // Thumbnail bytes → cross-device blob (drives the offline gallery).
-            if let thumbName = pb.thumbnailFileName {
+            // Thumbnail bytes → cross-device blob (drives the offline gallery). Additive
+            // like every field around it: an existing thumbnail is a *fresher* render of
+            // the same asset, and since this blob is CloudKit-mirrored, overwriting it
+            // with the archived one would push the downgrade to all the user's devices.
+            if record.thumbnailData == nil, let thumbName = pb.thumbnailFileName {
                 let turl = dir.appendingPathComponent("thumbnails", isDirectory: true).appendingPathComponent(thumbName)
                 if let tdata = try? Data(contentsOf: turl) {
                     record.thumbnailData = tdata
@@ -473,6 +506,18 @@ public struct BackupRestore {
 
         try context.save()
         return summary
+    }
+
+    // MARK: - Naming helpers
+
+    /// Normalizes a caller-supplied file extension into something safe to concatenate into
+    /// a zip entry name: lowercased, alphanumerics only (so no `/`, `.` or traversal can
+    /// sneak in), non-empty, and short. Returns `nil` when nothing usable is left.
+    private static func sanitizedExtension(_ raw: String?) -> String? {
+        guard let raw else { return nil }
+        let cleaned = raw.lowercased().filter { $0.isASCII && ($0.isLetter || $0.isNumber) }
+        guard !cleaned.isEmpty, cleaned.count <= 10 else { return nil }
+        return cleaned
     }
 
     // MARK: - Fetch helpers

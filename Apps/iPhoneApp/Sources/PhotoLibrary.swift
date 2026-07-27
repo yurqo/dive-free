@@ -124,18 +124,28 @@ enum PhotoLibrary {
         return identifier
     }
 
-    /// Saves a photo *file* (e.g. a full-resolution original bundled in a backup) to
-    /// the Photos library and returns the new asset's `localIdentifier`. Unlike
-    /// ``save(_:)`` this ingests the file bytes directly rather than re-encoding a
-    /// `UIImage`, preserving the original. Requires add/write access. `nonisolated`
-    /// for the same reason as ``save(_:)``.
-    nonisolated static func savePhoto(_ url: URL) async -> String? {
+    /// Saves a media *file* (a captured clip, or a full-resolution original bundled in a
+    /// backup) to the Photos library and returns the new asset's `localIdentifier`.
+    /// Unlike ``save(_:)`` this ingests the file bytes directly rather than re-encoding a
+    /// `UIImage`, preserving the original. Requires add/write access. `nonisolated` for
+    /// the same reason as ``save(_:)``.
+    ///
+    /// Uses `PHAssetCreationRequest.addResource(with:fileURL:options:)` rather than the
+    /// `creationRequestForAssetFrom{Image,Video}(atFileURL:)` pair, which has been
+    /// deprecated since iOS 9 and returns `nil` — losing the asset silently — when it
+    /// can't make sense of the file. `addResource` takes the bytes as the resource kind
+    /// we name and reads the format from the data itself, so a HEIC/DNG/PNG still or an
+    /// `.mp4` clip ingests exactly as it left the library.
+    nonisolated static func saveMedia(_ url: URL, isVideo: Bool) async -> String? {
         guard await requestAccess() else { return nil }
         var identifier: String?
         do {
             try await PHPhotoLibrary.shared().performChanges {
-                let request = PHAssetChangeRequest.creationRequestForAssetFromImage(atFileURL: url)
-                identifier = request?.placeholderForCreatedAsset?.localIdentifier
+                let request = PHAssetCreationRequest.forAsset()
+                let options = PHAssetResourceCreationOptions()
+                options.originalFilename = url.lastPathComponent
+                request.addResource(with: isVideo ? .video : .photo, fileURL: url, options: options)
+                identifier = request.placeholderForCreatedAsset?.localIdentifier
             }
         } catch {
             return nil
@@ -143,21 +153,9 @@ enum PhotoLibrary {
         return identifier
     }
 
-    /// Saves a captured video file to the Photos library; returns the new asset's
-    /// `localIdentifier` so it can be referenced (#139). Requires add/write access.
-    /// `nonisolated` for the same reason as `save`.
+    /// Saves a captured video file to the Photos library (#139).
     nonisolated static func saveVideo(_ url: URL) async -> String? {
-        guard await requestAccess() else { return nil }
-        var identifier: String?
-        do {
-            try await PHPhotoLibrary.shared().performChanges {
-                let request = PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: url)
-                identifier = request?.placeholderForCreatedAsset?.localIdentifier
-            }
-        } catch {
-            return nil
-        }
-        return identifier
+        await saveMedia(url, isVideo: true)
     }
 
     /// An `AVPlayerItem` for a referenced video (#139), or nil if missing/denied.

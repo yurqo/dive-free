@@ -1,6 +1,7 @@
 import Foundation
 import SwiftData
 import Photos
+import UniformTypeIdentifiers
 import Domain
 import Persistence
 
@@ -61,19 +62,27 @@ enum BackupService {
     /// `async` because resolving full-resolution photo/video originals from the Photos
     /// library is asynchronous (and may download iCloud-only originals). The file goes
     /// into its own unique temp subdirectory so the human-readable, date-stamped name
-    /// can't collide with a concurrent or same-day export still in flight.
+    /// can't collide with a concurrent or same-day export still in flight — **the caller
+    /// owns that directory** and must delete it once sharing is finished.
     static func exportBackup(options: BackupExportOptions, context: ModelContext) async throws -> URL {
         let fm = FileManager.default
         let work = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         let staging = work.appendingPathComponent("staging", isDirectory: true)
         let pending = work.appendingPathComponent("pending", isDirectory: true)
         // Always drop the heavy staged trees — the resolved full-res originals in
-        // `pending` and their moved-in copies under `staging` — even when `stageArchive`
-        // or `ZipContainer.zip` throws. (`work` itself is kept: the returned `.zip` lives
-        // in it and the caller/OS reclaims the temp dir afterwards.)
+        // `pending` and their moved-in copies under `staging`. On success `work` survives
+        // because the returned `.zip` lives in it; the caller owns it from there and must
+        // delete it once the share sheet is done (see ``ExportBackupView``), since iOS
+        // only reclaims `tmp` opportunistically and each export is potentially gigabytes.
+        // On a throw there's no file to hand back, so `work` goes too.
+        var succeeded = false
         defer {
-            try? fm.removeItem(at: staging)
-            try? fm.removeItem(at: pending)
+            if succeeded {
+                try? fm.removeItem(at: staging)
+                try? fm.removeItem(at: pending)
+            } else {
+                try? fm.removeItem(at: work)
+            }
         }
         try fm.createDirectory(at: staging, withIntermediateDirectories: true)
 
@@ -99,12 +108,14 @@ enum BackupService {
         }
 
         // Phase A — resolve heavy originals to per-id temp files (async, memory-safe).
+        // Each file keeps the original's *real* extension (see `writeOriginal`), which is
+        // then handed to `stageArchive` so the staged name and the manifest agree with the
+        // bytes.
         var resolvedMedia: [UUID: URL] = [:]
         if !mediaRefs.isEmpty {
             try fm.createDirectory(at: pending, withIntermediateDirectories: true)
             for ref in mediaRefs {
-                let dest = pending.appendingPathComponent("\(ref.id.uuidString).\(ref.isVideo ? "mov" : "jpg")")
-                if await writeOriginal(for: ref, to: dest) {
+                if let dest = await writeOriginal(for: ref, into: pending) {
                     resolvedMedia[ref.id] = dest
                 }
             }
@@ -122,6 +133,7 @@ enum BackupService {
                 if let name = thumbFileByID[ref.id] { return try? Data(contentsOf: PhotoStore.url(for: name)) }
                 return nil
             },
+            mediaFileExtension: { resolvedMedia[$0.id]?.pathExtension },
             writePhotoMedia: { ref, dest in
                 guard let src = resolvedMedia[ref.id] else { return false }
                 do { try fm.moveItem(at: src, to: dest); return true } catch { return false }
@@ -140,32 +152,55 @@ enum BackupService {
         let zipURL = work.appendingPathComponent("\(fileName()).zip")
         try await Task.detached { try ZipContainer.zip(directory: staging, to: zipURL) }.value
 
-        // `staging`/`pending` are cleaned by the `defer` above (on this success path and
-        // on any earlier throw); only the finished `.zip` remains in `work`.
+        // `staging`/`pending` are cleaned by the `defer` above; only the finished `.zip`
+        // remains in `work`, which the caller deletes after sharing.
+        succeeded = true
         return zipURL
     }
 
-    /// Streams a photo/video's full-resolution original out of the Photos library to
-    /// `dest`, returning success. Resolves the asset device-locally first, then via the
-    /// cross-device cloud identifier. Uses `PHAssetResourceManager.writeData` so bytes
-    /// go straight to disk (a large video never loads into memory) and allows network
-    /// access so iCloud-only originals download. Returns `false` on any
-    /// failure/denied/deleted asset — never throws, so one bad photo can't fail the
-    /// whole export.
-    private static func writeOriginal(for ref: BackupRestore.PhotoRef, to dest: URL) async -> Bool {
+    /// Streams a photo/video's full-resolution original out of the Photos library into
+    /// `directory`, returning the file it wrote (`<photoID>.<realExtension>`) or `nil`.
+    ///
+    /// Resolves the asset device-locally first, then via the cross-device cloud
+    /// identifier. Uses `PHAssetResourceManager.writeData` so bytes go straight to disk (a
+    /// large video never loads into memory) and allows network access so iCloud-only
+    /// originals download. Returns `nil` on any failure/denied/deleted asset — never
+    /// throws, so one bad photo can't fail the whole export.
+    ///
+    /// The extension comes from the `PHAssetResource` itself, because `writeData` emits
+    /// the **original** bytes: a modern iPhone still is HEIC (or DNG/PNG), and plenty of
+    /// clips are `.mp4`, not `.mov`. Labelling those `.jpg`/`.mov` used to make the
+    /// restore-side re-import fail, silently discarding gigabytes of bundled originals.
+    private static func writeOriginal(for ref: BackupRestore.PhotoRef, into directory: URL) async -> URL? {
         guard let asset = resolveAsset(local: ref.assetIdentifier, cloud: ref.assetCloudIdentifier) else {
-            return false
+            return nil
         }
         let resources = PHAssetResource.assetResources(for: asset)
-        guard let resource = primaryResource(resources, isVideo: ref.isVideo) else { return false }
+        guard let resource = primaryResource(resources, isVideo: ref.isVideo) else { return nil }
 
+        let dest = directory.appendingPathComponent(
+            "\(ref.id.uuidString).\(fileExtension(of: resource, isVideo: ref.isVideo))"
+        )
         let opts = PHAssetResourceRequestOptions()
         opts.isNetworkAccessAllowed = true
-        return await withCheckedContinuation { (continuation: CheckedContinuation<Bool, Never>) in
+        let ok = await withCheckedContinuation { (continuation: CheckedContinuation<Bool, Never>) in
             PHAssetResourceManager.default().writeData(for: resource, toFile: dest, options: opts) { error in
                 continuation.resume(returning: error == nil)
             }
         }
+        return ok ? dest : nil
+    }
+
+    /// The real file extension for a resource's bytes: the original filename's extension
+    /// first (most faithful), then the extension preferred for its UTI, then the
+    /// conventional fallback.
+    private nonisolated static func fileExtension(of resource: PHAssetResource, isVideo: Bool) -> String {
+        let fromName = (resource.originalFilename as NSString).pathExtension
+        if !fromName.isEmpty { return fromName.lowercased() }
+        if let ext = UTType(resource.uniformTypeIdentifier)?.preferredFilenameExtension {
+            return ext.lowercased()
+        }
+        return isVideo ? "mov" : "jpg"
     }
 
     // MARK: - Restore
@@ -233,9 +268,7 @@ enum BackupService {
         var reimported = 0
         if !pending.isEmpty, photoAccess {
             for item in pending {
-                let localID = item.isVideo
-                    ? await PhotoLibrary.saveVideo(item.url)
-                    : await PhotoLibrary.savePhoto(item.url)
+                let localID = await PhotoLibrary.saveMedia(item.url, isVideo: item.isVideo)
                 guard let localID, let record = fetchPhoto(id: item.photoID, context: context) else { continue }
                 record.assetIdentifier = localID
                 if let cloud = PhotoLibrary.cloudIdentifier(for: localID) {

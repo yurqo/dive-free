@@ -25,6 +25,9 @@ struct ExportBackupView: View {
     @State private var isExporting = false
     @State private var errorMessage: String?
     @State private var backupToShare: SharedBackupFile?
+    /// The temp directory holding the exported `.zip`, deleted once the share sheet closes
+    /// (`backupToShare` is already nil by then, so the URL is remembered separately).
+    @State private var exportedDirectory: URL?
 
     private var options: BackupExportOptions {
         BackupExportOptions(
@@ -50,7 +53,7 @@ struct ExportBackupView: View {
                 }
             }
             .task(id: options) { await recomputeEstimate() }
-            .sheet(item: $backupToShare) { shared in
+            .sheet(item: $backupToShare, onDismiss: discardExportedBackup) { shared in
                 ActivityView(activityItems: [shared.url])
             }
             .alert(
@@ -137,12 +140,30 @@ struct ExportBackupView: View {
     private func runExport() async {
         isExporting = true
         defer { isExporting = false }
+        // Drop a previous run's archive before making another, so exporting twice in one
+        // sitting can't leave two multi-gigabyte copies behind.
+        discardExportedBackup()
         do {
             let url = try await BackupService.exportBackup(options: options, context: context)
+            exportedDirectory = url.deletingLastPathComponent()
             backupToShare = SharedBackupFile(url: url)
         } catch {
             errorMessage = String(localized: "Couldn't create the backup. Please try again.")
         }
+    }
+
+    /// Deletes the temp directory holding the exported `.zip`.
+    ///
+    /// `BackupService.exportBackup` hands back a file in its own `tmp/<uuid>/` and makes
+    /// us its owner. Without this, every export leaves another archive — potentially
+    /// gigabytes — parked in `tmp`, which iOS only purges opportunistically, so repeated
+    /// exports can fill the device and fail mid-write. It runs on the share sheet's
+    /// `onDismiss`, i.e. after `UIActivityViewController` has finished copying the file to
+    /// wherever the user sent it, never before.
+    private func discardExportedBackup() {
+        guard let dir = exportedDirectory else { return }
+        exportedDirectory = nil
+        try? FileManager.default.removeItem(at: dir)
     }
 }
 
