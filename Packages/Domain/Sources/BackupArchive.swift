@@ -166,14 +166,14 @@ public enum BackupArchiveError: Error, Equatable {
 
 /// The top-level backup container (the zip's `manifest.json`). Bump
 /// ``currentFormatVersion`` whenever the shape changes; ``decode(_:)`` rejects
-/// archives from a *newer* format than this build understands, and treats an older
-/// shape that no longer matches (e.g. the unreleased v1 with its `audio` map and no
-/// `photos`) as ``BackupArchiveError/malformed(_:)`` rather than crashing.
+/// archives from a *newer* format than this build understands, and treats any JSON
+/// that doesn't match the expected shape as ``BackupArchiveError/malformed(_:)``
+/// rather than crashing.
 public struct BackupArchive: Codable, Sendable, Equatable {
-    /// The format version this build writes and can read. Version 2 introduced the
-    /// zip-container model: media (audio/photos/thumbnails) moved out of the JSON into
-    /// discrete files, and photo metadata (``photos``) was added.
-    public static let currentFormatVersion = 2
+    /// The format version this build writes and can read. Version 1 is the zip-container
+    /// model: this JSON manifest carries metadata only, while media (audio, photo/video
+    /// originals, thumbnails) travels as discrete files alongside it in the zip.
+    public static let currentFormatVersion = 1
 
     public var formatVersion: Int
     /// When this archive was produced.

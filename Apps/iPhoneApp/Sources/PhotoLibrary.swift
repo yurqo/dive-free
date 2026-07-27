@@ -72,6 +72,35 @@ enum PhotoLibrary {
         return localID
     }
 
+    /// Batched ``localIdentifier(forCloudIdentifier:)`` — resolves a whole set of cloud
+    /// identifiers to this device's local asset ids in a single lookup. Same rationale as
+    /// ``cloudIdentifiers(forLocalIdentifiers:)``: the per-id call is an XPC round trip,
+    /// so a restore resolves the archive's entire photo set at once instead of once per
+    /// photo on the main thread. Cloud ids with no counterpart here are omitted.
+    static func localIdentifiers(forCloudIdentifiers cloudIDs: [String]) -> [String: String] {
+        guard !cloudIDs.isEmpty else { return [:] }
+        let clouds = cloudIDs.map { PHCloudIdentifier(stringValue: $0) }
+        let mappings = PHPhotoLibrary.shared().localIdentifierMappings(for: clouds)
+        var result: [String: String] = [:]
+        for (cloud, outcome) in mappings {
+            if case let .success(localID) = outcome { result[cloud.stringValue] = localID }
+        }
+        return result
+    }
+
+    /// Which of `localIdentifiers` still resolve to an asset in the library, in one fetch
+    /// rather than one per id. Comparison ignores the `/L0/001` suffix PhotoKit appends,
+    /// so a canonicalized id still matches the one that was asked about.
+    static func existingLocalIdentifiers(_ localIdentifiers: [String]) -> Set<String> {
+        guard !localIdentifiers.isEmpty else { return [] }
+        let assets = PHAsset.fetchAssets(withLocalIdentifiers: localIdentifiers, options: nil)
+        var found: Set<Substring> = []
+        assets.enumerateObjects { asset, _, _ in
+            found.insert(asset.localIdentifier.prefix { $0 != "/" })
+        }
+        return Set(localIdentifiers.filter { found.contains($0.prefix { $0 != "/" }) })
+    }
+
     /// A thumbnail-sized image for caching at import time.
     static func thumbnail(for asset: PHAsset) async -> UIImage? {
         await image(for: asset, targetSize: CGSize(width: 800, height: 800))

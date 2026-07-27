@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import Domain
 
-/// Tests for the pure `BackupArchive` manifest format (v2, zip-container model):
+/// Tests for the pure `BackupArchive` manifest format (the zip-container model):
 /// full round-trip (nested `DiveSession`s + photo metadata, no embedded media
 /// bytes), version gating, malformed-input handling, deterministic bytes, and the
 /// empty archive.
@@ -192,7 +192,7 @@ struct BackupArchiveTests {
     @Test("the manifest embeds no media bytes (no base64 audio/photo blobs)")
     func noEmbeddedMediaBytes() throws {
         let json = String(decoding: try fixture().encoded(), as: UTF8.self)
-        // The old v1 `audio` map is gone; media travels as files in the zip, not JSON.
+        // Media travels as files in the zip, never as base64 inside the JSON.
         #expect(!json.contains("\"audio\""))
         // Only file-name references appear, never raw bytes.
         #expect(json.contains("photo-1.heic"))
@@ -250,7 +250,7 @@ struct BackupArchiveTests {
     @Test("JSON missing required keys throws .malformed")
     func missingKeysMalformed() {
         // Valid JSON, valid version, but missing sessions/spots/trips/photos.
-        let data = Data(#"{"formatVersion":2}"#.utf8)
+        let data = Data(#"{"formatVersion":1}"#.utf8)
         #expect {
             try BackupArchive.decode(data)
         } throws: { error in
@@ -259,10 +259,10 @@ struct BackupArchiveTests {
         }
     }
 
-    @Test("a v1 archive (audio map, no photos) is rejected as .malformed, not a crash")
-    func legacyV1RejectedAsMalformed() {
-        // The unreleased v1 shape: formatVersion 1, an `audio` map, and no `photos`.
-        // Version gate passes (1 <= 2) but the full decode must fail cleanly.
+    @Test("a manifest of the right version but the wrong shape is .malformed, not a crash")
+    func wrongShapeRejectedAsMalformed() {
+        // Passes the version gate, then fails the full decode: unknown `audio` key and no
+        // `photos`. Must surface as a clean `.malformed`, never a raw DecodingError.
         let data = Data(#"""
         {"formatVersion":1,"exportedAt":"2026-01-01T00:00:00Z","sessions":[],"spots":[],"trips":[],"audio":{"note-1.m4a":"3q2+7wABAg=="}}
         """#.utf8)

@@ -130,8 +130,15 @@ enum BackupService {
 
         // Pack the staging tree into a shareable `.zip` alongside it (outside the
         // staging dir so it isn't zipped into itself).
+        //
+        // Off the main actor: zipping walks and copies the entire staging tree, which
+        // with originals bundled can be gigabytes and take minutes. Running it here
+        // (a `@MainActor` context) would wedge the main thread for the whole pack —
+        // the progress spinner would freeze and the watchdog would kill the app
+        // (`0x8badf00d`). Only `URL`s (Sendable) cross into the task; the
+        // `ModelContext` deliberately does not.
         let zipURL = work.appendingPathComponent("\(fileName()).zip")
-        try ZipContainer.zip(directory: staging, to: zipURL)
+        try await Task.detached { try ZipContainer.zip(directory: staging, to: zipURL) }.value
 
         // `staging`/`pending` are cleaned by the `defer` above (on this success path and
         // on any earlier throw); only the finished `.zip` remains in `work`.
@@ -185,11 +192,24 @@ enum BackupService {
         let temp = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         // Kept alive until after the async re-import reads the bundled originals below.
         defer { try? fm.removeItem(at: temp) }
-        try ZipContainer.unzip(url, to: temp)
+        // Off the main actor, for the same reason as `zip` in `exportBackup`: expanding a
+        // multi-gigabyte archive on the main thread freezes the UI and invites a watchdog
+        // kill. Security-scoped access is process-wide, so the detached read is still
+        // covered by the `startAccessingSecurityScopedResource()` window above.
+        try await Task.detached { try ZipContainer.unzip(url, to: temp) }.value
 
         // Request Photos access up front so the synchronous relink inside `restore` can
         // resolve still-present originals (and the async re-import below can save).
         let photoAccess = await PhotoLibrary.requestAccess()
+
+        // Resolve *every* cloud identifier in the manifest to a still-present local asset
+        // in ONE batched pass, before `restore` runs. `restore`'s `reimportPhoto` closure
+        // is synchronous and main-actor bound, so a per-photo lookup there would put
+        // hundreds of sequential PhotoKit XPC round trips (plus a `PHAsset.fetchAssets`
+        // each) on the main thread, uninterruptibly — a 400-photo restore would hang the
+        // UI. Two batched calls replace 2N: cloud→local, then "which of those still
+        // exist". The closure is then just a dictionary hit.
+        let relinkByCloudID = photoAccess ? resolveRelinks(in: temp) : [:]
 
         // Phase A — restore metadata + thumbnails; relink synchronously, queue the
         // missing-original re-imports for the async pass.
@@ -198,7 +218,9 @@ enum BackupService {
             fromStagingDirectory: temp,
             materializeAudio: { name, bytes in VoiceNoteStore.materialize(bytes, as: name) },
             reimportPhoto: { backup, mediaURL in
-                if photoAccess, let localID = relink(backup) { return localID }
+                if let cloud = backup.assetCloudIdentifier, let localID = relinkByCloudID[cloud] {
+                    return localID
+                }
                 if let mediaURL {
                     pending.append(PendingReimport(photoID: backup.id, url: mediaURL, isVideo: backup.isVideo))
                 }
@@ -237,16 +259,23 @@ enum BackupService {
         )
     }
 
-    /// Resolves a bundled photo back to a still-present library asset by its stable
-    /// cloud identifier (the manifest carries no device-local id). Returns the local
-    /// identifier to store, or `nil` when the original no longer resolves on this
-    /// device.
-    private static func relink(_ backup: PhotoBackup) -> String? {
-        guard let cloud = backup.assetCloudIdentifier,
-              let localID = PhotoLibrary.localIdentifier(forCloudIdentifier: cloud),
-              PhotoLibrary.asset(for: localID) != nil
-        else { return nil }
-        return localID
+    /// Maps every cloud identifier in the unzipped backup's manifest to a **still-present**
+    /// local asset id on this device, in two batched PhotoKit calls regardless of how many
+    /// photos the archive holds. Cloud ids that don't resolve here, or resolve to an asset
+    /// that's been deleted since, are simply absent — those photos fall through to the
+    /// bundled-bytes re-import path.
+    ///
+    /// The manifest is decoded a second time here (``BackupRestore/restore`` decodes it
+    /// again for the import itself); it's a small JSON read and it keeps Persistence free
+    /// of any relink concern.
+    private static func resolveRelinks(in stagingDir: URL) -> [String: String] {
+        guard let data = try? Data(contentsOf: stagingDir.appendingPathComponent("manifest.json")),
+              let archive = try? BackupArchive.decode(data)
+        else { return [:] }
+        let cloudIDs = Array(Set(archive.photos.compactMap(\.assetCloudIdentifier)))
+        let mapped = PhotoLibrary.localIdentifiers(forCloudIdentifiers: cloudIDs)
+        let present = PhotoLibrary.existingLocalIdentifiers(Array(Set(mapped.values)))
+        return mapped.filter { present.contains($0.value) }
     }
 
     // MARK: - Size estimate
@@ -325,10 +354,22 @@ enum BackupService {
         }
         let resources = PHAssetResource.assetResources(for: asset)
         if let resource = primaryResource(resources, isVideo: isVideo),
-           let size = (resource.value(forKey: "fileSize") as? NSNumber)?.int64Value, size > 0 {
+           let size = resourceFileSize(resource), size > 0 {
             return size
         }
         return heuristicSize(width: asset.pixelWidth, height: asset.pixelHeight, isVideo: isVideo)
+    }
+
+    /// `PHAssetResource`'s byte count. There is no public API for it — the value lives on
+    /// an undocumented `fileSize` property — so we probe for the accessor first and return
+    /// `nil` when it isn't there. Without that guard, a future iOS renaming or dropping
+    /// the property would make `value(forKey:)` raise `NSUnknownKeyException`, which Swift
+    /// cannot catch: the app would simply crash the moment the export sheet opened.
+    /// Returning `nil` instead falls through to ``heuristicSize(width:height:isVideo:)``.
+    private nonisolated static func resourceFileSize(_ resource: PHAssetResource) -> Int64? {
+        let key = "fileSize"
+        guard resource.responds(to: NSSelectorFromString(key)) else { return nil }
+        return (resource.value(forKey: key) as? NSNumber)?.int64Value
     }
 
     /// A coarse size guess for an asset we can't measure exactly. Photos: ~half a byte
