@@ -1,22 +1,29 @@
 import Foundation
 
-/// A pure, versioned, dependency-free archive of a user's DiveFree data, suitable
+/// A pure, versioned, dependency-free *manifest* for a DiveFree backup, suitable
 /// for a full backup & restore round-trip on the same or another device.
 ///
-/// This is the *format* only. The Persistence/UI layers assemble a `BackupArchive`
-/// from SwiftData (sessions, spots, trips) plus the voice-note audio bytes, encode
-/// it with ``encoded()``, and later rebuild their models from a ``decode(_:)`` result.
-/// Nothing here touches SwiftData or the filesystem, so it stays deterministic and
-/// unit-testable.
+/// This is the *format* only. A backup is a **ZIP container**: this JSON manifest
+/// (as `manifest.json`) plus discrete media files — voice-note audio, photo/video
+/// originals, and thumbnails — stored as separate entries alongside it. The
+/// Persistence/UI layers assemble a `BackupArchive` from SwiftData (sessions,
+/// spots, trips, photos), write the media files into the zip, encode the manifest
+/// with ``encoded()``, and on restore rebuild their models from a ``decode(_:)``
+/// result while pulling the referenced files back out of the zip. Nothing here
+/// touches SwiftData, PhotoKit, or the filesystem, so it stays deterministic and
+/// unit-testable — and it carries **no media bytes**, only references by file name.
 ///
-/// - `sessions` reuse the Domain ``DiveSession`` model directly.
+/// - `sessions` reuse the Domain ``DiveSession`` model directly. Voice-note audio no
+///   longer travels inside this JSON; a marker's ``EventMarker/audioFileName`` names
+///   the audio file bundled next to the manifest in the zip.
 /// - `spots`/`trips` are pure Codable DTOs (``SpotBackup``/``TripBackup``) because the
 ///   real `Spot`/`Trip` types are Persistence `@Model`s not visible to Domain. Each
 ///   carries the list of session IDs that belong to it so relationships can be
 ///   reconstructed on import.
-/// - `audio` maps a voice-note file name (as referenced by
-///   ``EventMarker/audioFileName``) to its raw bytes. `Data` JSON-encodes as base64,
-///   so the audio travels inside the same self-contained JSON archive.
+/// - `photos` are ``PhotoBackup`` DTOs mirroring the Persistence `PhotoRecord`
+///   `@Model`. Each references its bundled thumbnail/media files by name (or `nil`
+///   when the user exported metadata-only), and carries the cross-device-stable
+///   `assetCloudIdentifier` so the original can be relinked from iCloud Photos.
 
 // MARK: - Spot / Trip DTOs
 
@@ -86,6 +93,64 @@ public struct TripBackup: Codable, Sendable, Equatable, Identifiable {
     }
 }
 
+// MARK: - Photo DTO
+
+/// A pure snapshot of a photo/video attachment for backup, mirroring the fields of
+/// the Persistence `PhotoRecord` `@Model`.
+///
+/// The manifest never carries media bytes. The heavy original and the thumbnail (if
+/// any) live as separate files in the zip, named by ``mediaFileName`` and
+/// ``thumbnailFileName``. Restore uses those names to pull bytes back out; when
+/// ``mediaFileName`` is `nil` the user exported metadata only, so restore relinks the
+/// original from iCloud Photos via ``assetCloudIdentifier`` (or skips it).
+///
+/// The device-local `PHAsset.localIdentifier` is deliberately **not** stored — it is
+/// not portable across devices. Only the cross-device-stable
+/// `PHCloudIdentifier.stringValue` (``assetCloudIdentifier``) travels.
+public struct PhotoBackup: Codable, Sendable, Equatable, Identifiable {
+    public var id: UUID
+    /// The session this photo belongs to, if attached via a session.
+    public var sessionID: UUID?
+    /// The spot this photo is attached to directly, if any.
+    public var spotID: UUID?
+    /// The marker this photo is linked to, if any.
+    public var markerID: UUID?
+    /// `PHCloudIdentifier.stringValue` for the referenced asset — stable across
+    /// devices, so the original can be relinked from iCloud Photos on restore.
+    public var assetCloudIdentifier: String?
+    /// Whether the referenced asset is a video (drives the play badge / AVKit).
+    public var isVideo: Bool
+    public var createdAt: Date
+    /// Name of the thumbnail file bundled in the zip; `nil` if none.
+    public var thumbnailFileName: String?
+    /// Name of the full-resolution photo/video file bundled in the zip; `nil` when the
+    /// user did not opt to include heavy media (metadata-only export). This is how
+    /// restore knows whether bundled bytes exist versus needing to relink or skip.
+    public var mediaFileName: String?
+
+    public init(
+        id: UUID,
+        sessionID: UUID? = nil,
+        spotID: UUID? = nil,
+        markerID: UUID? = nil,
+        assetCloudIdentifier: String? = nil,
+        isVideo: Bool = false,
+        createdAt: Date,
+        thumbnailFileName: String? = nil,
+        mediaFileName: String? = nil
+    ) {
+        self.id = id
+        self.sessionID = sessionID
+        self.spotID = spotID
+        self.markerID = markerID
+        self.assetCloudIdentifier = assetCloudIdentifier
+        self.isVideo = isVideo
+        self.createdAt = createdAt
+        self.thumbnailFileName = thumbnailFileName
+        self.mediaFileName = mediaFileName
+    }
+}
+
 // MARK: - Errors
 
 /// Failures raised when decoding a ``BackupArchive``.
@@ -99,12 +164,16 @@ public enum BackupArchiveError: Error, Equatable {
 
 // MARK: - Archive
 
-/// The top-level backup container. Bump ``currentFormatVersion`` whenever the shape
-/// changes; ``decode(_:)`` rejects archives from a *newer* format than this build
-/// understands while tolerating older/equal ones.
+/// The top-level backup container (the zip's `manifest.json`). Bump
+/// ``currentFormatVersion`` whenever the shape changes; ``decode(_:)`` rejects
+/// archives from a *newer* format than this build understands, and treats an older
+/// shape that no longer matches (e.g. the unreleased v1 with its `audio` map and no
+/// `photos`) as ``BackupArchiveError/malformed(_:)`` rather than crashing.
 public struct BackupArchive: Codable, Sendable, Equatable {
-    /// The format version this build writes and can read.
-    public static let currentFormatVersion = 1
+    /// The format version this build writes and can read. Version 2 introduced the
+    /// zip-container model: media (audio/photos/thumbnails) moved out of the JSON into
+    /// discrete files, and photo metadata (``photos``) was added.
+    public static let currentFormatVersion = 2
 
     public var formatVersion: Int
     /// When this archive was produced.
@@ -114,8 +183,9 @@ public struct BackupArchive: Codable, Sendable, Equatable {
     public var sessions: [DiveSession]
     public var spots: [SpotBackup]
     public var trips: [TripBackup]
-    /// Voice-note file name → raw audio bytes (base64 in JSON).
-    public var audio: [String: Data]
+    /// Photo/video attachment metadata. The bytes (thumbnail + optional original) live
+    /// as separate files in the zip, referenced by name; see ``PhotoBackup``.
+    public var photos: [PhotoBackup]
 
     public init(
         formatVersion: Int = BackupArchive.currentFormatVersion,
@@ -124,7 +194,7 @@ public struct BackupArchive: Codable, Sendable, Equatable {
         sessions: [DiveSession] = [],
         spots: [SpotBackup] = [],
         trips: [TripBackup] = [],
-        audio: [String: Data] = [:]
+        photos: [PhotoBackup] = []
     ) {
         self.formatVersion = formatVersion
         self.exportedAt = exportedAt
@@ -132,7 +202,7 @@ public struct BackupArchive: Codable, Sendable, Equatable {
         self.sessions = sessions
         self.spots = spots
         self.trips = trips
-        self.audio = audio
+        self.photos = photos
     }
 
     // MARK: Coding

@@ -2,9 +2,10 @@ import Foundation
 import Testing
 @testable import Domain
 
-/// Tests for the pure `BackupArchive` format: full round-trip (including base64
-/// audio and nested `DiveSession`s), version gating, malformed-input handling,
-/// deterministic bytes, and the empty archive.
+/// Tests for the pure `BackupArchive` manifest format (v2, zip-container model):
+/// full round-trip (nested `DiveSession`s + photo metadata, no embedded media
+/// bytes), version gating, malformed-input handling, deterministic bytes, and the
+/// empty archive.
 @Suite("BackupArchive")
 struct BackupArchiveTests {
     // MARK: - Fixtures
@@ -13,7 +14,7 @@ struct BackupArchiveTests {
     private func d(_ t: Double) -> Date { Date(timeIntervalSince1970: t) }
 
     /// Two sessions, each with dives/markers/track/samples; the first carries a
-    /// voice-note marker whose `audioFileName` matches the archive's `audio` key.
+    /// voice-note marker whose `audioFileName` names the audio file bundled in the zip.
     private func session1() -> DiveSession {
         let dive = Dive(
             startTime: d(60),
@@ -74,7 +75,43 @@ struct BackupArchiveTests {
         )
     }
 
-    /// A full archive: 2 sessions, 2 spots (with session IDs), 1 trip, 1 audio blob.
+    /// Three photos exercising every `mediaFileName`/`thumbnailFileName` combination:
+    /// a session photo with both thumbnail + full media, a metadata-only spot photo
+    /// (`mediaFileName == nil`), and a marker-linked video.
+    private func photos(session1ID: UUID, session2ID: UUID, spotID: UUID, markerID: UUID) -> [PhotoBackup] {
+        [
+            PhotoBackup(
+                id: UUID(uuidString: "00000000-0000-0000-0000-0000000000D1")!,
+                sessionID: session1ID,
+                assetCloudIdentifier: "cloud-photo-1",
+                isVideo: false,
+                createdAt: d(70),
+                thumbnailFileName: "thumb-1.jpg",
+                mediaFileName: "photo-1.heic"
+            ),
+            PhotoBackup(
+                id: UUID(uuidString: "00000000-0000-0000-0000-0000000000D2")!,
+                spotID: spotID,
+                assetCloudIdentifier: "cloud-photo-2",
+                isVideo: false,
+                createdAt: d(72),
+                thumbnailFileName: "thumb-2.jpg",
+                mediaFileName: nil // metadata-only: relink from iCloud on restore
+            ),
+            PhotoBackup(
+                id: UUID(uuidString: "00000000-0000-0000-0000-0000000000D3")!,
+                sessionID: session2ID,
+                markerID: markerID,
+                assetCloudIdentifier: "cloud-video-3",
+                isVideo: true,
+                createdAt: d(320),
+                thumbnailFileName: "thumb-3.jpg",
+                mediaFileName: "video-3.mov"
+            ),
+        ]
+    }
+
+    /// A full archive: 2 sessions, 2 spots (with session IDs), 1 trip, 3 photos.
     private func fixture() -> BackupArchive {
         let s1 = session1()
         let s2 = session2()
@@ -106,13 +143,14 @@ struct BackupArchiveTests {
             createdAt: d(0),
             sessionIDs: [s1.id, s2.id]
         )
+        let markerID = s2.markers[0].id
         return BackupArchive(
             exportedAt: d(500),
             appVersion: "1.2.0",
             sessions: [s1, s2],
             spots: [spot1, spot2],
             trips: [trip],
-            audio: ["note-1.m4a": Data([0xDE, 0xAD, 0xBE, 0xEF, 0x00, 0x01, 0x02])]
+            photos: photos(session1ID: s1.id, session2ID: s2.id, spotID: spot1.id, markerID: markerID)
         )
     }
 
@@ -126,14 +164,39 @@ struct BackupArchiveTests {
         #expect(decoded == original)
     }
 
-    @Test("audio bytes round-trip via base64")
-    func audioRoundTrip() throws {
+    @Test("photo metadata (video, metadata-only, and full media) round-trips")
+    func photosRoundTrip() throws {
         let original = fixture()
         let decoded = try BackupArchive.decode(try original.encoded())
-        #expect(decoded.audio["note-1.m4a"] == Data([0xDE, 0xAD, 0xBE, 0xEF, 0x00, 0x01, 0x02]))
-        // The JSON carries audio as a base64 string, not a raw byte array.
-        let json = String(decoding: try original.encoded(), as: UTF8.self)
-        #expect(json.contains(Data([0xDE, 0xAD, 0xBE, 0xEF, 0x00, 0x01, 0x02]).base64EncodedString()))
+        #expect(decoded.photos == original.photos)
+        #expect(decoded.photos.count == 3)
+
+        let withMedia = try #require(decoded.photos.first { $0.id == original.photos[0].id })
+        #expect(withMedia.thumbnailFileName == "thumb-1.jpg")
+        #expect(withMedia.mediaFileName == "photo-1.heic")
+        #expect(withMedia.sessionID == original.sessions[0].id)
+        #expect(withMedia.isVideo == false)
+
+        let metadataOnly = try #require(decoded.photos.first { $0.id == original.photos[1].id })
+        #expect(metadataOnly.mediaFileName == nil)
+        #expect(metadataOnly.thumbnailFileName == "thumb-2.jpg")
+        #expect(metadataOnly.spotID == original.spots[0].id)
+        #expect(metadataOnly.assetCloudIdentifier == "cloud-photo-2")
+
+        let video = try #require(decoded.photos.first { $0.id == original.photos[2].id })
+        #expect(video.isVideo == true)
+        #expect(video.mediaFileName == "video-3.mov")
+        #expect(video.markerID == original.sessions[1].markers[0].id)
+    }
+
+    @Test("the manifest embeds no media bytes (no base64 audio/photo blobs)")
+    func noEmbeddedMediaBytes() throws {
+        let json = String(decoding: try fixture().encoded(), as: UTF8.self)
+        // The old v1 `audio` map is gone; media travels as files in the zip, not JSON.
+        #expect(!json.contains("\"audio\""))
+        // Only file-name references appear, never raw bytes.
+        #expect(json.contains("photo-1.heic"))
+        #expect(json.contains("note-1.m4a"))
     }
 
     @Test("nested session relationships round-trip")
@@ -186,8 +249,23 @@ struct BackupArchiveTests {
 
     @Test("JSON missing required keys throws .malformed")
     func missingKeysMalformed() {
-        // Valid JSON, valid version, but missing sessions/spots/trips/audio.
-        let data = Data(#"{"formatVersion":1}"#.utf8)
+        // Valid JSON, valid version, but missing sessions/spots/trips/photos.
+        let data = Data(#"{"formatVersion":2}"#.utf8)
+        #expect {
+            try BackupArchive.decode(data)
+        } throws: { error in
+            if case .malformed = error as? BackupArchiveError { return true }
+            return false
+        }
+    }
+
+    @Test("a v1 archive (audio map, no photos) is rejected as .malformed, not a crash")
+    func legacyV1RejectedAsMalformed() {
+        // The unreleased v1 shape: formatVersion 1, an `audio` map, and no `photos`.
+        // Version gate passes (1 <= 2) but the full decode must fail cleanly.
+        let data = Data(#"""
+        {"formatVersion":1,"exportedAt":"2026-01-01T00:00:00Z","sessions":[],"spots":[],"trips":[],"audio":{"note-1.m4a":"3q2+7wABAg=="}}
+        """#.utf8)
         #expect {
             try BackupArchive.decode(data)
         } throws: { error in
@@ -225,6 +303,6 @@ struct BackupArchiveTests {
         #expect(decoded.sessions.isEmpty)
         #expect(decoded.spots.isEmpty)
         #expect(decoded.trips.isEmpty)
-        #expect(decoded.audio.isEmpty)
+        #expect(decoded.photos.isEmpty)
     }
 }
