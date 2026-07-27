@@ -147,10 +147,10 @@ struct BackupRestoreTests {
     // MARK: - Export: options gate what gets staged
 
     @Test("export with all options off stages manifest + thumbnails only")
-    func exportMetadataOnly() throws {
+    func exportMetadataOnly() async throws {
         let source = try seedSourceStore()
         let staging = try makeStagingDir()
-        let archive = try BackupRestore(context: source.store.container.mainContext).stageArchive(
+        let archive = try await BackupRestore(context: source.store.container.mainContext).stageArchive(
             into: staging,
             appVersion: "1.3.0",
             options: BackupExportOptions()  // all false
@@ -176,12 +176,12 @@ struct BackupRestoreTests {
     }
 
     @Test("each toggle adds exactly the right files")
-    func exportTogglesAddFiles() throws {
+    func exportTogglesAddFiles() async throws {
         let source = try seedSourceStore()
         let staging = try makeStagingDir()
 
         var writeCalls: [BackupRestore.PhotoRef] = []
-        let archive = try BackupRestore(context: source.store.container.mainContext).stageArchive(
+        let archive = try await BackupRestore(context: source.store.container.mainContext).stageArchive(
             into: staging,
             options: BackupExportOptions(includeVoiceNotes: true, includePhotos: true, includeVideos: true),
             audioBytes: { $0 == "voice-1.m4a" ? Data("m4a".utf8) : nil },
@@ -210,10 +210,10 @@ struct BackupRestoreTests {
     }
 
     @Test("includePhotos on but includeVideos off stages photos, not videos")
-    func exportPhotosButNotVideos() throws {
+    func exportPhotosButNotVideos() async throws {
         let source = try seedSourceStore()
         let staging = try makeStagingDir()
-        let archive = try BackupRestore(context: source.store.container.mainContext).stageArchive(
+        let archive = try await BackupRestore(context: source.store.container.mainContext).stageArchive(
             into: staging,
             options: BackupExportOptions(includePhotos: true, includeVideos: false),
             writePhotoMedia: { _, url in try? Data("x".utf8).write(to: url); return true }
@@ -224,10 +224,10 @@ struct BackupRestoreTests {
     }
 
     @Test("writePhotoMedia returning false leaves mediaFileName nil and no file")
-    func exportMediaWriteFailure() throws {
+    func exportMediaWriteFailure() async throws {
         let source = try seedSourceStore()
         let staging = try makeStagingDir()
-        let archive = try BackupRestore(context: source.store.container.mainContext).stageArchive(
+        let archive = try await BackupRestore(context: source.store.container.mainContext).stageArchive(
             into: staging,
             options: BackupExportOptions(includePhotos: true),
             writePhotoMedia: { _, url in try? Data("partial".utf8).write(to: url); return false }
@@ -238,14 +238,14 @@ struct BackupRestoreTests {
     }
 
     @Test("staged names and the manifest carry the original's real extension, sanitized")
-    func exportUsesRealMediaExtension() throws {
+    func exportUsesRealMediaExtension() async throws {
         let source = try seedSourceStore()
         let context = source.store.container.mainContext
 
         // PhotoKit reports what the bytes actually are — HEIC stills, MP4 clips — and the
         // staged file must say so, or the re-import on restore silently drops it.
         let staging = try makeStagingDir()
-        let archive = try BackupRestore(context: context).stageArchive(
+        let archive = try await BackupRestore(context: context).stageArchive(
             into: staging,
             options: BackupExportOptions(includePhotos: true, includeVideos: true),
             mediaFileExtension: { $0.isVideo ? "MP4" : "heic" },
@@ -273,7 +273,7 @@ struct BackupRestoreTests {
 
         // A path-ish extension is scrubbed to a plain suffix — it can't escape the tree.
         let hostile = try makeStagingDir()
-        let hostileArchive = try BackupRestore(context: context).stageArchive(
+        let hostileArchive = try await BackupRestore(context: context).stageArchive(
             into: hostile,
             options: BackupExportOptions(includePhotos: true),
             mediaFileExtension: { _ in "../../ev/il" },
@@ -287,7 +287,7 @@ struct BackupRestoreTests {
 
         // Nothing usable reported → the jpg/mov convention still applies.
         let fallback = try makeStagingDir()
-        let fallbackArchive = try BackupRestore(context: context).stageArchive(
+        let fallbackArchive = try await BackupRestore(context: context).stageArchive(
             into: fallback,
             options: BackupExportOptions(includeVideos: true),
             mediaFileExtension: { _ in "" },
@@ -302,12 +302,12 @@ struct BackupRestoreTests {
     // MARK: - Round-trip via staging
 
     @Test("export then restore recreates sessions, spot/trip links, photos, and mirrors audio")
-    func roundTrip() throws {
+    func roundTrip() async throws {
         let source = try seedSourceStore()
         let staging = try makeStagingDir()
         let clip = Data("m4a-bytes".utf8)
 
-        _ = try BackupRestore(context: source.store.container.mainContext).stageArchive(
+        _ = try await BackupRestore(context: source.store.container.mainContext).stageArchive(
             into: staging,
             appVersion: "1.3.0",
             options: BackupExportOptions(includeVoiceNotes: true, includePhotos: true, includeVideos: true),
@@ -382,10 +382,10 @@ struct BackupRestoreTests {
     }
 
     @Test("metadata-only restore passes nil media URL to reimportPhoto and restores thumbnails")
-    func restoreMetadataOnly() throws {
+    func restoreMetadataOnly() async throws {
         let source = try seedSourceStore()
         let staging = try makeStagingDir()
-        _ = try BackupRestore(context: source.store.container.mainContext).stageArchive(
+        _ = try await BackupRestore(context: source.store.container.mainContext).stageArchive(
             into: staging,
             options: BackupExportOptions()  // all off → thumbnails only
         )
@@ -411,10 +411,10 @@ struct BackupRestoreTests {
     // MARK: - Idempotent re-import
 
     @Test("restoring the same backup twice imports nothing the second time and creates no duplicates")
-    func idempotentReimport() throws {
+    func idempotentReimport() async throws {
         let source = try seedSourceStore()
         let staging = try makeStagingDir()
-        _ = try BackupRestore(context: source.store.container.mainContext).stageArchive(
+        _ = try await BackupRestore(context: source.store.container.mainContext).stageArchive(
             into: staging,
             options: BackupExportOptions()
         )
@@ -450,10 +450,10 @@ struct BackupRestoreTests {
     // MARK: - Additive
 
     @Test("restore is additive — a pre-existing unrelated session survives")
-    func additiveKeepsExisting() throws {
+    func additiveKeepsExisting() async throws {
         let source = try seedSourceStore()
         let staging = try makeStagingDir()
-        _ = try BackupRestore(context: source.store.container.mainContext).stageArchive(
+        _ = try await BackupRestore(context: source.store.container.mainContext).stageArchive(
             into: staging, options: BackupExportOptions())
 
         let dest = try DiveStore(inMemory: true)
@@ -472,10 +472,10 @@ struct BackupRestoreTests {
     // MARK: - Preserves existing assignments
 
     @Test("restore does not clobber a session's existing spot assignment (only nil→set)")
-    func preservesExistingSpotAssignment() throws {
+    func preservesExistingSpotAssignment() async throws {
         let source = try seedSourceStore()
         let staging = try makeStagingDir()
-        _ = try BackupRestore(context: source.store.container.mainContext).stageArchive(
+        _ = try await BackupRestore(context: source.store.container.mainContext).stageArchive(
             into: staging, options: BackupExportOptions())
 
         let dest = try DiveStore(inMemory: true)
@@ -506,12 +506,12 @@ struct BackupRestoreTests {
     // MARK: - Preserves an existing photo's asset link (data-integrity)
 
     @Test("restore leaves an existing photo's local asset id untouched and does not re-import it")
-    func preservesExistingPhotoAssetLink() throws {
+    func preservesExistingPhotoAssetLink() async throws {
         // Bundle full-res media for every photo so the vulnerable Phase-B re-import path
         // is armed.
         let source = try seedSourceStore()
         let staging = try makeStagingDir()
-        _ = try BackupRestore(context: source.store.container.mainContext).stageArchive(
+        _ = try await BackupRestore(context: source.store.container.mainContext).stageArchive(
             into: staging,
             options: BackupExportOptions(includePhotos: true, includeVideos: true),
             writePhotoMedia: { ref, url in try? Data("orig-\(ref.id)".utf8).write(to: url); return true }
@@ -564,10 +564,10 @@ struct BackupRestoreTests {
     }
 
     @Test("restore does not overwrite an existing photo's good cloud id")
-    func preservesExistingPhotoCloudID() throws {
+    func preservesExistingPhotoCloudID() async throws {
         let source = try seedSourceStore()
         let staging = try makeStagingDir()
-        _ = try BackupRestore(context: source.store.container.mainContext).stageArchive(
+        _ = try await BackupRestore(context: source.store.container.mainContext).stageArchive(
             into: staging, options: BackupExportOptions())  // metadata only
 
         let dest = try DiveStore(inMemory: true)
@@ -588,10 +588,10 @@ struct BackupRestoreTests {
     }
 
     @Test("restore does not overwrite an existing photo's thumbnail")
-    func preservesExistingPhotoThumbnail() throws {
+    func preservesExistingPhotoThumbnail() async throws {
         let source = try seedSourceStore()
         let staging = try makeStagingDir()
-        _ = try BackupRestore(context: source.store.container.mainContext).stageArchive(
+        _ = try await BackupRestore(context: source.store.container.mainContext).stageArchive(
             into: staging, options: BackupExportOptions())  // metadata + thumbnails
 
         let dest = try DiveStore(inMemory: true)
@@ -616,11 +616,11 @@ struct BackupRestoreTests {
     // MARK: - No dangling media references in the manifest
 
     @Test("a lean backup emits no audioFileName for voice notes it didn't bundle")
-    func leanBackupStripsUnbundledAudioReference() throws {
+    func leanBackupStripsUnbundledAudioReference() async throws {
         let source = try seedSourceStore()
         let context = source.store.container.mainContext
         let staging = try makeStagingDir()
-        let archive = try BackupRestore(context: context).stageArchive(
+        let archive = try await BackupRestore(context: context).stageArchive(
             into: staging,
             options: BackupExportOptions()  // voice notes OFF (the default)
         )
@@ -646,10 +646,10 @@ struct BackupRestoreTests {
     }
 
     @Test("voice notes on, but a clip's bytes don't resolve → its reference is dropped too")
-    func unresolvableVoiceNoteReferenceDropped() throws {
+    func unresolvableVoiceNoteReferenceDropped() async throws {
         let source = try seedSourceStore()
         let staging = try makeStagingDir()
-        let archive = try BackupRestore(context: source.store.container.mainContext).stageArchive(
+        let archive = try await BackupRestore(context: source.store.container.mainContext).stageArchive(
             into: staging,
             options: BackupExportOptions(includeVoiceNotes: true),
             audioBytes: { _ in nil }  // the clip is gone from disk and has no mirrored blob
@@ -661,10 +661,10 @@ struct BackupRestoreTests {
     // MARK: - Tombstone
 
     @Test("a tombstoned session id is skipped on restore")
-    func tombstonedSessionSkipped() throws {
+    func tombstonedSessionSkipped() async throws {
         let source = try seedSourceStore()
         let staging = try makeStagingDir()
-        _ = try BackupRestore(context: source.store.container.mainContext).stageArchive(
+        _ = try await BackupRestore(context: source.store.container.mainContext).stageArchive(
             into: staging, options: BackupExportOptions())
 
         let dest = try DiveStore(inMemory: true)
@@ -688,7 +688,7 @@ struct BackupRestoreTests {
     // MARK: - Missing manifest
 
     @Test("restore throws on a staging directory with no manifest")
-    func restoreMissingManifest() throws {
+    func restoreMissingManifest() async throws {
         let dest = try DiveStore(inMemory: true)
         let staging = try makeStagingDir()  // empty
         #expect(throws: BackupArchiveError.self) {

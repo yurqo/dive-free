@@ -107,13 +107,15 @@ public struct BackupRestore {
         into stagingDir: URL,
         appVersion: String? = nil,
         options: BackupExportOptions,
-        audioBytes: (String) -> Data? = { _ in nil },
-        thumbnailBytes: (PhotoRef) -> Data? = { _ in nil },
-        mediaFileExtension: (PhotoRef) -> String? = { _ in nil },
-        writePhotoMedia: (PhotoRef, URL) -> Bool = { _, _ in false }
-    ) throws -> BackupArchive {
+        progress: BackupProgressHandler? = nil,
+        audioBytes: (String) async -> Data? = { _ in nil },
+        thumbnailBytes: (PhotoRef) async -> Data? = { _ in nil },
+        mediaFileExtension: (PhotoRef) async -> String? = { _ in nil },
+        writePhotoMedia: (PhotoRef, URL) async -> Bool = { _, _ in false }
+    ) async throws -> BackupArchive {
         let fm = FileManager.default
         try fm.createDirectory(at: stagingDir, withIntermediateDirectories: true)
+        progress?(BackupProgress(phase: .preparing))
 
         // --- Sessions / spots / trips metadata ---
         let sessionRecords = try context.fetch(FetchDescriptor<SessionRecord>())
@@ -152,14 +154,27 @@ public struct BackupRestore {
         var bundledAudio: Set<String> = []
         if options.includeVoiceNotes {
             let voiceDir = stagingDir.appendingPathComponent("voice", isDirectory: true)
-            for record in sessionRecords {
-                for marker in (record.markers ?? []) {
-                    guard let fileName = marker.audioFileName, !bundledAudio.contains(fileName) else { continue }
-                    guard let bytes = audioBytes(fileName) ?? marker.audioData else { continue }
-                    try fm.createDirectory(at: voiceDir, withIntermediateDirectories: true)
-                    try bytes.write(to: voiceDir.appendingPathComponent(fileName), options: .atomic)
-                    bundledAudio.insert(fileName)
+            // Names first, so the phase has a real total to report against.
+            let clipNames = sessionRecords
+                .flatMap { ($0.markers ?? []).compactMap(\.audioFileName) }
+                .reduce(into: [String]()) { unique, name in
+                    if !unique.contains(name) { unique.append(name) }
                 }
+            let clipBytes: [String: Data] = sessionRecords.reduce(into: [:]) { blobs, record in
+                for marker in (record.markers ?? []) {
+                    if let name = marker.audioFileName, blobs[name] == nil, let data = marker.audioData {
+                        blobs[name] = data
+                    }
+                }
+            }
+            progress?(BackupProgress(phase: .voiceNotes, completed: 0, total: clipNames.count))
+            for (index, fileName) in clipNames.enumerated() {
+                try Task.checkCancellation()
+                guard let bytes = await audioBytes(fileName) ?? clipBytes[fileName] else { continue }
+                try fm.createDirectory(at: voiceDir, withIntermediateDirectories: true)
+                try await Self.write(bytes, to: voiceDir.appendingPathComponent(fileName))
+                bundledAudio.insert(fileName)
+                progress?(BackupProgress(phase: .voiceNotes, completed: index + 1, total: clipNames.count))
             }
         }
 
@@ -186,7 +201,14 @@ public struct BackupRestore {
         let videosDir = stagingDir.appendingPathComponent("videos", isDirectory: true)
 
         var photoBackups: [PhotoBackup] = []
-        for record in try context.fetch(FetchDescriptor<PhotoRecord>()) {
+        let photoRecords = try context.fetch(FetchDescriptor<PhotoRecord>())
+        progress?(BackupProgress(phase: .photos, completed: 0, total: photoRecords.count))
+        for (index, record) in photoRecords.enumerated() {
+            // Cancellation is checked per photo: this is the long pole (originals may
+            // download from iCloud), so it must abort promptly rather than at the end.
+            try Task.checkCancellation()
+            defer { progress?(BackupProgress(phase: .photos, completed: index + 1, total: photoRecords.count)) }
+
             // Skip a model already deleted underneath us (reading its properties would
             // trap — the deleted-model crash pattern this codebase guards against).
             guard record.modelContext != nil else { continue }
@@ -200,10 +222,10 @@ public struct BackupRestore {
 
             // Thumbnail: always attempt. Injected closure first, then the stored blob.
             var thumbnailFileName: String?
-            if let thumb = thumbnailBytes(ref) ?? record.thumbnailData {
+            if let thumb = await thumbnailBytes(ref) ?? record.thumbnailData {
                 let name = "\(record.id.uuidString).jpg"
                 try fm.createDirectory(at: thumbsDir, withIntermediateDirectories: true)
-                try thumb.write(to: thumbsDir.appendingPathComponent(name), options: .atomic)
+                try await Self.write(thumb, to: thumbsDir.appendingPathComponent(name))
                 thumbnailFileName = name
             }
 
@@ -216,13 +238,13 @@ public struct BackupRestore {
             var mediaFileName: String?
             let includeMedia = record.isVideo ? options.includeVideos : options.includePhotos
             if includeMedia {
-                let ext = Self.sanitizedExtension(mediaFileExtension(ref))
+                let ext = Self.sanitizedExtension(await mediaFileExtension(ref))
                     ?? (record.isVideo ? "mov" : "jpg")
                 let name = "\(record.id.uuidString).\(ext)"
                 let dir = record.isVideo ? videosDir : photosDir
                 try fm.createDirectory(at: dir, withIntermediateDirectories: true)
                 let dest = dir.appendingPathComponent(name)
-                if writePhotoMedia(ref, dest) {
+                if await writePhotoMedia(ref, dest) {
                     mediaFileName = name
                 } else {
                     // The closure may have written a partial file before failing; drop it
@@ -501,6 +523,22 @@ public struct BackupRestore {
 
         try context.save()
         return summary
+    }
+
+    // MARK: - Off-main I/O
+
+    /// Writes bytes to disk **off the main actor**.
+    ///
+    /// This type is `@MainActor` (SwiftData demands it), so a plain `data.write(to:)` here
+    /// would block the main thread for the whole write. Staging a large library is hundreds
+    /// of such writes plus gigabytes of originals — enough to freeze the UI for minutes and
+    /// get the app killed by the iOS watchdog. Hopping to a detached task keeps the main
+    /// thread free to animate progress and service a Cancel tap; `Data` and `URL` are both
+    /// `Sendable`, so nothing unsafe crosses the boundary.
+    private static func write(_ data: Data, to url: URL) async throws {
+        try await Task.detached(priority: .userInitiated) {
+            try data.write(to: url, options: .atomic)
+        }.value
     }
 
     // MARK: - Naming helpers

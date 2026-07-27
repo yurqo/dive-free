@@ -64,69 +64,52 @@ enum BackupService {
     /// into its own unique temp subdirectory so the human-readable, date-stamped name
     /// can't collide with a concurrent or same-day export still in flight — **the caller
     /// owns that directory** and must delete it once sharing is finished.
-    static func exportBackup(options: BackupExportOptions, context: ModelContext) async throws -> URL {
+    static func exportBackup(
+        options: BackupExportOptions,
+        context: ModelContext,
+        progress: BackupProgressHandler? = nil
+    ) async throws -> URL {
         let fm = FileManager.default
         let work = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         let staging = work.appendingPathComponent("staging", isDirectory: true)
-        let pending = work.appendingPathComponent("pending", isDirectory: true)
-        // Always drop the heavy staged trees — the resolved full-res originals in
-        // `pending` and their moved-in copies under `staging`. On success `work` survives
+        // Drop the staged tree once it has been packed. On success `work` survives
         // because the returned `.zip` lives in it; the caller owns it from there and must
         // delete it once the share sheet is done (see ``ExportBackupView``), since iOS
         // only reclaims `tmp` opportunistically and each export is potentially gigabytes.
-        // On a throw there's no file to hand back, so `work` goes too.
+        // On a throw — including a cancellation — there's no file to hand back, so `work`
+        // goes too and a cancelled export leaves nothing behind.
         var succeeded = false
         defer {
             if succeeded {
                 try? fm.removeItem(at: staging)
-                try? fm.removeItem(at: pending)
             } else {
                 try? fm.removeItem(at: work)
             }
         }
         try fm.createDirectory(at: staging, withIntermediateDirectories: true)
 
-        // Snapshot what only the app layer can supply: the on-disk thumbnail path (a
-        // PhotoStore concern Persistence can't reach) and the refs whose originals we must
-        // resolve for the enabled media toggles. The thumbnail *blob* is deliberately not
-        // prefetched — `stageArchive` reads `record.thumbnailData` per record as it goes,
-        // so holding every thumbnail in memory at once would buy nothing on a large
+        // The one thing only the app layer can supply: the on-disk thumbnail path (a
+        // PhotoStore concern Persistence can't reach). The thumbnail *blob* is deliberately
+        // not prefetched — `stageArchive` reads `record.thumbnailData` per record as it
+        // goes, so holding every thumbnail in memory at once would buy nothing on a large
         // gallery.
         var thumbFileByID: [UUID: String] = [:]
-        var mediaRefs: [BackupRestore.PhotoRef] = []
         for record in try context.fetch(FetchDescriptor<PhotoRecord>()) where record.modelContext != nil {
             if let name = record.thumbnailFileName { thumbFileByID[record.id] = name }
-            let wantMedia = record.isVideo ? options.includeVideos : options.includePhotos
-            if wantMedia {
-                mediaRefs.append(BackupRestore.PhotoRef(
-                    id: record.id,
-                    assetIdentifier: record.assetIdentifier,
-                    assetCloudIdentifier: record.assetCloudIdentifier,
-                    isVideo: record.isVideo
-                ))
-            }
         }
 
-        // Phase A — resolve heavy originals to per-id temp files (async, memory-safe).
-        // Each file keeps the original's *real* extension (see `writeOriginal`), which is
-        // then handed to `stageArchive` so the staged name and the manifest agree with the
-        // bytes.
-        var resolvedMedia: [UUID: URL] = [:]
-        if !mediaRefs.isEmpty {
-            try fm.createDirectory(at: pending, withIntermediateDirectories: true)
-            for ref in mediaRefs {
-                if let dest = await writeOriginal(for: ref, into: pending) {
-                    resolvedMedia[ref.id] = dest
-                }
-            }
-        }
-
-        // Phase B — stage synchronously; the media closure just moves the pre-resolved
-        // temp file into the staging tree.
-        try BackupRestore(context: context).stageArchive(
+        // Stage everything in one async pass. The heavy work — resolving each original
+        // out of Photos (which may download it from iCloud) — happens inside
+        // `writePhotoMedia`, writing straight to its final staging path. An earlier
+        // revision resolved every original into a `pending` directory first and then
+        // moved the files in, purely because the staging closures were synchronous; with
+        // async closures that whole pre-pass, its temp tree, and its duplicated
+        // "does this toggle include this record" logic all disappear.
+        try await BackupRestore(context: context).stageArchive(
             into: staging,
             appVersion: appVersion,
             options: options,
+            progress: progress,
             audioBytes: { VoiceNoteStore.data(for: $0) },
             // Prefer the cached file; `stageArchive` falls back to the record's mirrored
             // `thumbnailData` when this returns nil.
@@ -134,11 +117,10 @@ enum BackupService {
                 guard let name = thumbFileByID[ref.id] else { return nil }
                 return try? Data(contentsOf: PhotoStore.url(for: name))
             },
-            mediaFileExtension: { resolvedMedia[$0.id]?.pathExtension },
-            writePhotoMedia: { ref, dest in
-                guard let src = resolvedMedia[ref.id] else { return false }
-                do { try fm.moveItem(at: src, to: dest); return true } catch { return false }
-            }
+            // Metadata-only lookup (no bytes transferred), so naming the file costs
+            // nothing beyond a local PhotoKit fetch.
+            mediaFileExtension: { ref in originalExtension(for: ref) },
+            writePhotoMedia: { ref, dest in await writeOriginal(for: ref, to: dest) }
         )
 
         // Pack the staging tree into a shareable `.zip` alongside it (outside the
@@ -150,8 +132,11 @@ enum BackupService {
         // the progress spinner would freeze and the watchdog would kill the app
         // (`0x8badf00d`). Only `URL`s (Sendable) cross into the task; the
         // `ModelContext` deliberately does not.
+        try Task.checkCancellation()
+        progress?(BackupProgress(phase: .compressing))
         let zipURL = work.appendingPathComponent("\(fileName()).zip")
         try await Task.detached { try ZipContainer.zip(directory: staging, to: zipURL) }.value
+        progress?(BackupProgress(phase: .finished))
 
         // `staging`/`pending` are cleaned by the `defer` above; only the finished `.zip`
         // remains in `work`, which the caller deletes after sharing.
@@ -172,24 +157,37 @@ enum BackupService {
     /// the **original** bytes: a modern iPhone still is HEIC (or DNG/PNG), and plenty of
     /// clips are `.mp4`, not `.mov`. Labelling those `.jpg`/`.mov` used to make the
     /// restore-side re-import fail, silently discarding gigabytes of bundled originals.
-    private static func writeOriginal(for ref: BackupRestore.PhotoRef, into directory: URL) async -> URL? {
-        guard let asset = resolveAsset(local: ref.assetIdentifier, cloud: ref.assetCloudIdentifier) else {
-            return nil
-        }
-        let resources = PHAssetResource.assetResources(for: asset)
-        guard let resource = primaryResource(resources, isVideo: ref.isVideo) else { return nil }
+    /// The original's real file extension, from a metadata-only PhotoKit lookup.
+    ///
+    /// Separate from ``writeOriginal(for:to:)`` because the staging engine has to *name*
+    /// the file before it can ask for the bytes. `assetResources(for:)` reads the local
+    /// database only — no download — so this is cheap enough to call per photo.
+    private static func originalExtension(for ref: BackupRestore.PhotoRef) -> String? {
+        guard let asset = resolveAsset(local: ref.assetIdentifier, cloud: ref.assetCloudIdentifier),
+              let resource = primaryResource(PHAssetResource.assetResources(for: asset), isVideo: ref.isVideo)
+        else { return nil }
+        return fileExtension(of: resource, isVideo: ref.isVideo)
+    }
 
-        let dest = directory.appendingPathComponent(
-            "\(ref.id.uuidString).\(fileExtension(of: resource, isVideo: ref.isVideo))"
-        )
+    /// Streams one original out of Photos to `destination`, returning whether it landed.
+    ///
+    /// `writeData(for:toFile:)` streams to disk, so even a multi-GB video never sits in
+    /// memory, and `isNetworkAccessAllowed` lets an iCloud-only original download. Any
+    /// failure (asset deleted, access denied, network gone) returns `false` rather than
+    /// throwing, so one unresolvable photo can't abort the whole export — the staging
+    /// engine simply leaves `mediaFileName` nil for it.
+    private static func writeOriginal(for ref: BackupRestore.PhotoRef, to destination: URL) async -> Bool {
+        guard let asset = resolveAsset(local: ref.assetIdentifier, cloud: ref.assetCloudIdentifier),
+              let resource = primaryResource(PHAssetResource.assetResources(for: asset), isVideo: ref.isVideo)
+        else { return false }
+
         let opts = PHAssetResourceRequestOptions()
         opts.isNetworkAccessAllowed = true
-        let ok = await withCheckedContinuation { (continuation: CheckedContinuation<Bool, Never>) in
-            PHAssetResourceManager.default().writeData(for: resource, toFile: dest, options: opts) { error in
+        return await withCheckedContinuation { (continuation: CheckedContinuation<Bool, Never>) in
+            PHAssetResourceManager.default().writeData(for: resource, toFile: destination, options: opts) { error in
                 continuation.resume(returning: error == nil)
             }
         }
-        return ok ? dest : nil
     }
 
     /// The real file extension for a resource's bytes: the original filename's extension
