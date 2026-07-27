@@ -413,6 +413,7 @@ private enum UserGuide {
             .step(2, "Under **Backup & Restore**, tap **Export Backup…**."),
             .step(3, "Choose which originals to include, then tap **Export**."),
             .step(4, "The system share sheet opens — save the file to **Files**, AirDrop it, or send it wherever you like."),
+            .text("Including originals can take a while — a large library is gigabytes, and anything stored only in iCloud has to download first. Dive Free shows what it's working on and how far along it is, and you can tap **Cancel Export** at any point; nothing is left behind."),
             .subheading("How to restore"),
             .step(1, "Open **Settings ▸ Backup & Restore** and tap **Restore Backup…**."),
             .step(2, "Pick the .zip backup you saved. Dive Free reads it and brings your data back."),

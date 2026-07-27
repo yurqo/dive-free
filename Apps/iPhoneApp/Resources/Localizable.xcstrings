@@ -4272,6 +4272,53 @@
         }
       }
     },
+    "Cancel Export": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export abbrechen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancelar exportación"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Annuler l’export"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Annulla esportazione"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "書き出しをキャンセル"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancelar exportação"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Скасувати експорт"
+          }
+        }
+      }
+    },
     "Celsius": {
       "localizations": {
         "de": {
@@ -4637,6 +4684,53 @@
           "stringUnit": {
             "state": "translated",
             "value": "Кава ×%lld"
+          }
+        }
+      }
+    },
+    "Compressing…": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wird komprimiert…"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comprimiendo…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Compression…"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Compressione…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "圧縮中…"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Compactando…"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Стиснення…"
           }
         }
       }
@@ -5012,6 +5106,194 @@
           "stringUnit": {
             "state": "translated",
             "value": "Підключено"
+          }
+        }
+      }
+    },
+    "Copying photos — %lld of %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fotos werden kopiert – %lld von %lld"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copiando fotos: %lld de %lld"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copie des photos — %lld sur %lld"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copia delle foto — %lld di %lld"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "写真をコピー中 — %lld/%lld"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copiando fotos — %lld de %lld"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Копіювання фото — %lld з %lld"
+          }
+        }
+      }
+    },
+    "Copying photos…": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fotos werden kopiert…"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copiando fotos…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copie des photos…"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copia delle foto…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "写真をコピー中…"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copiando fotos…"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Копіювання фото…"
+          }
+        }
+      }
+    },
+    "Copying voice notes — %lld of %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sprachnotizen werden kopiert – %lld von %lld"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copiando notas de voz: %lld de %lld"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copie des notes vocales — %lld sur %lld"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copia delle note vocali — %lld di %lld"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ボイスメモをコピー中 — %lld/%lld"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copiando notas de voz — %lld de %lld"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Копіювання голосових нотаток — %lld з %lld"
+          }
+        }
+      }
+    },
+    "Copying voice notes…": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sprachnotizen werden kopiert…"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copiando notas de voz…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copie des notes vocales…"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copia delle note vocali…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ボイスメモをコピー中…"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copiando notas de voz…"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Копіювання голосових нотаток…"
           }
         }
       }
@@ -9778,6 +10060,53 @@
         }
       }
     },
+    "Finishing…": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wird abgeschlossen…"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Finalizando…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Finalisation…"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Completamento…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "仕上げ中…"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Concluindo…"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Завершення…"
+          }
+        }
+      }
+    },
     "Fixing a session you forgot to stop": {
       "localizations": {
         "en": {
@@ -11242,6 +11571,53 @@
           "stringUnit": {
             "state": "translated",
             "value": "Включити оригінали"
+          }
+        }
+      }
+    },
+    "Including originals can take a while — a large library is gigabytes, and anything stored only in iCloud has to download first. Dive Free shows what it's working on and how far along it is, and you can tap **Cancel Export** at any point; nothing is left behind.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Einbeziehen der Originale kann dauern — eine große Mediathek umfasst Gigabytes, und alles, was nur in iCloud liegt, muss erst geladen werden. Dive Free zeigt dir, woran es gerade arbeitet und wie weit es ist, und du kannst jederzeit **Export abbrechen** tippen; es bleibt nichts zurück."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Incluir los originales puede tardar: una fototeca grande ocupa gigabytes y todo lo que solo esté en iCloud debe descargarse primero. Dive Free muestra en qué está trabajando y cuánto lleva, y puedes tocar **Cancelar exportación** en cualquier momento; no queda nada."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inclure les originaux peut prendre du temps — une grande photothèque pèse plusieurs gigaoctets, et tout ce qui n’est que sur iCloud doit d’abord être téléchargé. Dive Free indique ce sur quoi il travaille et où il en est, et vous pouvez toucher **Annuler l’export** à tout moment ; rien n’est laissé derrière."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Includere gli originali può richiedere tempo: una libreria grande occupa gigabyte e tutto ciò che è solo su iCloud deve prima essere scaricato. Dive Free mostra a cosa sta lavorando e a che punto è, e puoi toccare **Annulla esportazione** in qualsiasi momento; non resta nulla."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "オリジナルを含めると時間がかかることがあります。ライブラリが大きいと数ギガバイトになり、iCloudにのみ保存されているものは先にダウンロードが必要です。Dive Freeは処理中の内容と進捗を表示し、いつでも**書き出しをキャンセル**をタップできます。データが残ることはありません。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Incluir os originais pode demorar — uma biblioteca grande tem gigabytes, e tudo o que estiver apenas no iCloud precisa ser baixado antes. O Dive Free mostra no que está trabalhando e o quanto já avançou, e você pode tocar em **Cancelar exportação** a qualquer momento; nada fica para trás."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Додавання оригіналів може тривати — велика медіатека важить гігабайти, а все, що зберігається лише в iCloud, спершу треба завантажити. Dive Free показує, над чим працює і скільки вже зроблено, і ви будь-коли можете торкнутися **Скасувати експорт**; нічого не залишиться."
           }
         }
       }
@@ -15921,6 +16297,53 @@
           "stringUnit": {
             "state": "translated",
             "value": "Обрана заздалегідь у каруселі дій, і саме її ставить кнопка Дії, поки ви під водою."
+          }
+        }
+      }
+    },
+    "Preparing…": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wird vorbereitet…"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preparando…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Préparation…"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preparazione…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "準備中…"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preparando…"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Підготовка…"
           }
         }
       }

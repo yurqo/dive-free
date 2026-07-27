@@ -23,6 +23,10 @@ struct ExportBackupView: View {
     @State private var estimate: BackupSizeEstimate?
     @State private var isEstimating = false
     @State private var isExporting = false
+    /// The engine's latest report, driving the progress bar and its caption.
+    @State private var progress: BackupProgress?
+    /// Held so the Cancel button can cancel the in-flight export.
+    @State private var exportTask: Task<Void, Never>?
     @State private var errorMessage: String?
     @State private var backupToShare: SharedBackupFile?
     /// The temp directory holding the exported `.zip`, deleted once the share sheet closes
@@ -117,18 +121,51 @@ struct ExportBackupView: View {
 
     @ViewBuilder private var exportSection: some View {
         Section {
-            Button {
-                Task { await runExport() }
-            } label: {
-                HStack {
-                    Text("Export")
-                    if isExporting {
-                        Spacer()
-                        ProgressView()
+            if isExporting {
+                // Determinate wherever the engine can count items, so a long export
+                // visibly advances instead of sitting on a spinner the user can't read.
+                // `Cancel` is the reason the pipeline is async at all: the main thread
+                // stays free to service this tap mid-export.
+                VStack(alignment: .leading, spacing: 8) {
+                    if let fraction = progress?.fraction {
+                        ProgressView(value: fraction) { Text(progressLabel) }
+                    } else {
+                        ProgressView { Text(progressLabel) }
+                    }
+                    Button(role: .destructive) {
+                        exportTask?.cancel()
+                    } label: {
+                        Text("Cancel Export")
                     }
                 }
+            } else {
+                Button {
+                    exportTask = Task { await runExport() }
+                } label: {
+                    Text("Export")
+                }
             }
-            .disabled(isExporting)
+        }
+    }
+
+    /// A human sentence for the current phase, with an item count when there is one.
+    private var progressLabel: String {
+        guard let progress else { return String(localized: "Preparing…") }
+        switch progress.phase {
+        case .preparing:
+            return String(localized: "Preparing…")
+        case .voiceNotes:
+            return progress.total > 0
+                ? String(localized: "Copying voice notes — \(progress.completed) of \(progress.total)")
+                : String(localized: "Copying voice notes…")
+        case .photos:
+            return progress.total > 0
+                ? String(localized: "Copying photos — \(progress.completed) of \(progress.total)")
+                : String(localized: "Copying photos…")
+        case .compressing:
+            return String(localized: "Compressing…")
+        case .expanding, .sessions, .finished:
+            return String(localized: "Finishing…")
         }
     }
 
@@ -144,14 +181,28 @@ struct ExportBackupView: View {
 
     private func runExport() async {
         isExporting = true
-        defer { isExporting = false }
+        progress = BackupProgress(phase: .preparing)
+        defer {
+            isExporting = false
+            progress = nil
+            exportTask = nil
+        }
         // Drop a previous run's archive before making another, so exporting twice in one
         // sitting can't leave two multi-gigabyte copies behind.
         discardExportedBackup()
         do {
-            let url = try await BackupService.exportBackup(options: options, context: context)
+            let url = try await BackupService.exportBackup(
+                options: options,
+                context: context,
+                // The engine reports from whichever thread is doing the work, so hop back
+                // to the main actor before touching view state.
+                progress: { report in Task { @MainActor in progress = report } }
+            )
             exportedDirectory = url.deletingLastPathComponent()
             backupToShare = SharedBackupFile(url: url)
+        } catch is CancellationError {
+            // The user cancelled; `exportBackup` already removed its temp tree, so there
+            // is nothing to clean up and nothing to apologize for.
         } catch {
             errorMessage = String(localized: "Couldn't create the backup. Please try again.")
         }
