@@ -1,59 +1,380 @@
 import Foundation
 import SwiftData
+import Photos
 import Domain
 import Persistence
 
 /// The iPhone-side glue for full backup & restore. Wraps Persistence's pure
-/// ``BackupRestore`` engine with the two impure edges it defers to the app —
-/// reading and writing voice-note audio bytes via ``VoiceNoteStore`` — and the
-/// file-handling concerns of producing a shareable temp file (export) and reading
-/// a security-scoped `fileImporter` URL (restore).
+/// ``BackupRestore`` engine with the impure edges it defers to the app — voice-note
+/// audio bytes (``VoiceNoteStore``), photo thumbnails/originals (PhotoKit), and the
+/// ZIP container (``ZipContainer``) — plus the file-handling concerns of producing a
+/// shareable temp file (export) and reading a security-scoped `fileImporter` URL
+/// (restore).
 ///
-/// `@MainActor` because ``BackupRestore`` reads/writes through a main-actor
-/// `ModelContext`.
+/// ## Export
+///
+/// A backup is a `.zip` of a `manifest.json` plus discrete media files. Metadata and
+/// thumbnails always travel; heavy originals are opt-in per ``BackupExportOptions``.
+/// Photo/video originals are resolved from the Photos library **before** staging (an
+/// async pass that streams each original to a temp file via
+/// `PHAssetResourceManager`, so a large video never loads into memory), then the
+/// synchronous ``BackupRestore/stageArchive`` just moves those files into place and
+/// ``ZipContainer/zip(directory:to:)`` packs the tree.
+///
+/// ## Restore — sync relink, async re-import
+///
+/// ``BackupRestore/restore(fromStagingDirectory:isTombstoned:materializeAudio:reimportPhoto:)``
+/// runs on the main actor (SwiftData), so its `reimportPhoto` closure must be
+/// synchronous. We do the cheap part there — **relink** a photo to the still-present
+/// original by resolving its cloud identifier — and *defer* the expensive part: when
+/// an original is missing but its bytes were bundled, we queue it and, in a second
+/// async pass after `restore` returns, save it back to Photos (which is async) and
+/// point the record at the new asset. That keeps the main thread free of PhotoKit
+/// saves.
+///
+/// `@MainActor` because ``BackupRestore`` and the SwiftData `ModelContext` are
+/// main-actor isolated.
 @MainActor
 enum BackupService {
-    /// Builds a full archive of every session, spot, trip, and voice note, writes it
-    /// as deterministic JSON to a unique temp file, and returns the URL for the share
-    /// sheet.
-    ///
-    /// The file goes into its own unique temp subdirectory (mirroring `ExportFormat`)
-    /// so the human-readable, date-stamped filename can't collide with a concurrent
-    /// or same-day export still in flight.
-    static func exportBackup(context: ModelContext) throws -> URL {
-        let archive = try BackupRestore(context: context).makeArchive(
-            appVersion: appVersion,
-            audioBytes: { VoiceNoteStore.data(for: $0) }
-        )
-        let data = try archive.encoded()
+    // MARK: - Result
 
-        let dir = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString, isDirectory: true)
-        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let url = dir.appendingPathComponent("\(fileName()).json")
-        try data.write(to: url, options: .atomic)
-        return url
+    /// The outcome of a restore: Persistence's own counts plus the app-layer async
+    /// photo re-import count and a flag for when re-import needed Photos access it
+    /// didn't get.
+    struct RestoreResult {
+        var summary: BackupRestore.RestoreSummary
+        /// Photos whose missing originals were re-imported into the Photos library in
+        /// the async pass (distinct from relinks, which reuse an existing asset).
+        var photosReimported: Int
+        /// True when originals were bundled for missing photos but Photos add access
+        /// was denied, so they could not be re-imported (metadata + thumbnail still
+        /// restored).
+        var photoAccessDenied: Bool
     }
 
-    /// Restores an archive picked from Files. Reads the security-scoped URL that
-    /// `fileImporter` hands back, decodes it, and applies it additively — existing
-    /// items are kept, duplicates dedupe by id. No tombstone check: an explicit
-    /// restore is meant to bring the archived data back.
-    static func restoreBackup(from url: URL, context: ModelContext) throws -> BackupRestore.RestoreSummary {
+    // MARK: - Export
+
+    /// Builds a `.zip` backup of every session, spot, trip, and photo — always
+    /// including metadata + thumbnails, and the heavy originals selected by `options`
+    /// — and returns the file URL for the share sheet.
+    ///
+    /// `async` because resolving full-resolution photo/video originals from the Photos
+    /// library is asynchronous (and may download iCloud-only originals). The file goes
+    /// into its own unique temp subdirectory so the human-readable, date-stamped name
+    /// can't collide with a concurrent or same-day export still in flight.
+    static func exportBackup(options: BackupExportOptions, context: ModelContext) async throws -> URL {
+        let fm = FileManager.default
+        let work = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let staging = work.appendingPathComponent("staging", isDirectory: true)
+        let pending = work.appendingPathComponent("pending", isDirectory: true)
+        try fm.createDirectory(at: staging, withIntermediateDirectories: true)
+
+        // Snapshot every photo record once: thumbnail sources for the (always-attempted)
+        // thumbnail closure, and the refs whose originals we must resolve for the
+        // enabled media toggles. Reading here means `stageArchive`'s own
+        // `record.thumbnailData` fallback is never re-evaluated (the closure wins).
+        var thumbBytesByID: [UUID: Data] = [:]
+        var thumbFileByID: [UUID: String] = [:]
+        var mediaRefs: [BackupRestore.PhotoRef] = []
+        for record in try context.fetch(FetchDescriptor<PhotoRecord>()) where record.modelContext != nil {
+            if let data = record.thumbnailData { thumbBytesByID[record.id] = data }
+            if let name = record.thumbnailFileName { thumbFileByID[record.id] = name }
+            let wantMedia = record.isVideo ? options.includeVideos : options.includePhotos
+            if wantMedia {
+                mediaRefs.append(BackupRestore.PhotoRef(
+                    id: record.id,
+                    assetIdentifier: record.assetIdentifier,
+                    assetCloudIdentifier: record.assetCloudIdentifier,
+                    isVideo: record.isVideo
+                ))
+            }
+        }
+
+        // Phase A — resolve heavy originals to per-id temp files (async, memory-safe).
+        var resolvedMedia: [UUID: URL] = [:]
+        if !mediaRefs.isEmpty {
+            try fm.createDirectory(at: pending, withIntermediateDirectories: true)
+            for ref in mediaRefs {
+                let dest = pending.appendingPathComponent("\(ref.id.uuidString).\(ref.isVideo ? "mov" : "jpg")")
+                if await writeOriginal(for: ref, to: dest) {
+                    resolvedMedia[ref.id] = dest
+                }
+            }
+        }
+
+        // Phase B — stage synchronously; the media closure just moves the pre-resolved
+        // temp file into the staging tree.
+        try BackupRestore(context: context).stageArchive(
+            into: staging,
+            appVersion: appVersion,
+            options: options,
+            audioBytes: { VoiceNoteStore.data(for: $0) },
+            thumbnailBytes: { ref in
+                if let data = thumbBytesByID[ref.id] { return data }
+                if let name = thumbFileByID[ref.id] { return try? Data(contentsOf: PhotoStore.url(for: name)) }
+                return nil
+            },
+            writePhotoMedia: { ref, dest in
+                guard let src = resolvedMedia[ref.id] else { return false }
+                do { try fm.moveItem(at: src, to: dest); return true } catch { return false }
+            }
+        )
+
+        // Pack the staging tree into a shareable `.zip` alongside it (outside the
+        // staging dir so it isn't zipped into itself).
+        let zipURL = work.appendingPathComponent("\(fileName()).zip")
+        try ZipContainer.zip(directory: staging, to: zipURL)
+
+        // The staging tree and any leftover pending files are no longer needed.
+        try? fm.removeItem(at: staging)
+        try? fm.removeItem(at: pending)
+        return zipURL
+    }
+
+    /// Streams a photo/video's full-resolution original out of the Photos library to
+    /// `dest`, returning success. Resolves the asset device-locally first, then via the
+    /// cross-device cloud identifier. Uses `PHAssetResourceManager.writeData` so bytes
+    /// go straight to disk (a large video never loads into memory) and allows network
+    /// access so iCloud-only originals download. Returns `false` on any
+    /// failure/denied/deleted asset — never throws, so one bad photo can't fail the
+    /// whole export.
+    private static func writeOriginal(for ref: BackupRestore.PhotoRef, to dest: URL) async -> Bool {
+        guard let asset = resolveAsset(local: ref.assetIdentifier, cloud: ref.assetCloudIdentifier) else {
+            return false
+        }
+        let resources = PHAssetResource.assetResources(for: asset)
+        guard let resource = primaryResource(resources, isVideo: ref.isVideo) else { return false }
+
+        let opts = PHAssetResourceRequestOptions()
+        opts.isNetworkAccessAllowed = true
+        return await withCheckedContinuation { (continuation: CheckedContinuation<Bool, Never>) in
+            PHAssetResourceManager.default().writeData(for: resource, toFile: dest, options: opts) { error in
+                continuation.resume(returning: error == nil)
+            }
+        }
+    }
+
+    // MARK: - Restore
+
+    /// A photo whose original was missing on restore but whose bytes were bundled — to
+    /// be re-imported into Photos in the async pass after `restore` returns.
+    private struct PendingReimport {
+        var photoID: UUID
+        var url: URL
+        var isVideo: Bool
+    }
+
+    /// Restores a `.zip` backup picked from Files. Unzips it, applies the manifest
+    /// additively (existing items kept, duplicates deduped by id), relinks photos whose
+    /// originals still exist, and re-imports (into Photos) any whose originals are
+    /// missing but were bundled.
+    static func restoreBackup(from url: URL, context: ModelContext) async throws -> RestoreResult {
         // A `fileImporter` URL is security-scoped; without begin/stop access the read
         // fails on-device.
         let scoped = url.startAccessingSecurityScopedResource()
         defer { if scoped { url.stopAccessingSecurityScopedResource() } }
 
-        let data = try Data(contentsOf: url)
-        let archive = try BackupArchive.decode(data)
-        return try BackupRestore(context: context).restore(
-            from: archive,
-            materializeAudio: { name, bytes in VoiceNoteStore.materialize(bytes, as: name) }
+        let fm = FileManager.default
+        let temp = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        // Kept alive until after the async re-import reads the bundled originals below.
+        defer { try? fm.removeItem(at: temp) }
+        try ZipContainer.unzip(url, to: temp)
+
+        // Request Photos access up front so the synchronous relink inside `restore` can
+        // resolve still-present originals (and the async re-import below can save).
+        let photoAccess = await PhotoLibrary.requestAccess()
+
+        // Phase A — restore metadata + thumbnails; relink synchronously, queue the
+        // missing-original re-imports for the async pass.
+        var pending: [PendingReimport] = []
+        let summary = try BackupRestore(context: context).restore(
+            fromStagingDirectory: temp,
+            materializeAudio: { name, bytes in VoiceNoteStore.materialize(bytes, as: name) },
+            reimportPhoto: { backup, mediaURL in
+                if photoAccess, let localID = relink(backup) { return localID }
+                if let mediaURL {
+                    pending.append(PendingReimport(photoID: backup.id, url: mediaURL, isVideo: backup.isVideo))
+                }
+                return nil
+            }
+        )
+
+        // Phase B — re-import missing originals into Photos (async), then point each
+        // record at the new asset and refresh its thumbnail.
+        var reimported = 0
+        if !pending.isEmpty, photoAccess {
+            for item in pending {
+                let localID = item.isVideo
+                    ? await PhotoLibrary.saveVideo(item.url)
+                    : await PhotoLibrary.savePhoto(item.url)
+                guard let localID, let record = fetchPhoto(id: item.photoID, context: context) else { continue }
+                record.assetIdentifier = localID
+                if let cloud = PhotoLibrary.cloudIdentifier(for: localID) {
+                    record.assetCloudIdentifier = cloud
+                }
+                if let asset = PhotoLibrary.asset(for: localID),
+                   let image = await PhotoLibrary.thumbnail(for: asset),
+                   let saved = PhotoStore.saveThumbnail(image) {
+                    record.thumbnailFileName = saved.fileName
+                    record.thumbnailData = saved.data
+                }
+                reimported += 1
+            }
+            try? context.save()
+        }
+
+        return RestoreResult(
+            summary: summary,
+            photosReimported: reimported,
+            photoAccessDenied: !photoAccess && !pending.isEmpty
         )
     }
 
-    // MARK: - Helpers
+    /// Resolves a bundled photo back to a still-present library asset by its stable
+    /// cloud identifier (the manifest carries no device-local id). Returns the local
+    /// identifier to store, or `nil` when the original no longer resolves on this
+    /// device.
+    private static func relink(_ backup: PhotoBackup) -> String? {
+        guard let cloud = backup.assetCloudIdentifier,
+              let localID = PhotoLibrary.localIdentifier(forCloudIdentifier: cloud),
+              PhotoLibrary.asset(for: localID) != nil
+        else { return nil }
+        return localID
+    }
+
+    // MARK: - Size estimate
+
+    /// Estimates the size of a backup for the given `options`, split by category, so the
+    /// export UI can show the user what each toggle adds before committing.
+    ///
+    /// Photo/video originals are measured from `PHAssetResource` metadata **without
+    /// downloading** iCloud-only bytes (with a dimension-based heuristic fallback), so
+    /// the figure is approximate. The PhotoKit sizing runs off the main actor to keep
+    /// the UI responsive across dozens of assets.
+    static func estimatedSizes(options: BackupExportOptions, context: ModelContext) async -> BackupSizeEstimate {
+        // Baseline: thumbnails (prefer the cheap on-disk file size; fall back to the
+        // mirrored blob) + a small flat manifest allowance.
+        var base: Int64 = 4096  // rough manifest overhead
+        var media: [MediaItem] = []
+        for record in ((try? context.fetch(FetchDescriptor<PhotoRecord>())) ?? []) where record.modelContext != nil {
+            if let name = record.thumbnailFileName {
+                base += fileSize(at: PhotoStore.url(for: name))
+            } else if let data = record.thumbnailData {
+                base += Int64(data.count)
+            }
+            let wantMedia = record.isVideo ? options.includeVideos : options.includePhotos
+            if wantMedia {
+                media.append(MediaItem(
+                    local: record.assetIdentifier,
+                    cloud: record.assetCloudIdentifier,
+                    isVideo: record.isVideo
+                ))
+            }
+        }
+
+        // Voice notes (opt-in): sum each referenced clip's on-disk size once.
+        var voiceNotes: Int64 = 0
+        if options.includeVoiceNotes {
+            var counted: Set<String> = []
+            for session in ((try? context.fetch(FetchDescriptor<SessionRecord>())) ?? []) where session.modelContext != nil {
+                for marker in (session.markers ?? []) {
+                    guard let name = marker.audioFileName, !counted.contains(name) else { continue }
+                    counted.insert(name)
+                    voiceNotes += fileSize(at: VoiceNoteStore.url(for: name))
+                }
+            }
+        }
+
+        // Photo/video originals: measured off the main actor.
+        let (photos, videos) = await Task.detached { computeMediaSizes(media) }.value
+
+        return BackupSizeEstimate(base: base, voiceNotes: voiceNotes, photos: photos, videos: videos)
+    }
+
+    /// A PhotoKit-free, `Sendable` handle to a media asset for off-main sizing.
+    private struct MediaItem: Sendable {
+        var local: String?
+        var cloud: String?
+        var isVideo: Bool
+    }
+
+    /// Sums photo and video original sizes from `PHAssetResource` metadata (no
+    /// download). Safe to run off the main actor — PhotoKit lookups are thread-safe.
+    private nonisolated static func computeMediaSizes(_ items: [MediaItem]) -> (photos: Int64, videos: Int64) {
+        var photos: Int64 = 0
+        var videos: Int64 = 0
+        for item in items {
+            let size = originalSize(local: item.local, cloud: item.cloud, isVideo: item.isVideo)
+            if item.isVideo { videos += size } else { photos += size }
+        }
+        return (photos, videos)
+    }
+
+    /// The original byte size of an asset without downloading it: `PHAssetResource`'s
+    /// `fileSize`, falling back to a dimension-based heuristic when unavailable.
+    private nonisolated static func originalSize(local: String?, cloud: String?, isVideo: Bool) -> Int64 {
+        guard let asset = resolveAsset(local: local, cloud: cloud) else {
+            return heuristicSize(width: 0, height: 0, isVideo: isVideo)
+        }
+        let resources = PHAssetResource.assetResources(for: asset)
+        if let resource = primaryResource(resources, isVideo: isVideo),
+           let size = (resource.value(forKey: "fileSize") as? NSNumber)?.int64Value, size > 0 {
+            return size
+        }
+        return heuristicSize(width: asset.pixelWidth, height: asset.pixelHeight, isVideo: isVideo)
+    }
+
+    /// A coarse size guess for an asset we can't measure exactly. Photos: ~half a byte
+    /// per pixel (typical JPEG/HEIC). Videos: a flat, deliberately large placeholder
+    /// (originals vary wildly and dominate the total).
+    private nonisolated static func heuristicSize(width: Int, height: Int, isVideo: Bool) -> Int64 {
+        if isVideo { return 25 * 1_000_000 }  // ~25 MB placeholder per clip
+        let pixels = Int64(max(width, 1)) * Int64(max(height, 1))
+        return max(pixels / 2, 300_000)
+    }
+
+    // MARK: - PhotoKit helpers
+
+    /// Resolves a `PHAsset` from a device-local id first (fast), then the cross-device
+    /// cloud identifier. `nonisolated` so it's usable from the off-main sizing pass;
+    /// `PHAsset`/`PHPhotoLibrary` lookups are thread-safe.
+    private nonisolated static func resolveAsset(local: String?, cloud: String?) -> PHAsset? {
+        if let local, let asset = PHAsset.fetchAssets(withLocalIdentifiers: [local], options: nil).firstObject {
+            return asset
+        }
+        if let cloud {
+            let cloudID = PHCloudIdentifier(stringValue: cloud)
+            let mapping = PHPhotoLibrary.shared().localIdentifierMappings(for: [cloudID])
+            if case let .success(localID)? = mapping[cloudID],
+               let asset = PHAsset.fetchAssets(withLocalIdentifiers: [localID], options: nil).firstObject {
+                return asset
+            }
+        }
+        return nil
+    }
+
+    /// Picks the asset's primary original resource: the unedited photo/video, falling
+    /// back to the full-size (possibly edited) variant, then the first resource.
+    private nonisolated static func primaryResource(_ resources: [PHAssetResource], isVideo: Bool) -> PHAssetResource? {
+        let primary: PHAssetResourceType = isVideo ? .video : .photo
+        let fullSize: PHAssetResourceType = isVideo ? .fullSizeVideo : .fullSizePhoto
+        return resources.first { $0.type == primary }
+            ?? resources.first { $0.type == fullSize }
+            ?? resources.first
+    }
+
+    // MARK: - Fetch / filesystem helpers
+
+    private static func fetchPhoto(id: UUID, context: ModelContext) -> PhotoRecord? {
+        var descriptor = FetchDescriptor<PhotoRecord>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
+        return try? context.fetch(descriptor).first
+    }
+
+    private nonisolated static func fileSize(at url: URL) -> Int64 {
+        let attrs = try? FileManager.default.attributesOfItem(atPath: url.path)
+        return (attrs?[.size] as? NSNumber)?.int64Value ?? 0
+    }
 
     /// The app's marketing version (`CFBundleShortVersionString`), stored in the
     /// archive purely for information.

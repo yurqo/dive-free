@@ -95,6 +95,25 @@ enum PhotoLibrary {
         return identifier
     }
 
+    /// Saves a photo *file* (e.g. a full-resolution original bundled in a backup) to
+    /// the Photos library and returns the new asset's `localIdentifier`. Unlike
+    /// ``save(_:)`` this ingests the file bytes directly rather than re-encoding a
+    /// `UIImage`, preserving the original. Requires add/write access. `nonisolated`
+    /// for the same reason as ``save(_:)``.
+    nonisolated static func savePhoto(_ url: URL) async -> String? {
+        guard await requestAccess() else { return nil }
+        var identifier: String?
+        do {
+            try await PHPhotoLibrary.shared().performChanges {
+                let request = PHAssetChangeRequest.creationRequestForAssetFromImage(atFileURL: url)
+                identifier = request?.placeholderForCreatedAsset?.localIdentifier
+            }
+        } catch {
+            return nil
+        }
+        return identifier
+    }
+
     /// Saves a captured video file to the Photos library; returns the new asset's
     /// `localIdentifier` so it can be referenced (#139). Requires add/write access.
     /// `nonisolated` for the same reason as `save`.

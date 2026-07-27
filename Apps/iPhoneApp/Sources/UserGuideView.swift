@@ -400,20 +400,26 @@ private enum UserGuide {
         title: "Backing up & restoring",
         systemImage: "externaldrive",
         intro: [
-            .text("Keep a complete copy of your log in a single file — handy before switching phones, or just for peace of mind. A backup gathers **everything**: your sessions, dive spots, trips, and voice notes, all in one file."),
+            .text("Keep a complete copy of your log in a single **.zip** file — handy before switching phones, or just for peace of mind."),
         ],
         details: [
+            .subheading("What's always included"),
+            .text("Every backup carries your **sessions, dive spots, trips**, and your **photo gallery** — its references and small thumbnails — plus your settings. That's enough to fully restore your log, and it keeps the file small."),
+            .subheading("Optional originals"),
+            .text("When you export, you can also bundle the heavy originals — **voice notes, photos, and videos** — each with its own switch. They're off by default, because a full library of photos and (especially) videos can be gigabytes."),
+            .tip("The export screen shows a live **size estimate** for what you've turned on, so you can see the file size before you commit. It's approximate, and originals may download from iCloud during export."),
             .subheading("How to export a backup"),
             .step(1, "On the **Dives** tab, tap the gear icon to open **Settings**."),
-            .step(2, "Under **Backup & Restore**, tap **Export Backup**."),
-            .step(3, "The system share sheet opens — save the file to **Files**, AirDrop it, or send it wherever you like."),
+            .step(2, "Under **Backup & Restore**, tap **Export Backup…**."),
+            .step(3, "Choose which originals to include, then tap **Export**."),
+            .step(4, "The system share sheet opens — save the file to **Files**, AirDrop it, or send it wherever you like."),
             .subheading("How to restore"),
             .step(1, "Open **Settings ▸ Backup & Restore** and tap **Restore Backup…**."),
-            .step(2, "Pick the backup file you saved. Dive Free reads it and brings your data back."),
+            .step(2, "Pick the .zip backup you saved. Dive Free reads it and brings your data back."),
             .text("Restoring is **additive and safe**: your existing dives are kept, and anything already in your log is skipped rather than duplicated. So it's fine to restore onto a phone that already has some dives."),
             .tip("With iCloud Sync on, a restore also flows through to your other devices, so you only need to restore once."),
-            .subheading("What's not in a backup"),
-            .text("Your **photos and videos aren't inside the backup** — they live in your own Photos library, and Dive Free simply points to them. As long as those photos are still in your library (or iCloud Photos), a restored dive links back to them automatically."),
+            .subheading("Photos & videos on restore"),
+            .text("Dive Free points to media in your own **Photos library** rather than storing copies. On restore, if the originals are still in your library (or iCloud Photos), your dives simply link back to them. If an original is missing **and** you included it in the backup, Dive Free re-imports it to your Photos library — so nothing is duplicated when it doesn't need to be."),
         ]
     )
 
