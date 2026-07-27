@@ -20,6 +20,23 @@ struct BackupSizeEstimateTests {
         #expect(estimate.videos == 0)
     }
 
+    @Test("total(with:) counts the baseline plus only the enabled categories")
+    func totalHonoursOptions() {
+        let estimate = BackupSizeEstimate(base: 1_000, voiceNotes: 2_000, photos: 3_000, videos: 4_000)
+        // Everything off — the default — is the baseline alone.
+        #expect(estimate.total(with: BackupExportOptions()) == 1_000)
+        #expect(estimate.total(with: BackupExportOptions(includeVoiceNotes: true)) == 3_000)
+        #expect(estimate.total(with: BackupExportOptions(includePhotos: true)) == 4_000)
+        #expect(estimate.total(with: BackupExportOptions(includeVideos: true)) == 5_000)
+        #expect(
+            estimate.total(with: BackupExportOptions(includeVoiceNotes: true, includePhotos: true))
+                == 6_000
+        )
+        // All on matches the whole-archive `total`.
+        let all = BackupExportOptions(includeVoiceNotes: true, includePhotos: true, includeVideos: true)
+        #expect(estimate.total(with: all) == estimate.total)
+    }
+
     @Test("formatted returns a non-empty, human-readable byte string")
     func formattedProducesString() {
         let estimate = BackupSizeEstimate(base: 5_000_000)

@@ -28,8 +28,20 @@ public struct BackupSizeEstimate: Sendable, Equatable {
         self.videos = videos
     }
 
-    /// The estimated size of the whole archive: baseline plus every enabled category.
+    /// The estimated size with *every* category included — the largest a backup could be.
     public var total: Int64 { base + voiceNotes + photos + videos }
+
+    /// The estimated size of the archive `options` would actually produce: the always-
+    /// included baseline plus only the categories whose toggle is on.
+    ///
+    /// Categories are measured independently of the toggles, so a UI can re-sum instantly
+    /// as the user flips switches instead of re-running the (PhotoKit-bound) sweep.
+    public func total(with options: BackupExportOptions) -> Int64 {
+        base
+            + (options.includeVoiceNotes ? voiceNotes : 0)
+            + (options.includePhotos ? photos : 0)
+            + (options.includeVideos ? videos : 0)
+    }
 
     /// A localized, human-readable byte string (e.g. "1.2 MB") for an arbitrary count.
     public func formatted(_ bytes: Int64) -> String {

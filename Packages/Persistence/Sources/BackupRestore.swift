@@ -269,11 +269,12 @@ public struct BackupRestore {
         public var tripsLinked: Int
         public var audioRestored: Int
         /// New `PhotoRecord`s created from the manifest (existing ids dedupe, not counted).
+        ///
+        /// There is deliberately no re-import count here: whether a photo's original was
+        /// *relinked* to an asset already in the library or *saved back* into Photos is
+        /// entirely the app layer's business (it owns the closure that decides), and the
+        /// app reports its own `photosReimported` from that pass.
         public var photosRestored: Int
-        /// Photos whose full-resolution bytes were bundled *and* the app's `reimportPhoto`
-        /// closure consumed them to establish a local asset id (relinks without a bundled
-        /// file are not counted here).
-        public var photosReimported: Int
 
         public init(
             sessionsImported: Int = 0,
@@ -283,8 +284,7 @@ public struct BackupRestore {
             tripsCreated: Int = 0,
             tripsLinked: Int = 0,
             audioRestored: Int = 0,
-            photosRestored: Int = 0,
-            photosReimported: Int = 0
+            photosRestored: Int = 0
         ) {
             self.sessionsImported = sessionsImported
             self.sessionsSkipped = sessionsSkipped
@@ -294,7 +294,6 @@ public struct BackupRestore {
             self.tripsLinked = tripsLinked
             self.audioRestored = audioRestored
             self.photosRestored = photosRestored
-            self.photosReimported = photosReimported
         }
     }
 
@@ -496,11 +495,7 @@ public struct BackupRestore {
                     let murl = dir.appendingPathComponent(sub, isDirectory: true).appendingPathComponent(mediaName)
                     if fm.fileExists(atPath: murl.path) { mediaURL = murl }
                 }
-                let localID = reimportPhoto(pb, mediaURL)
-                record.assetIdentifier = localID
-                if mediaURL != nil, localID != nil {
-                    summary.photosReimported += 1
-                }
+                record.assetIdentifier = reimportPhoto(pb, mediaURL)
             }
         }
 

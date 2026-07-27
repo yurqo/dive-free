@@ -86,15 +86,15 @@ enum BackupService {
         }
         try fm.createDirectory(at: staging, withIntermediateDirectories: true)
 
-        // Snapshot every photo record once: thumbnail sources for the (always-attempted)
-        // thumbnail closure, and the refs whose originals we must resolve for the
-        // enabled media toggles. Reading here means `stageArchive`'s own
-        // `record.thumbnailData` fallback is never re-evaluated (the closure wins).
-        var thumbBytesByID: [UUID: Data] = [:]
+        // Snapshot what only the app layer can supply: the on-disk thumbnail path (a
+        // PhotoStore concern Persistence can't reach) and the refs whose originals we must
+        // resolve for the enabled media toggles. The thumbnail *blob* is deliberately not
+        // prefetched — `stageArchive` reads `record.thumbnailData` per record as it goes,
+        // so holding every thumbnail in memory at once would buy nothing on a large
+        // gallery.
         var thumbFileByID: [UUID: String] = [:]
         var mediaRefs: [BackupRestore.PhotoRef] = []
         for record in try context.fetch(FetchDescriptor<PhotoRecord>()) where record.modelContext != nil {
-            if let data = record.thumbnailData { thumbBytesByID[record.id] = data }
             if let name = record.thumbnailFileName { thumbFileByID[record.id] = name }
             let wantMedia = record.isVideo ? options.includeVideos : options.includePhotos
             if wantMedia {
@@ -128,10 +128,11 @@ enum BackupService {
             appVersion: appVersion,
             options: options,
             audioBytes: { VoiceNoteStore.data(for: $0) },
+            // Prefer the cached file; `stageArchive` falls back to the record's mirrored
+            // `thumbnailData` when this returns nil.
             thumbnailBytes: { ref in
-                if let data = thumbBytesByID[ref.id] { return data }
-                if let name = thumbFileByID[ref.id] { return try? Data(contentsOf: PhotoStore.url(for: name)) }
-                return nil
+                guard let name = thumbFileByID[ref.id] else { return nil }
+                return try? Data(contentsOf: PhotoStore.url(for: name))
             },
             mediaFileExtension: { resolvedMedia[$0.id]?.pathExtension },
             writePhotoMedia: { ref, dest in
@@ -313,14 +314,18 @@ enum BackupService {
 
     // MARK: - Size estimate
 
-    /// Estimates the size of a backup for the given `options`, split by category, so the
-    /// export UI can show the user what each toggle adds before committing.
+    /// Estimates the size of a backup **split by category**, so the export UI can show the
+    /// user what each toggle would add before committing.
+    ///
+    /// Every category is measured, regardless of which toggles are on: the per-category
+    /// numbers don't depend on them, so the caller flips switches and re-sums
+    /// (``BackupSizeEstimate/total(with:)``) instead of paying for another sweep.
     ///
     /// Photo/video originals are measured from `PHAssetResource` metadata **without
     /// downloading** iCloud-only bytes (with a dimension-based heuristic fallback), so
     /// the figure is approximate. The PhotoKit sizing runs off the main actor to keep
     /// the UI responsive across dozens of assets.
-    static func estimatedSizes(options: BackupExportOptions, context: ModelContext) async -> BackupSizeEstimate {
+    static func estimatedSizes(context: ModelContext) async -> BackupSizeEstimate {
         // Baseline: thumbnails (prefer the cheap on-disk file size; fall back to the
         // mirrored blob) + a small flat manifest allowance.
         var base: Int64 = 4096  // rough manifest overhead
@@ -331,26 +336,21 @@ enum BackupService {
             } else if let data = record.thumbnailData {
                 base += Int64(data.count)
             }
-            let wantMedia = record.isVideo ? options.includeVideos : options.includePhotos
-            if wantMedia {
-                media.append(MediaItem(
-                    local: record.assetIdentifier,
-                    cloud: record.assetCloudIdentifier,
-                    isVideo: record.isVideo
-                ))
-            }
+            media.append(MediaItem(
+                local: record.assetIdentifier,
+                cloud: record.assetCloudIdentifier,
+                isVideo: record.isVideo
+            ))
         }
 
-        // Voice notes (opt-in): sum each referenced clip's on-disk size once.
+        // Voice notes: sum each referenced clip's on-disk size once.
         var voiceNotes: Int64 = 0
-        if options.includeVoiceNotes {
-            var counted: Set<String> = []
-            for session in ((try? context.fetch(FetchDescriptor<SessionRecord>())) ?? []) where session.modelContext != nil {
-                for marker in (session.markers ?? []) {
-                    guard let name = marker.audioFileName, !counted.contains(name) else { continue }
-                    counted.insert(name)
-                    voiceNotes += fileSize(at: VoiceNoteStore.url(for: name))
-                }
+        var counted: Set<String> = []
+        for session in ((try? context.fetch(FetchDescriptor<SessionRecord>())) ?? []) where session.modelContext != nil {
+            for marker in (session.markers ?? []) {
+                guard let name = marker.audioFileName, !counted.contains(name) else { continue }
+                counted.insert(name)
+                voiceNotes += fileSize(at: VoiceNoteStore.url(for: name))
             }
         }
 

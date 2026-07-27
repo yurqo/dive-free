@@ -404,7 +404,7 @@ private enum UserGuide {
         ],
         details: [
             .subheading("What's always included"),
-            .text("Every backup carries your **sessions, dive spots, trips**, and your **photo gallery** — its references and small thumbnails — plus your settings. That's enough to fully restore your log, and it keeps the file small."),
+            .text("Every backup carries your **sessions, dive spots, trips**, and your **photo gallery** — its references and small thumbnails. That's enough to fully restore your log, and it keeps the file small. App preferences such as units aren't part of it."),
             .subheading("Optional originals"),
             .text("When you export, you can also bundle the heavy originals — **voice notes, photos, and videos** — each with its own switch. They're off by default, because a full library of photos and (especially) videos can be gigabytes."),
             .tip("The export screen shows a live **size estimate** for what you've turned on, so you can see the file size before you commit. It's approximate, and originals may download from iCloud during export."),

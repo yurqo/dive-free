@@ -1660,6 +1660,52 @@
         }
       }
     },
+    "A backup always includes your sessions, spots, trips, and the photo gallery — its references and thumbnails. Turn these on to also bundle the full-size originals, which make the file much larger. Photos and videos re-import to your library on restore only if the originals are missing.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ein Backup enthält immer deine Sessions, Spots, Reisen und die Fotogalerie – ihre Verweise und Miniaturen. Aktiviere diese Schalter, um zusätzlich die Originale in voller Größe mitzunehmen, was die Datei deutlich größer macht. Fotos und Videos werden beim Wiederherstellen nur dann erneut in deine Mediathek importiert, wenn die Originale fehlen."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Una copia de seguridad siempre incluye tus sesiones, puntos, viajes y la galería de fotos: sus referencias y miniaturas. Activa estas opciones para incluir también los originales a tamaño completo, que aumentan mucho el tamaño del archivo. Las fotos y los vídeos se vuelven a importar a tu fototeca al restaurar solo si faltan los originales."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Une sauvegarde contient toujours vos sessions, spots, voyages et la galerie photo — ses références et ses vignettes. Activez ces options pour y joindre aussi les originaux en pleine taille, ce qui alourdit nettement le fichier. Les photos et vidéos ne sont réimportées dans votre photothèque à la restauration que si les originaux manquent."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Un backup include sempre le tue sessioni, gli spot, i viaggi e la galleria foto: i suoi riferimenti e le miniature. Attiva queste opzioni per includere anche gli originali a piena risoluzione, che rendono il file molto più grande. Foto e video vengono reimportati nella tua libreria al ripristino solo se gli originali mancano."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "バックアップには、セッション、スポット、旅行、写真ギャラリー（参照とサムネール）が常に含まれます。これらをオンにすると、フルサイズのオリジナルも同梱され、ファイルはかなり大きくなります。復元時に写真とビデオがライブラリへ再インポートされるのは、オリジナルが見つからない場合だけです。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Um backup sempre inclui suas sessões, locais, viagens e a galeria de fotos — suas referências e miniaturas. Ative estas opções para incluir também os originais em tamanho real, o que deixa o arquivo bem maior. Fotos e vídeos só são reimportados para a sua fototeca na restauração se os originais estiverem faltando."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Резервна копія завжди містить ваші сесії, місця, подорожі та фотогалерею — її посилання й мініатюри. Увімкніть ці перемикачі, щоб додати ще й оригінали в повному розмірі, через які файл стане значно більшим. Фото та відео повторно імпортуються до вашої медіатеки під час відновлення, лише якщо оригіналів немає."
+          }
+        }
+      }
+    },
     "A brand-new dive first appears on the iPhone the watch talked to, then syncs to your other devices.": {
       "localizations": {
         "de": {
@@ -2628,6 +2674,52 @@
         }
       }
     },
+    "Added %lld spots and %lld trips.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld Spots und %lld Reisen hinzugefügt."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se añadieron %lld puntos y %lld viajes."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld spots et %lld voyages ajoutés."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aggiunti %lld spot e %lld viaggi."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 件のスポットと %lld 件の旅行を追加しました。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld locais e %lld viagens adicionados."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Додано %lld місць і %lld подорожей."
+          }
+        }
+      }
+    },
     "Adding media": {
       "localizations": {
         "de": {
@@ -2901,6 +2993,52 @@
           "stringUnit": {
             "state": "translated",
             "value": "Завжди занурюйтеся в межах своєї підготовки та сертифікації."
+          }
+        }
+      }
+    },
+    "Approximate. Photos and videos may download from iCloud during export, which can take a while.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ungefähr. Fotos und Videos werden beim Export möglicherweise aus iCloud geladen, was eine Weile dauern kann."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aproximado. Las fotos y los vídeos pueden descargarse de iCloud durante la exportación, lo que puede tardar un rato."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Valeur approximative. Les photos et vidéos peuvent être téléchargées depuis iCloud pendant l’export, ce qui peut prendre un moment."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Approssimativo. Foto e video potrebbero essere scaricati da iCloud durante l’esportazione, il che può richiedere un po’ di tempo."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "おおよその値です。書き出し中に写真やビデオがiCloudからダウンロードされることがあり、時間がかかる場合があります。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aproximado. Fotos e vídeos podem ser baixados do iCloud durante a exportação, o que pode demorar um pouco."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Приблизно. Під час експорту фото та відео можуть завантажуватися з iCloud, що може тривати деякий час."
           }
         }
       }
@@ -3564,6 +3702,144 @@
         }
       }
     },
+    "Backing up & restoring": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sichern & Wiederherstellen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copias de seguridad y restauración"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sauvegarder et restaurer"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Backup e ripristino"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "バックアップと復元"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Backup e restauração"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Резервне копіювання та відновлення"
+          }
+        }
+      }
+    },
+    "Backup & Restore": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Backup & Wiederherstellung"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copia de seguridad y restauración"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sauvegarde et restauration"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Backup e ripristino"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "バックアップと復元"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Backup e restauração"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Резервне копіювання та відновлення"
+          }
+        }
+      }
+    },
+    "Backup Failed": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Backup fehlgeschlagen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Error en la copia de seguridad"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Échec de la sauvegarde"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Backup non riuscito"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "バックアップに失敗しました"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Falha no backup"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не вдалося створити резервну копію"
+          }
+        }
+      }
+    },
     "Badges": {
       "localizations": {
         "de": {
@@ -4180,6 +4456,52 @@
         }
       }
     },
+    "Choose which originals to include, then tap **Export**.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wähle, welche Originale enthalten sein sollen, und tippe auf **Exportieren**."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Elige qué originales incluir y toca **Exportar**."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choisissez les originaux à inclure, puis touchez **Exporter**."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scegli quali originali includere, poi tocca **Esporta**."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "含めるオリジナルを選び、**書き出す**をタップします。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Escolha quais originais incluir e toque em **Exportar**."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Виберіть, які оригінали додати, і торкніться **Експортувати**."
+          }
+        }
+      }
+    },
     "Clear": {
       "extractionState": "stale",
       "localizations": {
@@ -4694,6 +5016,52 @@
         }
       }
     },
+    "Couldn't create the backup. Please try again.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Backup konnte nicht erstellt werden. Bitte versuche es erneut."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo crear la copia de seguridad. Inténtalo de nuevo."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible de créer la sauvegarde. Veuillez réessayer."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossibile creare il backup. Riprova."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "バックアップを作成できませんでした。もう一度お試しください。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível criar o backup. Tente novamente."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не вдалося створити резервну копію. Спробуйте ще раз."
+          }
+        }
+      }
+    },
     "Couldn't reach the App Store to restore. Please try again.": {
       "localizations": {
         "de": {
@@ -4736,6 +5104,52 @@
           "stringUnit": {
             "state": "translated",
             "value": "Не вдалося з’єднатися з App Store для відновлення. Спробуйте ще раз."
+          }
+        }
+      }
+    },
+    "Couldn't restore the backup. Please try again.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Backup konnte nicht wiederhergestellt werden. Bitte versuche es erneut."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo restaurar la copia de seguridad. Inténtalo de nuevo."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible de restaurer la sauvegarde. Veuillez réessayer."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossibile ripristinare il backup. Riprova."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "バックアップを復元できませんでした。もう一度お試しください。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível restaurar o backup. Tente novamente."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не вдалося відновити з резервної копії. Спробуйте ще раз."
           }
         }
       }
@@ -6779,6 +7193,52 @@
         }
       }
     },
+    "Dive Free points to media in your own **Photos library** rather than storing copies. On restore, if the originals are still in your library (or iCloud Photos), your dives simply link back to them. If an original is missing **and** you included it in the backup, Dive Free re-imports it to your Photos library — so nothing is duplicated when it doesn't need to be.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dive Free verweist auf Medien in deiner eigenen **Fotomediathek**, statt Kopien zu speichern. Beim Wiederherstellen verknüpfen sich deine Tauchgänge einfach wieder mit den Originalen, sofern sie noch in deiner Mediathek (oder in iCloud-Fotos) liegen. Fehlt ein Original **und** war es im Backup enthalten, importiert Dive Free es erneut in deine Fotomediathek – so wird nichts unnötig dupliziert."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dive Free apunta a los archivos de tu propia **fototeca** en lugar de guardar copias. Al restaurar, si los originales siguen en tu fototeca (o en Fotos de iCloud), tus inmersiones vuelven a enlazarse con ellos sin más. Si falta un original **y** lo incluiste en la copia de seguridad, Dive Free lo reimporta a tu fototeca, de modo que nada se duplica sin necesidad."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dive Free pointe vers les médias de votre propre **photothèque** au lieu d’en stocker des copies. À la restauration, si les originaux s’y trouvent toujours (ou dans Photos iCloud), vos plongées s’y rattachent simplement. Si un original manque **et** que vous l’aviez inclus dans la sauvegarde, Dive Free le réimporte dans votre photothèque — rien n’est donc dupliqué inutilement."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dive Free fa riferimento ai media della tua **libreria Foto** invece di conservarne copie. Al ripristino, se gli originali sono ancora nella libreria (o in Foto di iCloud), le tue immersioni si ricollegano semplicemente a essi. Se un originale manca **e** lo avevi incluso nel backup, Dive Free lo reimporta nella libreria Foto: così non si duplica nulla senza motivo."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dive Freeはコピーを保存するのではなく、あなた自身の**写真ライブラリ**内のメディアを参照します。復元時にオリジナルがライブラリ（またはiCloud写真）に残っていれば、ダイブはそのまま再びリンクされます。オリジナルが見つからず、**かつ**バックアップに含めていた場合は、Dive Freeがそれを写真ライブラリへ再インポートします。必要のない重複は生じません。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O Dive Free aponta para as mídias da sua própria **fototeca** em vez de guardar cópias. Na restauração, se os originais ainda estiverem na sua fototeca (ou no Fotos do iCloud), seus mergulhos simplesmente voltam a apontar para eles. Se um original estiver faltando **e** você o tiver incluído no backup, o Dive Free o reimporta para a sua fototeca — assim nada é duplicado sem necessidade."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dive Free посилається на медіа у вашій власній **медіатеці «Фото»**, а не зберігає копії. Під час відновлення, якщо оригінали ще у вашій медіатеці (або в iCloud Фото), занурення просто знову зв’яжуться з ними. Якщо оригіналу немає, **а** ви додали його до резервної копії, Dive Free повторно імпортує його до вашої медіатеки — тож нічого не дублюється без потреби."
+          }
+        }
+      }
+    },
     "Dive Free records depth continuously and works out where one dive ends and the next begins, so your log matches what you actually did.": {
       "localizations": {
         "de": {
@@ -8367,6 +8827,190 @@
         }
       }
     },
+    "Estimated size": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geschätzte Größe"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tamaño estimado"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Taille estimée"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dimensione stimata"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "推定サイズ"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tamanho estimado"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Приблизний розмір"
+          }
+        }
+      }
+    },
+    "Estimated total": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geschätzt gesamt"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Total estimado"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Total estimé"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Totale stimato"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "推定合計"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Total estimado"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Приблизно всього"
+          }
+        }
+      }
+    },
+    "Estimating size…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Größe wird geschätzt…"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Calculando el tamaño…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estimation de la taille…"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stima della dimensione…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サイズを計算中…"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Calculando o tamanho…"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Обчислення розміру…"
+          }
+        }
+      }
+    },
+    "Every backup carries your **sessions, dive spots, trips**, and your **photo gallery** — its references and small thumbnails. That's enough to fully restore your log, and it keeps the file small. App preferences such as units aren't part of it.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jedes Backup enthält deine **Sessions, Tauchspots und Reisen** sowie deine **Fotogalerie** – ihre Verweise und kleine Miniaturen. Das reicht, um dein Logbuch vollständig wiederherzustellen, und hält die Datei klein. App-Einstellungen wie Einheiten gehören nicht dazu."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cada copia de seguridad incluye tus **sesiones, puntos de buceo y viajes**, y tu **galería de fotos**: sus referencias y miniaturas pequeñas. Con eso basta para restaurar tu registro por completo y el archivo se mantiene pequeño. Los ajustes de la app, como las unidades, no se incluyen."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chaque sauvegarde contient vos **sessions, spots de plongée et voyages**, ainsi que votre **galerie photo** — ses références et de petites vignettes. C’est suffisant pour restaurer entièrement votre carnet, et le fichier reste léger. Les réglages de l’app, comme les unités, n’en font pas partie."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ogni backup contiene le tue **sessioni, gli spot e i viaggi**, oltre alla tua **galleria foto**: i suoi riferimenti e piccole miniature. Basta questo per ripristinare completamente il logbook, e il file resta piccolo. Le preferenze dell’app, come le unità, non ne fanno parte."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "どのバックアップにも、**セッション・ダイブスポット・旅行**と、**写真ギャラリー**（その参照と小さなサムネール）が含まれます。これだけでログを完全に復元でき、ファイルも小さく保てます。単位などのアプリ設定は含まれません。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Todo backup leva suas **sessões, locais de mergulho e viagens**, e sua **galeria de fotos** — suas referências e miniaturas pequenas. Isso basta para restaurar seu registro por completo, e mantém o arquivo pequeno. Preferências do app, como as unidades, não fazem parte dele."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Кожна резервна копія містить ваші **сесії, місця занурень і подорожі**, а також вашу **фотогалерею** — її посилання та невеликі мініатюри. Цього достатньо, щоб повністю відновити журнал, і файл лишається невеликим. Налаштування застосунку, як-от одиниці вимірювання, до неї не входять."
+          }
+        }
+      }
+    },
     "Everything you record lands here. The app has four tabs:": {
       "localizations": {
         "de": {
@@ -8413,6 +9057,144 @@
         }
       }
     },
+    "Export": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exportieren"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exportar"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exporter"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esporta"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "書き出す"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exportar"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Експортувати"
+          }
+        }
+      }
+    },
+    "Export Backup": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Backup exportieren"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exportar copia de seguridad"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exporter la sauvegarde"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esporta backup"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "バックアップを書き出す"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exportar backup"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Експортувати резервну копію"
+          }
+        }
+      }
+    },
+    "Export Backup…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Backup exportieren…"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exportar copia de seguridad…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exporter la sauvegarde…"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esporta backup…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "バックアップを書き出す…"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exportar backup…"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Експортувати резервну копію…"
+          }
+        }
+      }
+    },
     "Export any dive you like to **Strava** as an activity, complete with your GPS track, heart rate, and depth.": {
       "localizations": {
         "de": {
@@ -8455,6 +9237,52 @@
           "stringUnit": {
             "state": "translated",
             "value": "Експортуйте будь-яке занурення до **Strava** як активність — разом із GPS-треком, пульсом і глибиною."
+          }
+        }
+      }
+    },
+    "Export everything — sessions, spots, trips, and your photo gallery — as a single .zip file to save in Files or another device. A lean backup keeps the file small; you can optionally add voice notes, photos, and videos. Restoring is additive: existing items are kept and duplicates are skipped. With iCloud Sync on, a restore also propagates to your other devices.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exportiere alles – Sessions, Spots, Reisen und deine Fotogalerie – als eine einzige .zip-Datei für „Dateien“ oder ein anderes Gerät. Ein schlankes Backup hält die Datei klein; Sprachnotizen, Fotos und Videos kannst du optional hinzufügen. Das Wiederherstellen ist additiv: Vorhandenes bleibt erhalten, Duplikate werden übersprungen. Bei aktivierter iCloud-Synchronisierung wirkt sich eine Wiederherstellung auch auf deine anderen Geräte aus."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exporta todo —sesiones, puntos, viajes y tu galería de fotos— en un único archivo .zip para guardarlo en Archivos o en otro dispositivo. Una copia ligera mantiene el archivo pequeño; si quieres, puedes añadir notas de voz, fotos y vídeos. La restauración es aditiva: se conserva lo que ya tienes y se omiten los duplicados. Con la sincronización con iCloud activada, la restauración también se propaga a tus otros dispositivos."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exportez tout — sessions, spots, voyages et votre galerie photo — dans un seul fichier .zip à enregistrer dans Fichiers ou sur un autre appareil. Une sauvegarde légère reste petite ; vous pouvez y ajouter mémos vocaux, photos et vidéos. La restauration est additive : les éléments existants sont conservés et les doublons ignorés. Avec la synchronisation iCloud activée, une restauration se propage aussi à vos autres appareils."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esporta tutto — sessioni, spot, viaggi e la tua galleria foto — in un unico file .zip da salvare in File o su un altro dispositivo. Un backup leggero mantiene il file piccolo; se vuoi puoi aggiungere note vocali, foto e video. Il ripristino è additivo: gli elementi esistenti restano e i duplicati vengono ignorati. Con la sincronizzazione iCloud attiva, un ripristino si propaga anche agli altri tuoi dispositivi."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "セッション、スポット、旅行、写真ギャラリーまで、すべてを1つの.zipファイルに書き出して「ファイル」や別のデバイスに保存できます。軽量なバックアップならファイルは小さいままで、必要に応じてボイスメモ・写真・ビデオを追加できます。復元は追加方式で、既存の項目はそのまま残り、重複はスキップされます。iCloud同期がオンなら、復元は他のデバイスにも反映されます。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exporte tudo — sessões, locais, viagens e sua galeria de fotos — em um único arquivo .zip para guardar no app Arquivos ou em outro dispositivo. Um backup enxuto mantém o arquivo pequeno; você pode adicionar notas de voz, fotos e vídeos se quiser. A restauração é aditiva: os itens existentes são mantidos e as duplicatas são ignoradas. Com a sincronização com o iCloud ativada, a restauração também chega aos seus outros dispositivos."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Експортуйте все — сесії, місця, подорожі та вашу фотогалерею — одним файлом .zip, щоб зберегти його у «Файлах» чи на іншому пристрої. Компактна резервна копія залишається невеликою; за бажання можна додати голосові нотатки, фото та відео. Відновлення є доповнювальним: наявні записи зберігаються, а дублікати пропускаються. Якщо ввімкнено синхронізацію iCloud, відновлення пошириться й на інші ваші пристрої."
           }
         }
       }
@@ -9997,6 +10825,98 @@
         }
       }
     },
+    "How to export a backup": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "So exportierst du ein Backup"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cómo exportar una copia de seguridad"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comment exporter une sauvegarde"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Come esportare un backup"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "バックアップを書き出す方法"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Como exportar um backup"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Як експортувати резервну копію"
+          }
+        }
+      }
+    },
+    "How to restore": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "So stellst du wieder her"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cómo restaurar"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comment restaurer"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Come ripristinare"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "復元する方法"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Como restaurar"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Як відновити"
+          }
+        }
+      }
+    },
     "How to use?": {
       "extractionState": "stale",
       "localizations": {
@@ -10182,6 +11102,52 @@
         }
       }
     },
+    "Imported %lld sessions (%lld already present).": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld Sessions importiert (%lld bereits vorhanden)."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld sesiones importadas (%lld ya presentes)."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld sessions importées (%lld déjà présentes)."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld sessioni importate (%lld già presenti)."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 件のセッションをインポートしました（%lld 件は既存）。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld sessões importadas (%lld já presentes)."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Імпортовано %lld сесій (%lld вже наявні)."
+          }
+        }
+      }
+    },
     "In **Settings ▸ Dive detection** under **Surface recovery**, pick the multiplier (**2×**, **2.5×**, or **3×**) or turn the hint off entirely. The choice syncs to your watch and applies to your next session.": {
       "localizations": {
         "en": {
@@ -10230,6 +11196,52 @@
           "stringUnit": {
             "state": "translated",
             "value": "У **Налаштування ▸ Виявлення занурень** у розділі **Відновлення на поверхні** виберіть множник (**2×**, **2,5×** або **3×**) чи повністю вимкніть підказку. Вибір синхронізується з годинником і застосується до наступної сесії."
+          }
+        }
+      }
+    },
+    "Include originals": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Originale einbeziehen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Incluir originales"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inclure les originaux"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Includi originali"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "オリジナルを含める"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Incluir originais"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Включити оригінали"
           }
         }
       }
@@ -10328,6 +11340,52 @@
           "stringUnit": {
             "state": "translated",
             "value": "Це не можна скасувати"
+          }
+        }
+      }
+    },
+    "Keep a complete copy of your log in a single **.zip** file — handy before switching phones, or just for peace of mind.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bewahre eine vollständige Kopie deines Logbuchs in einer einzigen **.zip**-Datei auf – praktisch vor einem Gerätewechsel oder einfach zur Sicherheit."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Guarda una copia completa de tu registro en un único archivo **.zip**: práctico antes de cambiar de teléfono o simplemente para tu tranquilidad."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conservez une copie complète de votre carnet dans un seul fichier **.zip** — pratique avant de changer de téléphone, ou simplement pour être tranquille."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conserva una copia completa del tuo logbook in un unico file **.zip**: comodo prima di cambiare telefono, o semplicemente per stare tranquillo."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ログ全体のコピーを1つの**.zip**ファイルに保存できます。機種変更の前にも、念のための備えとしても便利です。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Guarde uma cópia completa do seu registro em um único arquivo **.zip** — útil antes de trocar de telefone, ou só para ficar tranquilo."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Зберігайте повну копію свого журналу в одному файлі **.zip** — зручно перед зміною телефона або просто для спокою."
           }
         }
       }
@@ -13469,6 +14527,52 @@
         }
       }
     },
+    "On the **Dives** tab, tap the gear icon to open **Settings**.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tippe im Tab **Tauchgänge** auf das Zahnrad, um die **Einstellungen** zu öffnen."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En la pestaña **Inmersiones**, toca el icono del engranaje para abrir **Ajustes**."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dans l’onglet **Plongées**, touchez l’icône d’engrenage pour ouvrir les **Réglages**."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nella scheda **Immersioni**, tocca l’icona dell’ingranaggio per aprire le **Impostazioni**."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**ダイブ**タブで歯車アイコンをタップして**設定**を開きます。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Na aba **Mergulhos**, toque no ícone de engrenagem para abrir os **Ajustes**."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "На вкладці **Занурення** торкніться значка шестірні, щоб відкрити **Налаштування**."
+          }
+        }
+      }
+    },
     "On watch": {
       "extractionState": "stale",
       "localizations": {
@@ -13696,6 +14800,52 @@
           "stringUnit": {
             "state": "translated",
             "value": "Разово"
+          }
+        }
+      }
+    },
+    "Open **Settings ▸ Backup & Restore** and tap **Restore Backup…**.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öffne **Einstellungen ▸ Backup & Wiederherstellung** und tippe auf **Backup wiederherstellen…**."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abre **Ajustes ▸ Copia de seguridad y restauración** y toca **Restaurar copia de seguridad…**."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ouvrez **Réglages ▸ Sauvegarde et restauration** et touchez **Restaurer la sauvegarde…**."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apri **Impostazioni ▸ Backup e ripristino** e tocca **Ripristina backup…**."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**設定 ▸ バックアップと復元**を開き、**バックアップから復元…**をタップします。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abra **Ajustes ▸ Backup e restauração** e toque em **Restaurar backup…**."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Відкрийте **Налаштування ▸ Резервне копіювання та відновлення** й торкніться **Відновити з резервної копії…**."
           }
         }
       }
@@ -13984,6 +15134,52 @@
           "stringUnit": {
             "state": "translated",
             "value": "Необов’язково"
+          }
+        }
+      }
+    },
+    "Optional originals": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Optionale Originale"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Originales opcionales"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Originaux facultatifs"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Originali opzionali"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "オプションのオリジナル"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Originais opcionais"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Необов’язкові оригінали"
           }
         }
       }
@@ -14358,6 +15554,52 @@
         }
       }
     },
+    "Photos & videos on restore": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fotos & Videos beim Wiederherstellen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fotos y vídeos al restaurar"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Photos et vidéos à la restauration"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Foto e video al ripristino"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "復元時の写真とビデオ"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fotos e vídeos na restauração"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Фото та відео під час відновлення"
+          }
+        }
+      }
+    },
     "Photos aren't reaching my iPad": {
       "localizations": {
         "de": {
@@ -14539,6 +15781,52 @@
           "stringUnit": {
             "state": "translated",
             "value": "Виберіть метричні, імперські чи власну суміш у Налаштуваннях — глибина, відстань і температура слідують вашому вибору тут і на iPhone. Установіть на телефоні, і воно синхронізується з годинником."
+          }
+        }
+      }
+    },
+    "Pick the .zip backup you saved. Dive Free reads it and brings your data back.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wähle das gesicherte .zip-Backup aus. Dive Free liest es und holt deine Daten zurück."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Elige la copia de seguridad .zip que guardaste. Dive Free la lee y recupera tus datos."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sélectionnez la sauvegarde .zip que vous avez enregistrée. Dive Free la lit et restaure vos données."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Seleziona il backup .zip che hai salvato. Dive Free lo legge e riporta indietro i tuoi dati."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存しておいた.zipバックアップを選びます。Dive Freeがそれを読み込み、データを復元します。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Escolha o backup .zip que você salvou. O Dive Free o lê e traz seus dados de volta."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Виберіть збережену резервну копію .zip. Dive Free прочитає її та поверне ваші дані."
           }
         }
       }
@@ -15789,6 +17077,98 @@
         }
       }
     },
+    "Restore Backup…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Backup wiederherstellen…"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restaurar copia de seguridad…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restaurer la sauvegarde…"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ripristina backup…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "バックアップから復元…"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restaurar backup…"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Відновити з резервної копії…"
+          }
+        }
+      }
+    },
+    "Restore Complete": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wiederherstellung abgeschlossen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restauración completada"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restauration terminée"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ripristino completato"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "復元が完了しました"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restauração concluída"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Відновлення завершено"
+          }
+        }
+      }
+    },
     "Restore Purchases": {
       "localizations": {
         "de": {
@@ -15835,6 +17215,98 @@
         }
       }
     },
+    "Restored %lld photos (%lld re-imported to Photos).": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld Fotos wiederhergestellt (%lld erneut in Fotos importiert)."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se restauraron %lld fotos (%lld reimportadas a Fotos)."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld photos restaurées (%lld réimportées dans Photos)."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ripristinate %lld foto (%lld reimportate in Foto)."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 枚の写真を復元しました（%lld 枚を「写真」に再インポート）。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld fotos restauradas (%lld reimportadas para Fotos)."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Відновлено %lld фото (%lld повторно імпортовано до «Фото»)."
+          }
+        }
+      }
+    },
+    "Restored %lld voice notes.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld Sprachnotizen wiederhergestellt."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se restauraron %lld notas de voz."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld mémos vocaux restaurés."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ripristinate %lld note vocali."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 件のボイスメモを復元しました。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld notas de voz restauradas."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Відновлено %lld голосових нотаток."
+          }
+        }
+      }
+    },
     "Restores your Supporter subscription on this device. Coffee tips are one-off and aren't restored.": {
       "localizations": {
         "de": {
@@ -15877,6 +17349,52 @@
           "stringUnit": {
             "state": "translated",
             "value": "Відновлює вашу підписку Прихильника на цьому пристрої. Кава — це разові чайові, вони не відновлюються."
+          }
+        }
+      }
+    },
+    "Restoring is **additive and safe**: your existing dives are kept, and anything already in your log is skipped rather than duplicated. So it's fine to restore onto a phone that already has some dives.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Wiederherstellen ist **additiv und sicher**: Vorhandene Tauchgänge bleiben erhalten, und was bereits im Logbuch steht, wird übersprungen statt doppelt angelegt. Du kannst also bedenkenlos auf ein Gerät wiederherstellen, auf dem schon Tauchgänge liegen."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La restauración es **aditiva y segura**: tus inmersiones actuales se conservan y todo lo que ya esté en tu registro se omite en lugar de duplicarse. Así que no hay problema en restaurar en un teléfono que ya tenga inmersiones."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La restauration est **additive et sûre** : vos plongées existantes sont conservées, et tout ce qui figure déjà dans votre carnet est ignoré plutôt que dupliqué. Vous pouvez donc restaurer sans crainte sur un téléphone qui contient déjà des plongées."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il ripristino è **additivo e sicuro**: le immersioni che hai già restano al loro posto e ciò che è già nel logbook viene ignorato invece di essere duplicato. Puoi quindi ripristinare tranquillamente su un telefono che contiene già delle immersioni."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "復元は**追加方式で安全**です。既存のダイブはそのまま残り、すでにログにあるものは重複せずスキップされます。ダイブが入っている端末に復元しても問題ありません。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A restauração é **aditiva e segura**: seus mergulhos atuais são mantidos, e tudo que já está no seu registro é ignorado em vez de duplicado. Então pode restaurar tranquilamente em um telefone que já tem mergulhos."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Відновлення **доповнює й не шкодить**: наявні занурення лишаються, а все, що вже є в журналі, пропускається, а не дублюється. Тож можна спокійно відновлювати на телефон, де вже є занурення."
           }
         }
       }
@@ -16530,6 +18048,52 @@
         }
       }
     },
+    "Sessions & thumbnails": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sessions & Miniaturen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sesiones y miniaturas"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sessions et vignettes"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sessioni e miniature"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "セッションとサムネール"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sessões e miniaturas"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сесії та мініатюри"
+          }
+        }
+      }
+    },
     "Set on iPhone. Applies to your next session.": {
       "extractionState": "stale",
       "localizations": {
@@ -17090,6 +18654,52 @@
           "stringUnit": {
             "state": "translated",
             "value": "Щоб справжні занурення реєструвалися, а коротке погойдування на поверхні — ні, виявлення є **багаторівневим**: що глибше ви йдете, то швидше воно зараховується. Занурення реєструється, щойно виконується **будь-яке** з правил. За замовчуванням:"
+          }
+        }
+      }
+    },
+    "Some photo originals couldn't be re-imported because Photos access was denied.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einige Fotooriginale konnten nicht erneut importiert werden, weil der Zugriff auf Fotos verweigert wurde."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Algunos originales de fotos no se pudieron reimportar porque se denegó el acceso a Fotos."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Certains originaux de photos n’ont pas pu être réimportés, car l’accès à Photos a été refusé."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alcuni originali delle foto non sono stati reimportati perché l’accesso a Foto è stato negato."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「写真」へのアクセスが許可されていないため、一部の写真のオリジナルを再インポートできませんでした。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível reimportar alguns originais de fotos porque o acesso a Fotos foi negado."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Деякі оригінали фото не вдалося повторно імпортувати, оскільки доступ до «Фото» заборонено."
           }
         }
       }
@@ -18982,6 +20592,52 @@
         }
       }
     },
+    "The export screen shows a live **size estimate** for what you've turned on, so you can see the file size before you commit. It's approximate, and originals may download from iCloud during export.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Export-Bildschirm zeigt eine laufende **Größenschätzung** für das, was du aktiviert hast – so siehst du die Dateigröße, bevor du dich festlegst. Sie ist ungefähr, und Originale werden beim Export unter Umständen aus iCloud geladen."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La pantalla de exportación muestra una **estimación de tamaño** en vivo según lo que hayas activado, para que veas el tamaño del archivo antes de decidir. Es aproximada, y los originales pueden descargarse de iCloud durante la exportación."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L’écran d’export affiche une **estimation de taille** en direct selon ce que vous avez activé, pour connaître le poids du fichier avant de vous lancer. Elle est approximative, et les originaux peuvent être téléchargés depuis iCloud pendant l’export."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La schermata di esportazione mostra una **stima della dimensione** aggiornata in base a ciò che hai attivato, così vedi quanto peserà il file prima di procedere. È approssimativa e gli originali potrebbero essere scaricati da iCloud durante l’esportazione."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "書き出し画面では、オンにした項目に応じた**サイズの目安**がリアルタイムで表示され、実行前にファイルサイズを確認できます。あくまで概算で、書き出し中にオリジナルがiCloudからダウンロードされることがあります。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A tela de exportação mostra uma **estimativa de tamanho** ao vivo para o que você ativou, assim você vê o tamanho do arquivo antes de decidir. Ela é aproximada, e os originais podem ser baixados do iCloud durante a exportação."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "На екрані експорту показано динамічну **оцінку розміру** для ввімкнених пунктів, тож ви бачите розмір файлу ще до початку. Вона приблизна, і під час експорту оригінали можуть завантажуватися з iCloud."
+          }
+        }
+      }
+    },
     "The gap between dives is your **surface interval** — your recovery time.": {
       "localizations": {
         "de": {
@@ -19317,6 +20973,52 @@
         }
       }
     },
+    "The system share sheet opens — save the file to **Files**, AirDrop it, or send it wherever you like.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Teilen-Menü des Systems öffnet sich – sichere die Datei in **Dateien**, sende sie per AirDrop oder verschicke sie beliebig."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se abre el menú Compartir del sistema: guarda el archivo en **Archivos**, envíalo por AirDrop o mándalo a donde quieras."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La feuille de partage du système s’ouvre — enregistrez le fichier dans **Fichiers**, envoyez-le par AirDrop ou partagez-le comme vous le souhaitez."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Si apre il pannello di condivisione del sistema: salva il file in **File**, invialo con AirDrop o mandalo dove preferisci."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "システムの共有シートが開きます。ファイルを**ファイル**アプリに保存したり、AirDropで送ったり、好きな方法で共有できます。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A folha de compartilhamento do sistema abre — salve o arquivo no **Arquivos**, envie por AirDrop ou mande para onde quiser."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Відкриється системне вікно спільного доступу — збережіть файл у **Файлах**, надішліть через AirDrop або куди завгодно."
+          }
+        }
+      }
+    },
     "The watch doesn't use iCloud — it sends dives straight to your iPhone over their direct link. From there, iCloud carries them on to your iPad.": {
       "localizations": {
         "de": {
@@ -19455,6 +21157,52 @@
         }
       }
     },
+    "This backup was made by a newer version of Dive Free. Update the app and try again.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieses Backup stammt aus einer neueren Version von Dive Free. Aktualisiere die App und versuche es erneut."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esta copia de seguridad se creó con una versión más reciente de Dive Free. Actualiza la app e inténtalo de nuevo."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cette sauvegarde a été créée par une version plus récente de Dive Free. Mettez l’app à jour et réessayez."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Questo backup è stato creato da una versione più recente di Dive Free. Aggiorna l’app e riprova."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このバックアップは、より新しいバージョンのDive Freeで作成されています。アプリをアップデートしてからもう一度お試しください。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Este backup foi criado por uma versão mais recente do Dive Free. Atualize o app e tente novamente."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Цю резервну копію створено новішою версією Dive Free. Оновіть застосунок і спробуйте ще раз."
+          }
+        }
+      }
+    },
     "This can't be undone.": {
       "localizations": {
         "en": {
@@ -19503,6 +21251,52 @@
           "stringUnit": {
             "state": "translated",
             "value": "Це не можна скасувати."
+          }
+        }
+      }
+    },
+    "This file isn't a valid Dive Free backup.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Datei ist kein gültiges Dive-Free-Backup."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Este archivo no es una copia de seguridad válida de Dive Free."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ce fichier n’est pas une sauvegarde Dive Free valide."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Questo file non è un backup valido di Dive Free."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このファイルは有効なDive Freeのバックアップではありません。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Este arquivo não é um backup válido do Dive Free."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Цей файл не є дійсною резервною копією Dive Free."
           }
         }
       }
@@ -20678,6 +22472,52 @@
         }
       }
     },
+    "Under **Backup & Restore**, tap **Export Backup…**.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tippe unter **Backup & Wiederherstellung** auf **Backup exportieren…**."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En **Copia de seguridad y restauración**, toca **Exportar copia de seguridad…**."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sous **Sauvegarde et restauration**, touchez **Exporter la sauvegarde…**."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In **Backup e ripristino**, tocca **Esporta backup…**."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**バックアップと復元**で、**バックアップを書き出す…**をタップします。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Em **Backup e restauração**, toque em **Exportar backup…**."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "У розділі **Резервне копіювання та відновлення** торкніться **Експортувати резервну копію…**."
+          }
+        }
+      }
+    },
     "Underwater": {
       "extractionState": "stale",
       "localizations": {
@@ -20951,6 +22791,52 @@
           "stringUnit": {
             "state": "translated",
             "value": "Посібник користувача"
+          }
+        }
+      }
+    },
+    "Videos": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Videos"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vídeos"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vidéos"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Video"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ビデオ"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vídeos"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Відео"
           }
         }
       }
@@ -21462,6 +23348,52 @@
         }
       }
     },
+    "What's always included": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Was immer enthalten ist"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Qué se incluye siempre"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ce qui est toujours inclus"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cosa è sempre incluso"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "常に含まれるもの"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O que está sempre incluído"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Що завжди включено"
+          }
+        }
+      }
+    },
     "When a dive ends": {
       "localizations": {
         "de": {
@@ -21550,6 +23482,52 @@
           "stringUnit": {
             "state": "translated",
             "value": "Коли ви завершуєте сесію, годинник надсилає її прямо на ваш iPhone через прямий зв’язок — без інтернету чи iCloud. Тримайте потім годинник біля телефона, і занурення надійде за мить. Якщо якесь не надійде, ви можете надіслати його з годинника знову (див. Усунення несправностей)."
+          }
+        }
+      }
+    },
+    "When you export, you can also bundle the heavy originals — **voice notes, photos, and videos** — each with its own switch. They're off by default, because a full library of photos and (especially) videos can be gigabytes.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beim Export kannst du zusätzlich die großen Originale mitnehmen – **Sprachnotizen, Fotos und Videos** – jeweils mit eigenem Schalter. Sie sind standardmäßig aus, denn eine ganze Sammlung von Fotos und (vor allem) Videos kann mehrere Gigabyte groß sein."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Al exportar, también puedes incluir los originales pesados —**notas de voz, fotos y vídeos**—, cada uno con su propio interruptor. Están desactivados por omisión, porque una colección completa de fotos y (sobre todo) vídeos puede ocupar gigabytes."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "À l’export, vous pouvez aussi joindre les originaux volumineux — **mémos vocaux, photos et vidéos** — chacun avec son propre interrupteur. Ils sont désactivés par défaut, car une bibliothèque complète de photos et (surtout) de vidéos peut peser plusieurs gigaoctets."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quando esporti puoi includere anche gli originali pesanti — **note vocali, foto e video** — ognuno con il proprio interruttore. Sono disattivati di default, perché una libreria completa di foto e (soprattutto) video può pesare gigabyte."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "書き出し時には、容量の大きいオリジナル（**ボイスメモ・写真・ビデオ**）もそれぞれのスイッチで同梱できます。写真、とくにビデオのライブラリ全体は数ギガバイトになることがあるため、初期状態ではオフです。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ao exportar, você também pode incluir os originais pesados — **notas de voz, fotos e vídeos** — cada um com seu próprio botão. Eles vêm desativados, porque uma biblioteca inteira de fotos e (principalmente) vídeos pode ter gigabytes."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Під час експорту можна додати й важкі оригінали — **голосові нотатки, фото та відео** — кожен окремим перемикачем. Типово вони вимкнені, бо ціла бібліотека фото й (особливо) відео може важити гігабайти."
           }
         }
       }
@@ -21832,6 +23810,52 @@
           "stringUnit": {
             "state": "translated",
             "value": "Швидкість вітру"
+          }
+        }
+      }
+    },
+    "With iCloud Sync on, a restore also flows through to your other devices, so you only need to restore once.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bei aktivierter iCloud-Synchronisierung wirkt sich eine Wiederherstellung auch auf deine anderen Geräte aus – du musst also nur einmal wiederherstellen."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Con la sincronización con iCloud activada, la restauración también llega a tus otros dispositivos, así que solo tienes que restaurar una vez."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avec la synchronisation iCloud activée, une restauration se propage à vos autres appareils : vous n’avez donc à restaurer qu’une seule fois."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Con la sincronizzazione iCloud attiva, il ripristino arriva anche agli altri tuoi dispositivi: ti basta farlo una volta sola."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iCloud同期がオンなら、復元は他のデバイスにも反映されるため、復元は一度だけで済みます。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Com a sincronização com o iCloud ativada, a restauração também chega aos seus outros dispositivos, então basta restaurar uma vez."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Якщо ввімкнено синхронізацію iCloud, відновлення пошириться й на інші ваші пристрої — тож відновити достатньо один раз."
           }
         }
       }

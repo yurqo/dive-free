@@ -52,7 +52,10 @@ struct ExportBackupView: View {
                         .disabled(isExporting)
                 }
             }
-            .task(id: options) { await recomputeEstimate() }
+            // Runs once: the per-category numbers don't depend on the toggles, so flipping
+            // a switch just re-sums (see `estimateSection`) instead of re-sweeping
+            // PhotoKit. SwiftUI cancels this task if the sheet closes mid-sweep.
+            .task { await loadEstimate() }
             .sheet(item: $backupToShare, onDismiss: discardExportedBackup) { shared in
                 ActivityView(activityItems: [shared.url])
             }
@@ -101,7 +104,9 @@ struct ExportBackupView: View {
                 if includeVideos {
                     LabeledContent("Videos") { Text(estimate.formatted(estimate.videos)) }
                 }
-                LabeledContent("Estimated total") { Text(estimate.totalFormatted).bold() }
+                LabeledContent("Estimated total") {
+                    Text(estimate.formatted(estimate.total(with: options))).bold()
+                }
             }
         } header: {
             Text("Estimated size")
@@ -127,14 +132,14 @@ struct ExportBackupView: View {
         }
     }
 
-    private func recomputeEstimate() async {
+    private func loadEstimate() async {
         isEstimating = true
-        let result = await BackupService.estimatedSizes(options: options, context: context)
-        // Guard against a stale run finishing after the toggles changed again.
-        if !Task.isCancelled {
-            estimate = result
-            isEstimating = false
-        }
+        let result = await BackupService.estimatedSizes(context: context)
+        // A cancelled sweep (the sheet closed) must not touch state; `isEstimating` is
+        // cleared either way so the spinner can never be left spinning.
+        guard !Task.isCancelled else { return }
+        estimate = result
+        isEstimating = false
     }
 
     private func runExport() async {

@@ -338,7 +338,6 @@ struct BackupRestoreTests {
         #expect(summary.tripsLinked == 1)
         #expect(summary.audioRestored == 1)
         #expect(summary.photosRestored == 4)
-        #expect(summary.photosReimported == 4)  // all four had bundled media + non-nil id
 
         // Audio materialized to "disk".
         #expect(materialized == ["voice-1.m4a": clip])
@@ -400,7 +399,6 @@ struct BackupRestoreTests {
         )
 
         #expect(summary.photosRestored == 4)
-        #expect(summary.photosReimported == 0)  // no bundled media
         #expect(reimportURLs.count == 4)
         #expect(reimportURLs.allSatisfy { $0 == nil })
 
@@ -557,7 +555,6 @@ struct BackupRestoreTests {
         // Counters reflect only genuine new work: the 3 other photos are new records and
         // do get re-imported; the pre-existing one is neither restored nor re-imported.
         #expect(summary.photosRestored == 3)
-        #expect(summary.photosReimported == 3)
         #expect(reimportedIDs.count == 3)
         #expect(Set(reimportedIDs) == [source.spotPhotoID, source.markerPhotoID, source.videoPhotoID])
 
