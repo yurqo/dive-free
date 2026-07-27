@@ -72,6 +72,35 @@ enum PhotoLibrary {
         return localID
     }
 
+    /// Batched ``localIdentifier(forCloudIdentifier:)`` — resolves a whole set of cloud
+    /// identifiers to this device's local asset ids in a single lookup. Same rationale as
+    /// ``cloudIdentifiers(forLocalIdentifiers:)``: the per-id call is an XPC round trip,
+    /// so a restore resolves the archive's entire photo set at once instead of once per
+    /// photo on the main thread. Cloud ids with no counterpart here are omitted.
+    static func localIdentifiers(forCloudIdentifiers cloudIDs: [String]) -> [String: String] {
+        guard !cloudIDs.isEmpty else { return [:] }
+        let clouds = cloudIDs.map { PHCloudIdentifier(stringValue: $0) }
+        let mappings = PHPhotoLibrary.shared().localIdentifierMappings(for: clouds)
+        var result: [String: String] = [:]
+        for (cloud, outcome) in mappings {
+            if case let .success(localID) = outcome { result[cloud.stringValue] = localID }
+        }
+        return result
+    }
+
+    /// Which of `localIdentifiers` still resolve to an asset in the library, in one fetch
+    /// rather than one per id. Comparison ignores the `/L0/001` suffix PhotoKit appends,
+    /// so a canonicalized id still matches the one that was asked about.
+    static func existingLocalIdentifiers(_ localIdentifiers: [String]) -> Set<String> {
+        guard !localIdentifiers.isEmpty else { return [] }
+        let assets = PHAsset.fetchAssets(withLocalIdentifiers: localIdentifiers, options: nil)
+        var found: Set<Substring> = []
+        assets.enumerateObjects { asset, _, _ in
+            found.insert(asset.localIdentifier.prefix { $0 != "/" })
+        }
+        return Set(localIdentifiers.filter { found.contains($0.prefix { $0 != "/" }) })
+    }
+
     /// A thumbnail-sized image for caching at import time.
     static func thumbnail(for asset: PHAsset) async -> UIImage? {
         await image(for: asset, targetSize: CGSize(width: 800, height: 800))
@@ -95,21 +124,38 @@ enum PhotoLibrary {
         return identifier
     }
 
-    /// Saves a captured video file to the Photos library; returns the new asset's
-    /// `localIdentifier` so it can be referenced (#139). Requires add/write access.
-    /// `nonisolated` for the same reason as `save`.
-    nonisolated static func saveVideo(_ url: URL) async -> String? {
+    /// Saves a media *file* (a captured clip, or a full-resolution original bundled in a
+    /// backup) to the Photos library and returns the new asset's `localIdentifier`.
+    /// Unlike ``save(_:)`` this ingests the file bytes directly rather than re-encoding a
+    /// `UIImage`, preserving the original. Requires add/write access. `nonisolated` for
+    /// the same reason as ``save(_:)``.
+    ///
+    /// Uses `PHAssetCreationRequest.addResource(with:fileURL:options:)` rather than the
+    /// `creationRequestForAssetFrom{Image,Video}(atFileURL:)` pair, which has been
+    /// deprecated since iOS 9 and returns `nil` — losing the asset silently — when it
+    /// can't make sense of the file. `addResource` takes the bytes as the resource kind
+    /// we name and reads the format from the data itself, so a HEIC/DNG/PNG still or an
+    /// `.mp4` clip ingests exactly as it left the library.
+    nonisolated static func saveMedia(_ url: URL, isVideo: Bool) async -> String? {
         guard await requestAccess() else { return nil }
         var identifier: String?
         do {
             try await PHPhotoLibrary.shared().performChanges {
-                let request = PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: url)
-                identifier = request?.placeholderForCreatedAsset?.localIdentifier
+                let request = PHAssetCreationRequest.forAsset()
+                let options = PHAssetResourceCreationOptions()
+                options.originalFilename = url.lastPathComponent
+                request.addResource(with: isVideo ? .video : .photo, fileURL: url, options: options)
+                identifier = request.placeholderForCreatedAsset?.localIdentifier
             }
         } catch {
             return nil
         }
         return identifier
+    }
+
+    /// Saves a captured video file to the Photos library (#139).
+    nonisolated static func saveVideo(_ url: URL) async -> String? {
+        await saveMedia(url, isVideo: true)
     }
 
     /// An `AVPlayerItem` for a referenced video (#139), or nil if missing/denied.

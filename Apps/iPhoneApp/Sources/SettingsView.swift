@@ -16,9 +16,10 @@ struct SettingsView: View {
     @State private var errorMessage: String?
 
     // Backup & restore UI state.
-    @State private var backupToShare: SharedBackup?
+    @State private var showExportSheet = false
     @State private var showRestoreImporter = false
-    @State private var restoreSummary: BackupRestore.RestoreSummary?
+    @State private var isRestoring = false
+    @State private var restoreResult: BackupService.RestoreResult?
     @State private var backupErrorMessage: String?
 
     // Units preference — each dimension stored independently so the Custom
@@ -109,19 +110,23 @@ struct SettingsView: View {
         }
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.inline)
-        .sheet(item: $backupToShare) { shared in
-            ActivityView(activityItems: [shared.url])
+        .sheet(isPresented: $showExportSheet) {
+            ExportBackupView(context: modelContext)
         }
         .fileImporter(
             isPresented: $showRestoreImporter,
-            allowedContentTypes: [.json]
+            allowedContentTypes: [.zip]
         ) { result in
             switch result {
             case .success(let url):
-                do {
-                    restoreSummary = try BackupService.restoreBackup(from: url, context: modelContext)
-                } catch {
-                    backupErrorMessage = restoreErrorMessage(for: error)
+                isRestoring = true
+                Task {
+                    defer { isRestoring = false }
+                    do {
+                        restoreResult = try await BackupService.restoreBackup(from: url, context: modelContext)
+                    } catch {
+                        backupErrorMessage = restoreErrorMessage(for: error)
+                    }
                 }
             case .failure(let error):
                 backupErrorMessage = restoreErrorMessage(for: error)
@@ -130,14 +135,14 @@ struct SettingsView: View {
         .alert(
             "Restore Complete",
             isPresented: Binding(
-                get: { restoreSummary != nil },
-                set: { if !$0 { restoreSummary = nil } }
+                get: { restoreResult != nil },
+                set: { if !$0 { restoreResult = nil } }
             ),
-            presenting: restoreSummary
+            presenting: restoreResult
         ) { _ in
             Button("OK", role: .cancel) {}
-        } message: { summary in
-            Text(restoreSummaryMessage(summary))
+        } message: { result in
+            Text(restoreSummaryMessage(result))
         }
         .alert(
             "Backup Failed",
@@ -156,23 +161,27 @@ struct SettingsView: View {
     @ViewBuilder private var backupSection: some View {
         Section {
             Button {
-                do {
-                    backupToShare = SharedBackup(url: try BackupService.exportBackup(context: modelContext))
-                } catch {
-                    backupErrorMessage = String(localized: "Couldn't create the backup. Please try again.")
-                }
+                showExportSheet = true
             } label: {
-                Label("Export Backup", systemImage: "square.and.arrow.up.on.square")
+                Label("Export Backup…", systemImage: "square.and.arrow.up.on.square")
             }
+            .disabled(isRestoring)
             Button {
                 showRestoreImporter = true
             } label: {
-                Label("Restore Backup…", systemImage: "square.and.arrow.down")
+                HStack {
+                    Label("Restore Backup…", systemImage: "square.and.arrow.down")
+                    if isRestoring {
+                        Spacer()
+                        ProgressView()
+                    }
+                }
             }
+            .disabled(isRestoring)
         } header: {
             Text("Backup & Restore")
         } footer: {
-            Text("Export everything — sessions, spots, trips, and voice notes — as a single file to save in Files or another device. Restoring is additive: existing items are kept and duplicates are skipped. With iCloud Sync on, a restore also propagates to your other devices.")
+            Text("Export everything — sessions, spots, trips, and your photo gallery — as a single .zip file to save in Files or another device. A lean backup keeps the file small; you can optionally add voice notes, photos, and videos. Restoring is additive: existing items are kept and duplicates are skipped. With iCloud Sync on, a restore also propagates to your other devices.")
         }
     }
 
@@ -183,7 +192,8 @@ struct SettingsView: View {
     /// Each line uses a plain interpolated count (e.g. "3 sessions"), which the String
     /// Catalog can pluralize per-language via its own plural variations — no
     /// `^[…](inflect:)` automatic-grammar markup, which is the inflection pitfall.
-    private func restoreSummaryMessage(_ s: BackupRestore.RestoreSummary) -> String {
+    private func restoreSummaryMessage(_ result: BackupService.RestoreResult) -> String {
+        let s = result.summary
         let imported = String(
             localized: "Imported \(s.sessionsImported) sessions (\(s.sessionsSkipped) already present)."
         )
@@ -193,7 +203,16 @@ struct SettingsView: View {
         let voiceNotes = String(
             localized: "Restored \(s.audioRestored) voice notes."
         )
-        return [imported, spots, voiceNotes].joined(separator: "\n")
+        let photos = String(
+            localized: "Restored \(s.photosRestored) photos (\(result.photosReimported) re-imported to Photos)."
+        )
+        var lines = [imported, spots, voiceNotes, photos]
+        if result.photoAccessDenied {
+            lines.append(String(
+                localized: "Some photo originals couldn't be re-imported because Photos access was denied."
+            ))
+        }
+        return lines.joined(separator: "\n")
     }
 
     /// Maps a restore failure to a user-facing message, translating the archive's
@@ -280,13 +299,6 @@ struct SettingsView: View {
             errorMessage = "Couldn't connect to Strava. Please try again."
         }
     }
-}
-
-/// An `Identifiable` wrapper so a just-written backup file can drive a
-/// `.sheet(item:)` share sheet.
-private struct SharedBackup: Identifiable {
-    let id = UUID()
-    let url: URL
 }
 
 #Preview {
