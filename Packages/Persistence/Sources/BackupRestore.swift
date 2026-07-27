@@ -430,7 +430,11 @@ public struct BackupRestore {
                 record = created
             }
 
-            record.assetCloudIdentifier = pb.assetCloudIdentifier
+            // Cloud id is additive (only nil→set), matching the relationship guards:
+            // a good cloud id the target device already resolved is never overwritten.
+            if record.assetCloudIdentifier == nil {
+                record.assetCloudIdentifier = pb.assetCloudIdentifier
+            }
 
             // Reattach relationships (additive: only nil→set, so a link the user changed
             // on this device is preserved).
@@ -446,18 +450,24 @@ public struct BackupRestore {
                 }
             }
 
-            // Full-res original: hand the app the bundled file (if any) and let it decide
-            // relink-vs-reimport. Store whatever local id it returns.
-            var mediaURL: URL?
-            if let mediaName = pb.mediaFileName {
-                let sub = pb.isVideo ? "videos" : "photos"
-                let murl = dir.appendingPathComponent(sub, isDirectory: true).appendingPathComponent(mediaName)
-                if fm.fileExists(atPath: murl.path) { mediaURL = murl }
-            }
-            let localID = reimportPhoto(pb, mediaURL)
-            record.assetIdentifier = localID
-            if mediaURL != nil, localID != nil {
-                summary.photosReimported += 1
+            // Full-res original is additive too (only nil→set). A record that already
+            // has a local asset id — the user's existing, working link on this device —
+            // is left entirely alone: we neither relink nor re-import, so we can't null
+            // a valid id, wipe a good cloud id, or save a duplicate asset into Photos.
+            // A newly-created (or previously-unlinked) record starts nil, so the guard
+            // permits establishing its id from the app's relink/reimport as before.
+            if record.assetIdentifier == nil {
+                var mediaURL: URL?
+                if let mediaName = pb.mediaFileName {
+                    let sub = pb.isVideo ? "videos" : "photos"
+                    let murl = dir.appendingPathComponent(sub, isDirectory: true).appendingPathComponent(mediaName)
+                    if fm.fileExists(atPath: murl.path) { mediaURL = murl }
+                }
+                let localID = reimportPhoto(pb, mediaURL)
+                record.assetIdentifier = localID
+                if mediaURL != nil, localID != nil {
+                    summary.photosReimported += 1
+                }
             }
         }
 

@@ -166,6 +166,81 @@ struct ZipContainerTests {
         }
     }
 
+    @Test("a mid-archive failure removes every already-extracted file and created dir")
+    func cleansUpPartialExtraction() throws {
+        // First entry is valid and nested (so extraction creates a subdirectory); the
+        // second uses an unsupported method so the loop throws *after* the first is on
+        // disk. Cleanup must wipe the first file and the directory it created.
+        let zip = buildZip([
+            ForgedEntry(name: "sub/good.txt", data: Data("good".utf8)),
+            ForgedEntry(name: "bad.txt", data: Data("bad".utf8), method: 8)
+        ])
+        let archive = try makeDir().appendingPathComponent("partial.zip")
+        try zip.write(to: archive)
+        let dest = try makeDir()
+
+        #expect(throws: ZipContainer.ZipError.self) {
+            try ZipContainer.unzip(archive, to: dest)
+        }
+        // No leftover files — and the created subdirectory is gone too.
+        #expect(try snapshot(dest).isEmpty)
+        #expect(try FileManager.default.contentsOfDirectory(atPath: dest.path).isEmpty)
+    }
+
+    @Test("rejects an empty / dot-only entry name")
+    func rejectsDotOnlyName() throws {
+        let zip = buildZip([ForgedEntry(name: ".", data: Data("x".utf8))])
+        let archive = try makeDir().appendingPathComponent("dotname.zip")
+        try zip.write(to: archive)
+        let dest = try makeDir()
+        #expect {
+            try ZipContainer.unzip(archive, to: dest)
+        } throws: { error in
+            if case ZipContainer.ZipError.malformed = error { return true }
+            return false
+        }
+        // Nothing was written for the bogus entry.
+        #expect(try snapshot(dest).isEmpty)
+    }
+
+    @Test("caps an EOCD that claims an absurd central-directory size")
+    func rejectsOversizedCentralDirectory() throws {
+        var zip = buildZip([ForgedEntry(name: "a.txt", data: Data("x".utf8))])
+        // Patch the EOCD's central-directory size field (4 bytes at len-10) to 100 MiB —
+        // past the reader's cap and the tiny archive — so a naive reader would allocate it.
+        let off = zip.count - 10
+        let huge: UInt32 = 100 * (1 << 20)
+        zip[zip.startIndex + off]     = UInt8(huge & 0xFF)
+        zip[zip.startIndex + off + 1] = UInt8((huge >> 8) & 0xFF)
+        zip[zip.startIndex + off + 2] = UInt8((huge >> 16) & 0xFF)
+        zip[zip.startIndex + off + 3] = UInt8((huge >> 24) & 0xFF)
+        let archive = try makeDir().appendingPathComponent("bigcd.zip")
+        try zip.write(to: archive)
+        #expect {
+            try ZipContainer.unzip(archive, to: try makeDir())
+        } throws: { error in
+            if case ZipContainer.ZipError.malformed = error { return true }
+            return false
+        }
+    }
+
+    @Test("refuses a non-empty destination directory")
+    func rejectsNonEmptyDestination() throws {
+        let src = try makeDir()
+        try write(Data("m".utf8), to: src, path: "manifest.json")
+        let archive = try makeDir().appendingPathComponent("ok.zip")
+        try ZipContainer.zip(directory: src, to: archive)
+
+        let dest = try makeDir()
+        try write(Data("pre".utf8), to: dest, path: "pre-existing.txt")
+        #expect {
+            try ZipContainer.unzip(archive, to: dest)
+        } throws: { error in
+            if case ZipContainer.ZipError.malformed = error { return true }
+            return false
+        }
+    }
+
     // MARK: - Hand-rolled forged-zip builder (mirrors the on-disk format)
 
     private struct ForgedEntry {

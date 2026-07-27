@@ -67,6 +67,14 @@ enum BackupService {
         let work = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         let staging = work.appendingPathComponent("staging", isDirectory: true)
         let pending = work.appendingPathComponent("pending", isDirectory: true)
+        // Always drop the heavy staged trees — the resolved full-res originals in
+        // `pending` and their moved-in copies under `staging` — even when `stageArchive`
+        // or `ZipContainer.zip` throws. (`work` itself is kept: the returned `.zip` lives
+        // in it and the caller/OS reclaims the temp dir afterwards.)
+        defer {
+            try? fm.removeItem(at: staging)
+            try? fm.removeItem(at: pending)
+        }
         try fm.createDirectory(at: staging, withIntermediateDirectories: true)
 
         // Snapshot every photo record once: thumbnail sources for the (always-attempted)
@@ -125,9 +133,8 @@ enum BackupService {
         let zipURL = work.appendingPathComponent("\(fileName()).zip")
         try ZipContainer.zip(directory: staging, to: zipURL)
 
-        // The staging tree and any leftover pending files are no longer needed.
-        try? fm.removeItem(at: staging)
-        try? fm.removeItem(at: pending)
+        // `staging`/`pending` are cleaned by the `defer` above (on this success path and
+        // on any earlier throw); only the finished `.zip` remains in `work`.
         return zipURL
     }
 

@@ -49,10 +49,12 @@ import Foundation
 /// ## Security (the reader is strict by construction)
 ///
 /// `unzip(_:to:)` parses attacker-controllable input, so it refuses anything it does
-/// not fully understand:
+/// not fully understand. It also requires a **fresh, empty destination directory** and
+/// removes its partial output on *any* failure, so a hostile archive can neither
+/// traverse a pre-existing symlink nor plant a chosen subset of files before aborting:
 ///   - **Zip-slip:** an entry name that is absolute, contains a `..` component, or a
-///     backslash, or whose resolved path escapes the destination directory, is
-///     rejected (``ZipError/malformed(_:)``).
+///     backslash, is empty / dot-only, or whose resolved path escapes the destination
+///     directory, is rejected (``ZipError/malformed(_:)``).
 ///   - **Unsupported entries:** any compression method other than 0, or the
 ///     encryption bit set, is rejected (``ZipError/unsupportedEntry(_:)``).
 ///   - **Integrity:** every extracted entry's CRC-32 is recomputed and compared to
@@ -78,6 +80,8 @@ public enum ZipContainer {
         /// An entry or the whole archive exceeds the zip32 size ceiling (zip64 is not
         /// supported).
         case entryTooLarge(String)
+        /// More entries than the zip32 EOCD's 16-bit count field can represent (> 65535).
+        case tooManyEntries(String)
     }
 
     // MARK: - Tunables
@@ -92,6 +96,12 @@ public enum ZipContainer {
     /// The whole archive must stay within the zip32 offset space, because the central
     /// directory records and the EOCD store byte offsets as 32-bit values.
     private static let maxTotalSize: UInt64 = 0xFFFF_FFFE
+
+    /// A sane ceiling on the central directory we're willing to read into memory. A
+    /// legitimate central directory is tiny relative to a media backup (~46 bytes + a
+    /// short name per entry); this caps a crafted EOCD from making us allocate up to the
+    /// whole file. 64 MiB allows well over half a million entries.
+    private static let maxCentralDirectorySize: UInt64 = 64 << 20
 
     // Signatures (little-endian on disk).
     private static let localHeaderSignature: UInt32 = 0x0403_4b50
@@ -191,10 +201,19 @@ public enum ZipContainer {
         }
 
         // --- Central directory + EOCD ---
+        // The EOCD encodes the entry count as UInt16 and the central-directory size as
+        // UInt32; guard both so an outsized backup throws a typed error instead of
+        // trapping on the narrowing conversion below.
+        guard centralRecords.count <= 0xFFFF else {
+            throw ZipError.tooManyEntries("\(centralRecords.count) entries; zip32 caps at 65535")
+        }
         let centralStart = offset
         var directoryBlock = Data()
         for record in centralRecords {
             directoryBlock.append(record)
+        }
+        guard UInt64(directoryBlock.count) <= maxTotalSize else {
+            throw ZipError.entryTooLarge("central directory is \(directoryBlock.count) bytes; exceeds the zip32 4 GiB limit")
         }
         try out.write(contentsOf: directoryBlock)
 
@@ -216,66 +235,103 @@ public enum ZipContainer {
     /// bytes and validating its CRC-32. Rejects unsupported/encrypted entries and
     /// zip-slip paths (see the type doc). Parent directories are created as needed.
     ///
+    /// - Important: `directory` **must be a freshly-created, empty directory** (this is
+    ///   verified on entry). Containment against zip-slip is enforced lexically, which is
+    ///   sound precisely because a freshly-created empty tree has no pre-existing symlink
+    ///   component for a crafted name to traverse. On *any* failure the partial output is
+    ///   removed, so a hostile archive cannot drop chosen files and then abort mid-extract.
+    ///
     /// - Throws: ``ZipError`` on any malformed/unsupported/oversized input or a CRC
     ///   mismatch; rethrows filesystem errors. Never traps on hostile input.
     public static func unzip(_ archive: URL, to directory: URL) throws {
         let fm = FileManager.default
         try fm.createDirectory(at: directory, withIntermediateDirectories: true)
 
+        // The lexical containment check below is only sound when the destination has no
+        // pre-existing symlink components, so require a fresh, empty directory.
+        let existing = (try? fm.contentsOfDirectory(atPath: directory.path)) ?? []
+        guard existing.isEmpty else {
+            throw ZipError.malformed("destination directory is not empty")
+        }
+
         guard let handle = try? FileHandle(forReadingFrom: archive) else {
             throw ZipError.malformed("cannot open archive for reading")
         }
         defer { try? handle.close() }
 
-        let archiveSize = try fileSize(of: archive)
-        let entries = try readCentralDirectory(handle: handle, archiveSize: archiveSize)
+        // Track what we create so any mid-archive failure leaves nothing behind. Removing
+        // the created files/dirs (not the destination root, which the caller owns) means a
+        // hostile archive can't plant files 0..<N and then throw on entry N.
+        var createdFiles: [URL] = []
+        var createdDirs: Set<String> = []
+        func makeDirectory(_ url: URL) throws {
+            if fm.fileExists(atPath: url.path) { return }
+            try fm.createDirectory(at: url, withIntermediateDirectories: true)
+            createdDirs.insert(url.standardizedFileURL.path)
+        }
+        func cleanUp() {
+            for file in createdFiles { try? fm.removeItem(at: file) }
+            // Deepest paths first so a directory is empty by the time we remove it.
+            for path in createdDirs.sorted(by: { $0.count > $1.count }) {
+                try? fm.removeItem(atPath: path)
+            }
+        }
 
-        var extractedTotal: UInt64 = 0
-        for entry in entries {
-            // A directory entry (trailing slash, zero size) carries no data; just make
-            // the folder and move on.
-            if entry.name.hasSuffix("/") {
-                _ = try sanitizedDestination(entry.name, within: directory) // validate even for dirs
-                continue
-            }
+        do {
+            let archiveSize = try fileSize(of: archive)
+            let entries = try readCentralDirectory(handle: handle, archiveSize: archiveSize)
 
-            guard entry.method == 0 else {
-                throw ZipError.unsupportedEntry("\(entry.name): compression method \(entry.method) (only stored/0 is supported)")
-            }
-            guard entry.flags & 0x0001 == 0 else {
-                throw ZipError.unsupportedEntry("\(entry.name): entry is encrypted")
-            }
-            guard entry.compressedSize == entry.uncompressedSize else {
-                throw ZipError.malformed("\(entry.name): stored entry with mismatched sizes")
-            }
-            guard entry.compressedSize <= maxEntrySize else {
-                throw ZipError.entryTooLarge("\(entry.name): \(entry.compressedSize) bytes exceeds the 4 GiB limit")
-            }
-            extractedTotal += entry.compressedSize
-            guard extractedTotal <= maxTotalSize else {
-                throw ZipError.entryTooLarge("archive total exceeds the \(maxTotalSize)-byte cap")
-            }
+            var extractedTotal: UInt64 = 0
+            for entry in entries {
+                // A directory entry (trailing slash, zero size) carries no data; validate
+                // its name and materialize the folder.
+                if entry.name.hasSuffix("/") {
+                    let dir = try sanitizedDestination(entry.name, within: directory)
+                    try makeDirectory(dir)
+                    continue
+                }
 
-            let destination = try sanitizedDestination(entry.name, within: directory)
-            try fm.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
+                guard entry.method == 0 else {
+                    throw ZipError.unsupportedEntry("\(entry.name): compression method \(entry.method) (only stored/0 is supported)")
+                }
+                guard entry.flags & 0x0001 == 0 else {
+                    throw ZipError.unsupportedEntry("\(entry.name): entry is encrypted")
+                }
+                guard entry.compressedSize == entry.uncompressedSize else {
+                    throw ZipError.malformed("\(entry.name): stored entry with mismatched sizes")
+                }
+                guard entry.compressedSize <= maxEntrySize else {
+                    throw ZipError.entryTooLarge("\(entry.name): \(entry.compressedSize) bytes exceeds the 4 GiB limit")
+                }
+                extractedTotal += entry.compressedSize
+                guard extractedTotal <= maxTotalSize else {
+                    throw ZipError.entryTooLarge("archive total exceeds the \(maxTotalSize)-byte cap")
+                }
 
-            // Seek to the entry's local header, skip its (possibly different) name/extra
-            // fields, then stream `compressedSize` bytes into the destination while
-            // recomputing the CRC.
-            try handle.seek(toOffset: entry.localHeaderOffset)
-            let localFixed = try readExactly(30, from: handle, context: "\(entry.name): local header")
-            guard localFixed.readLE32(at: 0) == localHeaderSignature else {
-                throw ZipError.malformed("\(entry.name): bad local header signature")
-            }
-            let localNameLen = UInt64(localFixed.readLE16(at: 26))
-            let localExtraLen = UInt64(localFixed.readLE16(at: 28))
-            try handle.seek(toOffset: entry.localHeaderOffset + 30 + localNameLen + localExtraLen)
+                let destination = try sanitizedDestination(entry.name, within: directory)
+                try makeDirectory(destination.deletingLastPathComponent())
 
-            let crc = try streamExtract(entry.compressedSize, from: handle, to: destination)
-            guard crc == entry.crc else {
-                try? fm.removeItem(at: destination)
-                throw ZipError.crcMismatch("\(entry.name): CRC-32 mismatch (expected \(entry.crc), got \(crc))")
+                // Seek to the entry's local header, skip its (possibly different) name/extra
+                // fields, then stream `compressedSize` bytes into the destination while
+                // recomputing the CRC.
+                try handle.seek(toOffset: entry.localHeaderOffset)
+                let localFixed = try readExactly(30, from: handle, context: "\(entry.name): local header")
+                guard localFixed.readLE32(at: 0) == localHeaderSignature else {
+                    throw ZipError.malformed("\(entry.name): bad local header signature")
+                }
+                let localNameLen = UInt64(localFixed.readLE16(at: 26))
+                let localExtraLen = UInt64(localFixed.readLE16(at: 28))
+                try handle.seek(toOffset: entry.localHeaderOffset + 30 + localNameLen + localExtraLen)
+
+                createdFiles.append(destination)
+                let crc = try streamExtract(entry.compressedSize, from: handle, to: destination)
+                guard crc == entry.crc else {
+                    throw ZipError.crcMismatch("\(entry.name): CRC-32 mismatch (expected \(entry.crc), got \(crc))")
+                }
             }
+        } catch {
+            cleanUp()
+            throw error
         }
     }
 
@@ -311,6 +367,11 @@ public enum ZipContainer {
         let totalEntries = tail.readLE16(at: eocdOffset + 10)
         let cdSize = UInt64(tail.readLE32(at: eocdOffset + 12))
         let cdOffset = UInt64(tail.readLE32(at: eocdOffset + 16))
+        // Cap the claimed central-directory size *before* allocating for it, so a crafted
+        // EOCD can't make us read up to the whole file into memory.
+        guard cdSize <= maxCentralDirectorySize else {
+            throw ZipError.malformed("central directory size \(cdSize) exceeds the \(maxCentralDirectorySize)-byte cap")
+        }
         guard cdOffset + cdSize <= archiveSize else {
             throw ZipError.malformed("central directory extends past end of file")
         }
@@ -374,8 +435,13 @@ public enum ZipContainer {
     // MARK: - Path safety (zip-slip)
 
     /// Resolves an entry name to a destination URL and proves it stays inside
-    /// `directory`. Rejects absolute paths, backslashes, and any `..` component, then
-    /// verifies the standardized result is still contained — belt and suspenders.
+    /// `directory`. Rejects absolute paths, backslashes, empty/dot-only names, and any
+    /// `..` component, then verifies the standardized result is still contained.
+    ///
+    /// The containment check is **lexical** (no symlink resolution): it is sound because
+    /// ``unzip(_:to:)`` requires a fresh, empty destination, so no pre-existing symlink
+    /// component can be traversed and every component is one we create as a plain
+    /// directory/file.
     private static func sanitizedDestination(_ name: String, within directory: URL) throws -> URL {
         if name.hasPrefix("/") {
             throw ZipError.malformed("entry '\(name)' is an absolute path")
@@ -384,6 +450,12 @@ public enum ZipContainer {
             throw ZipError.malformed("entry '\(name)' contains a backslash")
         }
         let components = name.split(separator: "/", omittingEmptySubsequences: true).map(String.init)
+        // Reject empty ("") or dot-only (".", "./.", …) names up front: they resolve to
+        // the destination directory itself and would otherwise fail later with a
+        // confusing "cannot open for writing".
+        if components.allSatisfy({ $0 == "." }) {
+            throw ZipError.malformed("entry '\(name)' has no usable path component")
+        }
         var url = directory
         for component in components {
             if component == ".." {
@@ -392,7 +464,7 @@ public enum ZipContainer {
             if component == "." { continue }
             url.appendPathComponent(component)
         }
-        // Final containment check against symlink/normalization surprises.
+        // Final containment check against normalization surprises.
         let base = directory.standardizedFileURL.path
         let resolved = url.standardizedFileURL.path
         guard resolved == base || resolved.hasPrefix(base + "/") else {

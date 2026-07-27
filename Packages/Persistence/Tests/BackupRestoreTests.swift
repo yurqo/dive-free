@@ -443,6 +443,91 @@ struct BackupRestoreTests {
         #expect(summary.spotsLinked == 0)
     }
 
+    // MARK: - Preserves an existing photo's asset link (data-integrity)
+
+    @Test("restore leaves an existing photo's local asset id untouched and does not re-import it")
+    func preservesExistingPhotoAssetLink() throws {
+        // Bundle full-res media for every photo so the vulnerable Phase-B re-import path
+        // is armed.
+        let source = try seedSourceStore()
+        let staging = try makeStagingDir()
+        _ = try BackupRestore(context: source.store.container.mainContext).stageArchive(
+            into: staging,
+            options: BackupExportOptions(includePhotos: true, includeVideos: true),
+            writePhotoMedia: { ref, url in try? Data("orig-\(ref.id)".utf8).write(to: url); return true }
+        )
+
+        // The target device already holds the session photo, linked to a good local
+        // asset but with no cloud id yet — the exact shape the old code corrupted.
+        let dest = try DiveStore(inMemory: true)
+        let context = dest.container.mainContext
+        let existing = PhotoRecord(
+            id: source.sessionPhotoID,
+            assetIdentifier: "existing-local-id",
+            assetCloudIdentifier: nil
+        )
+        context.insert(existing)
+        try context.save()
+
+        // Spy: record every id the reimport closure is asked about, and hand back a
+        // *different* id so any accidental write is visible.
+        var reimportedIDs: [UUID] = []
+        let summary = try BackupRestore(context: context).restore(
+            fromStagingDirectory: staging,
+            reimportPhoto: { pb, _ in
+                reimportedIDs.append(pb.id)
+                return "reimported-\(pb.id)"
+            }
+        )
+
+        let photos = try context.fetch(FetchDescriptor<PhotoRecord>())
+        let restored = photos.first { $0.id == source.sessionPhotoID }
+
+        // The existing link is preserved entirely — id NOT overwritten, no reimport asked.
+        #expect(restored?.assetIdentifier == "existing-local-id")
+        #expect(!reimportedIDs.contains(source.sessionPhotoID))
+        // A nil cloud id is still additively filled from the backup (gap-fill, not clobber).
+        #expect(restored?.assetCloudIdentifier == "cloud-session")
+
+        // No duplicate record for that id.
+        #expect(photos.filter { $0.id == source.sessionPhotoID }.count == 1)
+
+        // Counters reflect only genuine new work: the 3 other photos are new records and
+        // do get re-imported; the pre-existing one is neither restored nor re-imported.
+        #expect(summary.photosRestored == 3)
+        #expect(summary.photosReimported == 3)
+        #expect(reimportedIDs.count == 3)
+        #expect(Set(reimportedIDs) == [source.spotPhotoID, source.markerPhotoID, source.videoPhotoID])
+
+        // The 3 new records DID get their id set from the reimport closure.
+        let newPhoto = photos.first { $0.id == source.spotPhotoID }
+        #expect(newPhoto?.assetIdentifier == "reimported-\(source.spotPhotoID)")
+    }
+
+    @Test("restore does not overwrite an existing photo's good cloud id")
+    func preservesExistingPhotoCloudID() throws {
+        let source = try seedSourceStore()
+        let staging = try makeStagingDir()
+        _ = try BackupRestore(context: source.store.container.mainContext).stageArchive(
+            into: staging, options: BackupExportOptions())  // metadata only
+
+        let dest = try DiveStore(inMemory: true)
+        let context = dest.container.mainContext
+        let existing = PhotoRecord(
+            id: source.sessionPhotoID,
+            assetIdentifier: "existing-local-id",
+            assetCloudIdentifier: "existing-cloud-id"
+        )
+        context.insert(existing)
+        try context.save()
+
+        _ = try BackupRestore(context: context).restore(fromStagingDirectory: staging)
+
+        let restored = try context.fetch(FetchDescriptor<PhotoRecord>()).first { $0.id == source.sessionPhotoID }
+        #expect(restored?.assetIdentifier == "existing-local-id")
+        #expect(restored?.assetCloudIdentifier == "existing-cloud-id")  // not clobbered by "cloud-session"
+    }
+
     // MARK: - Tombstone
 
     @Test("a tombstoned session id is skipped on restore")
