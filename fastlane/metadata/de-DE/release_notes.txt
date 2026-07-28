@@ -1,7 +1,8 @@
-Neu in 1.3.1:
+Neu in 1.3.2:
 • Session zuschneiden — schneide einen vergessenen Oberflächen-Rest (oder einen zu frühen Start) direkt auf dem iPhone weg: Start und Ende auf der Karte ziehen, genau sehen, was entfernt wird — deine Tauchgänge bleiben erhalten.
 • Tauchgänge exportieren — teile jede Session als UDDF (Logbücher wie Subsurface), FIT (Garmin/Strava), GPX, CSV oder TCX. Deine Daten, überallhin mitnehmbar.
 • Sauberere Oberflächen-Tracks — eine neue Glättung zeichnet GPS-Wege und Distanzen näher an dem, was du tatsächlich geschwommen bist.
 • Oberflächen-Erholungshinweis — zwischen den Tauchgängen wechselt der Timer der Watch die Farbe und vibriert sanft, sobald du das empfohlene Intervall geruht hast (eine Faustregel, kein Sicherheitshinweis — tauche immer mit einem Partner).
-• Sichere alles — Sessions, Tauchspots, Reisen und Sprachnotizen — in einer einzigen Datei und stelle es auf jedem Gerät wieder her. Es ist additiv, sodass nichts verloren geht, was bereits auf deinem Gerät ist.
+• Sichere alles — Sessions, Tauchspots und Reisen — in einer einzigen Datei und entscheide, ob Sprachnotizen, Fotos und Videos mitgehen. Die geschätzte Größe siehst du vor dem Export. Das Wiederherstellen ist additiv, sodass nichts verloren geht, was bereits auf deinem Gerät ist, und Fotos werden nur dann neu importiert, wenn die Originale fehlen.
+• Bessere Übersetzungen — Bezeichnungen, die noch auf Englisch erschienen, sind jetzt in deiner Sprache.
 Dazu kleinere Fehlerbehebungen und Feinschliff.

@@ -1,7 +1,8 @@
-New in 1.3.1:
+New in 1.3.2:
 • Crop a session — trim a forgotten surface tail (or an early start) right on your iPhone: drag the start and end on the map, see exactly what will be removed, and your dives stay intact.
 • Export your dives — share any session as UDDF (dive logs like Subsurface), FIT (Garmin/Strava), GPX, CSV or TCX. Your data, yours to take anywhere.
 • Cleaner surface tracks — a new smoothing engine draws GPS paths and distances closer to what you actually swam.
 • Surface-recovery hint — between dives, your watch's timer changes colour and gives a gentle buzz once you've rested the recommended interval (a common rule of thumb, not safety advice — always dive with a buddy).
-• Back up everything — sessions, dive spots, trips and voice notes — to a single file, and restore it on any device. It's additive, so nothing already on your device is lost.
+• Back up everything — sessions, dive spots and trips — to a single file, and choose whether to include your voice notes, photos and videos. You see the estimated size before you export. Restoring is additive, so nothing already on your device is lost, and photos are only re-imported when the originals are missing.
+• Better translations — labels that were still appearing in English now show in your language.
 Plus smaller fixes and polish.
