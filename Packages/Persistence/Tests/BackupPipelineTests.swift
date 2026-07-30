@@ -225,4 +225,63 @@ struct BackupPipelineTests {
             #expect(record.thumbnailData == f?.thumbnail, "thumbnail \(record.id) differs after round-trip")
         }
     }
+
+    // MARK: - Raw ZipContainer stress (many entries, empty dirs, nesting, boundaries)
+
+    /// Snapshots every regular file under `dir` as relative-path → bytes.
+    private func snapshot(_ dir: URL) throws -> [String: Data] {
+        let fm = FileManager.default
+        let base = dir.standardizedFileURL.path + "/"
+        var out: [String: Data] = [:]
+        let e = fm.enumerator(at: dir, includingPropertiesForKeys: [.isRegularFileKey])!
+        for case let url as URL in e {
+            guard (try url.resourceValues(forKeys: [.isRegularFileKey])).isRegularFile == true else { continue }
+            let full = url.standardizedFileURL.path
+            out[String(full.dropFirst(base.count))] = try Data(contentsOf: url)
+        }
+        return out
+    }
+
+    @Test("zip/unzip round-trips hundreds of entries with nesting, empty dirs and boundary sizes")
+    func manyEntriesRoundTrip() throws {
+        let fm = FileManager.default
+        let chunk = 1 << 20
+        let src = try makeDir()
+
+        // A realistic "everything" tree: manifest + hundreds of thumbnails/originals/voice
+        // across the four subdirs, plus a deeply nested path and an (empty) directory.
+        var expected: [String: Data] = [:]
+        func put(_ path: String, _ data: Data) throws {
+            let url = src.appendingPathComponent(path)
+            try fm.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try data.write(to: url)
+            expected[path] = data
+        }
+
+        try put("manifest.json", bytes(seed: 1, count: 20_000))
+        for i in 0..<250 {
+            let id = UUID().uuidString
+            try put("thumbnails/\(id).jpg", bytes(seed: 0x1000 &+ UInt64(i), count: 40_000 + (i % 7) * 5_000))
+            // Vary original sizes around the chunk boundary and include a zero-byte entry.
+            let sizes = [0, 1, chunk - 1, chunk, chunk + 1, 250_000]
+            try put("photos/\(id).heic", bytes(seed: 0x2000 &+ UInt64(i), count: sizes[i % sizes.count]))
+        }
+        for i in 0..<20 {
+            try put("videos/\(UUID().uuidString).mp4", bytes(seed: 0x3000 &+ UInt64(i), count: chunk * 2 + i))
+        }
+        for i in 0..<40 {
+            try put("voice/voice-\(i).m4a", bytes(seed: 0x4000 &+ UInt64(i), count: 30_000 + i * 800))
+        }
+        // Deeply nested path + an empty directory (writer skips empties; must not break).
+        try put("a/b/c/d/e/deep.bin", bytes(seed: 0x5000, count: chunk + 999))
+        try fm.createDirectory(at: src.appendingPathComponent("empty/sub"), withIntermediateDirectories: true)
+
+        let zipURL = try makeDir().appendingPathComponent("many.zip")
+        try ZipContainer.zip(directory: src, to: zipURL)
+
+        let dest = try makeDir().appendingPathComponent("out", isDirectory: true)
+        try ZipContainer.unzip(zipURL, to: dest)
+
+        #expect(try snapshot(dest) == expected)
+    }
 }
