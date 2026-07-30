@@ -294,9 +294,21 @@ struct SettingsView: View {
         } catch let error as ASWebAuthenticationSessionError where error.code == .canceledLogin {
             // User dismissed the consent sheet — not an error worth surfacing.
         } catch StravaOAuth.CallbackError.denied {
-            errorMessage = "Strava access was denied."
+            errorMessage = String(localized: "Strava access was denied.")
+        } catch StravaOAuth.CallbackError.stateMismatch {
+            errorMessage = String(localized: "Strava sign-in couldn't be verified (security check failed). Please try again.")
+        } catch StravaOAuth.CallbackError.missingCode {
+            errorMessage = String(localized: "Strava didn't return a sign-in code. Please try again.")
+        } catch let StravaError.server(status) {
+            // A non-2xx from the token proxy during the code→token exchange —
+            // the status pins down whether the token step is what's failing.
+            errorMessage = String(localized: "Strava sign-in failed (error \(status)). Please try again.")
+        } catch is ASWebAuthenticationSessionError {
+            // Any other web-auth failure (e.g. .presentationContextNotProvided /
+            // .presentationContextInvalid) — the sign-in window couldn't open.
+            errorMessage = String(localized: "Couldn't open the Strava sign-in window. Please try again.")
         } catch {
-            errorMessage = "Couldn't connect to Strava. Please try again."
+            errorMessage = String(localized: "Couldn't connect to Strava. Please try again. (\(error.localizedDescription))")
         }
     }
 }
