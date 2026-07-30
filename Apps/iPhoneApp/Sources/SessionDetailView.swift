@@ -87,7 +87,7 @@ struct SessionDetailView: View {
             locationSection(domain)
 
             // Export lives at the very bottom, under the map.
-            stravaSection(domain)
+            exportSection(domain)
 
             // iCloud sync status — surfaces the actual CloudKit error if a
             // cross-device sync (e.g. this session's photos) is failing.
@@ -120,11 +120,6 @@ struct SessionDetailView: View {
                     // session has ended.
                     if domain.endTime != nil {
                         Button("Crop Session…") { activeSheet = .crop }
-                    }
-                    Menu("Export…") {
-                        ForEach(ExportFormat.allCases) { format in
-                            Button(format.displayName) { export(domain, as: format) }
-                        }
                     }
                 }
             }
@@ -375,8 +370,18 @@ struct SessionDetailView: View {
     }
 
     @ViewBuilder
-    private func stravaSection(_ domain: DiveSession) -> some View {
-        Section("Strava") {
+    private func exportSection(_ domain: DiveSession) -> some View {
+        Section("Export") {
+            // File export (FIT/UDDF/GPX/CSV/TCX) — always available, independent
+            // of the Strava connection.
+            Menu {
+                ForEach(ExportFormat.allCases) { format in
+                    Button(format.displayName) { export(domain, as: format) }
+                }
+            } label: {
+                Label("Export to File", systemImage: "square.and.arrow.up")
+            }
+
             if exportStatus == .uploaded {
                 Label("Exported to Strava", systemImage: "checkmark.circle.fill")
                     .foregroundStyle(.green)

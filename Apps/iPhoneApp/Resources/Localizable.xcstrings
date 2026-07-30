@@ -5298,6 +5298,52 @@
         }
       }
     },
+    "Couldn't connect to Strava. Please try again. (%@)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verbindung zu Strava fehlgeschlagen. Bitte erneut versuchen. (%@)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo conectar con Strava. Inténtalo de nuevo. (%@)"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible de se connecter à Strava. Veuillez réessayer. (%@)"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossibile connettersi a Strava. Riprova. (%@)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stravaに接続できませんでした。もう一度お試しください。(%@)"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível conectar ao Strava. Tente novamente. (%@)"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не вдалося підключитися до Strava. Спробуйте ще раз. (%@)"
+          }
+        }
+      }
+    },
     "Couldn't create the backup. Please try again.": {
       "localizations": {
         "de": {
@@ -5340,6 +5386,52 @@
           "stringUnit": {
             "state": "translated",
             "value": "Не вдалося створити резервну копію. Спробуйте ще раз."
+          }
+        }
+      }
+    },
+    "Couldn't open the Strava sign-in window. Please try again.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Strava-Anmeldefenster konnte nicht geöffnet werden. Bitte erneut versuchen."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo abrir la ventana de inicio de sesión de Strava. Inténtalo de nuevo."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible d’ouvrir la fenêtre de connexion à Strava. Veuillez réessayer."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossibile aprire la finestra di accesso a Strava. Riprova."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stravaのサインインウィンドウを開けませんでした。もう一度お試しください。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível abrir a janela de login do Strava. Tente novamente."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не вдалося відкрити вікно входу в Strava. Спробуйте ще раз."
           }
         }
       }
@@ -9669,6 +9761,52 @@
           "stringUnit": {
             "state": "translated",
             "value": "Не вдалося експортувати. Спробуйте ще раз."
+          }
+        }
+      }
+    },
+    "Export to File": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In Datei exportieren"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exportar a archivo"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exporter vers un fichier"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esporta su file"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ファイルに書き出す"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exportar para arquivo"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Експортувати у файл"
           }
         }
       }
@@ -19644,6 +19782,190 @@
       }
     },
     "Strava": {},
+    "Strava access was denied.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Strava-Zugriff wurde verweigert."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se denegó el acceso a Strava."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L’accès à Strava a été refusé."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Accesso a Strava negato."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stravaへのアクセスが拒否されました。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O acesso ao Strava foi negado."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Доступ до Strava відхилено."
+          }
+        }
+      }
+    },
+    "Strava didn't return a sign-in code. Please try again.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Strava hat keinen Anmeldecode zurückgegeben. Bitte erneut versuchen."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Strava no devolvió un código de inicio de sesión. Inténtalo de nuevo."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Strava n’a pas renvoyé de code de connexion. Veuillez réessayer."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Strava non ha restituito un codice di accesso. Riprova."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stravaからサインインコードが返されませんでした。もう一度お試しください。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O Strava não retornou um código de login. Tente novamente."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Strava не повернув код входу. Спробуйте ще раз."
+          }
+        }
+      }
+    },
+    "Strava sign-in couldn't be verified (security check failed). Please try again.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Strava-Anmeldung konnte nicht verifiziert werden (Sicherheitsprüfung fehlgeschlagen). Bitte erneut versuchen."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo verificar el inicio de sesión de Strava (falló la comprobación de seguridad). Inténtalo de nuevo."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La connexion à Strava n’a pas pu être vérifiée (échec du contrôle de sécurité). Veuillez réessayer."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossibile verificare l’accesso a Strava (controllo di sicurezza non riuscito). Riprova."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stravaのサインインを確認できませんでした（セキュリティチェックに失敗）。もう一度お試しください。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível verificar o login do Strava (falha na verificação de segurança). Tente novamente."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не вдалося підтвердити вхід у Strava (перевірку безпеки не пройдено). Спробуйте ще раз."
+          }
+        }
+      }
+    },
+    "Strava sign-in failed (error %lld). Please try again.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Strava-Anmeldung fehlgeschlagen (Fehler %lld). Bitte erneut versuchen."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Error al iniciar sesión en Strava (error %lld). Inténtalo de nuevo."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Échec de la connexion à Strava (erreur %lld). Veuillez réessayer."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Accesso a Strava non riuscito (errore %lld). Riprova."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stravaのサインインに失敗しました（エラー %lld）。もう一度お試しください。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Falha ao entrar no Strava (erro %lld). Tente novamente."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не вдалося ввійти в Strava (помилка %lld). Спробуйте ще раз."
+          }
+        }
+      }
+    },
     "Strava is still processing the upload. Check Strava in a minute.": {
       "localizations": {
         "en": {
