@@ -5528,6 +5528,53 @@
         }
       }
     },
+    "Couldn't read the backup file completely (%lld of %lld bytes). Move it to \"On My iPhone\" in Files and try again.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Backup-Datei konnte nicht vollständig gelesen werden (%lld von %lld Bytes). Verschiebe sie in „Auf meinem iPhone“ in Dateien und versuche es erneut."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo leer el archivo de copia de seguridad por completo (%lld de %lld bytes). Muévelo a «En mi iPhone» en Archivos e inténtalo de nuevo."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le fichier de sauvegarde n'a pas pu être lu entièrement (%lld sur %lld octets). Déplacez-le vers « Sur mon iPhone » dans Fichiers, puis réessayez."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossibile leggere completamente il file di backup (%lld di %lld byte). Spostalo in «Su iPhone» in File e riprova."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "バックアップファイルを完全に読み込めませんでした（%lld/%lldバイト）。「ファイル」の「このiPhone内」に移動してからもう一度お試しください。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível ler o arquivo de backup por completo (%lld de %lld bytes). Mova-o para \"No meu iPhone\" em Arquivos e tente novamente."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не вдалося повністю прочитати файл резервної копії (%lld з %lld байтів). Перемістіть його в «На iPhone» у «Файлах» і повторіть спробу."
+          }
+        }
+      }
+    },
     "Couldn't restore the backup. Please try again.": {
       "localizations": {
         "de": {
@@ -21990,6 +22037,53 @@
           "stringUnit": {
             "state": "translated",
             "value": "Далі iCloud об’єднує все"
+          }
+        }
+      }
+    },
+    "This backup file couldn't be read (%@). Move it to \"On My iPhone\" in Files and try again.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Backup-Datei konnte nicht gelesen werden (%@). Verschiebe sie in „Auf meinem iPhone“ in Dateien und versuche es erneut."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo leer este archivo de copia de seguridad (%@). Muévelo a «En mi iPhone» en Archivos e inténtalo de nuevo."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ce fichier de sauvegarde n'a pas pu être lu (%@). Déplacez-le vers « Sur mon iPhone » dans Fichiers, puis réessayez."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossibile leggere questo file di backup (%@). Spostalo in «Su iPhone» in File e riprova."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このバックアップファイルを読み込めませんでした（%@）。「ファイル」の「このiPhone内」に移動してからもう一度お試しください。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível ler este arquivo de backup (%@). Mova-o para \"No meu iPhone\" em Arquivos e tente novamente."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не вдалося прочитати цей файл резервної копії (%@). Перемістіть його в «На iPhone» у «Файлах» і повторіть спробу."
           }
         }
       }

@@ -222,6 +222,23 @@ enum BackupService {
         if let copyError { throw copyError }
     }
 
+    /// Restore failures the app raises itself (as opposed to `ZipContainer.ZipError` /
+    /// `BackupArchiveError`), surfaced with a specific message so a device-only failure
+    /// isn't misreported as a corrupt file.
+    enum RestoreError: LocalizedError {
+        /// The security-scoped copy of the picked file came back empty or short.
+        case incompleteRead(copied: Int, expected: Int)
+
+        var errorDescription: String? {
+            switch self {
+            case let .incompleteRead(copied, expected):
+                return String(
+                    localized: "Couldn't read the backup file completely (\(copied) of \(expected) bytes). Move it to \"On My iPhone\" in Files and try again."
+                )
+            }
+        }
+    }
+
     /// A photo whose original was missing on restore but whose bytes were bundled — to
     /// be re-imported into Photos in the async pass after `restore` returns.
     private struct PendingReimport {
@@ -246,25 +263,36 @@ enum BackupService {
         defer { try? fm.removeItem(at: temp) }
         try fm.createDirectory(at: temp, withIntermediateDirectories: true)
 
-        // Copy the picked file into our own sandbox with a COORDINATED read before we
-        // touch it. A `fileImporter` URL can point at an iCloud Drive / Files-provider
-        // item that isn't materialized on this device; reading it directly with
-        // `FileHandle` (as `ZipContainer` does) — and especially from a detached thread —
-        // fails there even though it works in the simulator against a local file. That is
-        // the exact "Couldn't restore the backup" a user hit with a perfectly valid
-        // archive. `NSFileCoordinator` triggers the download and hands us a stable,
-        // fully-present snapshot; from there we unzip a local file we own.
-        // Both the coordinated copy and the unzip run off the main actor: the archive can
-        // be multiple gigabytes, and copying/expanding it on the main thread would freeze
-        // the UI and invite a watchdog kill. Security-scoped access is process-wide, so the
-        // detached copy is still covered by the `startAccessingSecurityScopedResource()`
-        // window above.
+        // Copy the picked file into our own sandbox before we touch it, then work only on
+        // that local copy. A `fileImporter` URL is security-scoped and can be presented by
+        // a file provider; reading it directly with `FileHandle` (as `ZipContainer` does)
+        // is what failed on device with a valid archive.
+        //
+        // The copy is done HERE, on the main actor, inside the
+        // `startAccessingSecurityScopedResource()` window — deliberately NOT on a detached
+        // thread. A previous revision copied on a `Task.detached`, and reading the scoped
+        // URL from another thread produced an incomplete copy on device (which then
+        // unzipped as "malformed") even though it worked in the simulator. Doing the read
+        // where the scope is unambiguous fixes that. A plain file copy is light next to the
+        // unzip/CRC that stays off-main below; a large media backup adds at most a few
+        // seconds here, which is acceptable versus getting a broken copy.
         let localZip = temp.appendingPathComponent("backup.zip")
         let extracted = temp.appendingPathComponent("extracted", isDirectory: true)
-        try await Task.detached {
-            try readCoordinated(from: url, to: localZip)
-            try ZipContainer.unzip(localZip, to: extracted)
-        }.value
+        try readCoordinated(from: url, to: localZip)
+
+        // Verify the copy is whole: if the scoped read gave us nothing (or a truncated
+        // stub), fail with a clear, specific message rather than letting `unzip` report a
+        // confusing "malformed" on a file that was really just not fully read.
+        let sourceSize = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? -1
+        let copiedSize = (try? localZip.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? -1
+        guard copiedSize > 0, sourceSize <= 0 || copiedSize == sourceSize else {
+            throw RestoreError.incompleteRead(copied: copiedSize, expected: sourceSize)
+        }
+
+        // The heavy work — expanding the archive — stays off the main actor: a
+        // multi-gigabyte backup would otherwise freeze the UI and invite a watchdog kill.
+        // It reads our own local copy, so no security scope is involved here.
+        try await Task.detached { try ZipContainer.unzip(localZip, to: extracted) }.value
 
         // Request Photos access up front so the synchronous relink inside `restore` can
         // resolve still-present originals (and the async re-import below can save).
