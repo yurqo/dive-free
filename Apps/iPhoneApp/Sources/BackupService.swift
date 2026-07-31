@@ -204,6 +204,24 @@ enum BackupService {
 
     // MARK: - Restore
 
+    /// Copies `source` to `destination` through an `NSFileCoordinator` read.
+    ///
+    /// The coordinated read is what makes restore work for a file the user picked out of
+    /// iCloud Drive / a Files provider: it forces a not-yet-downloaded item to
+    /// materialize and gives a consistent local snapshot, where a direct `FileHandle`
+    /// open would fail. Any coordination or copy error is thrown so the caller surfaces
+    /// it instead of the generic "couldn't restore".
+    private nonisolated static func readCoordinated(from source: URL, to destination: URL) throws {
+        var coordinatorError: NSError?
+        var copyError: Error?
+        NSFileCoordinator().coordinate(readingItemAt: source, options: [], error: &coordinatorError) { readURL in
+            do { try FileManager.default.copyItem(at: readURL, to: destination) }
+            catch { copyError = error }
+        }
+        if let coordinatorError { throw coordinatorError }
+        if let copyError { throw copyError }
+    }
+
     /// A photo whose original was missing on restore but whose bytes were bundled — to
     /// be re-imported into Photos in the async pass after `restore` returns.
     private struct PendingReimport {
@@ -226,11 +244,27 @@ enum BackupService {
         let temp = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         // Kept alive until after the async re-import reads the bundled originals below.
         defer { try? fm.removeItem(at: temp) }
-        // Off the main actor, for the same reason as `zip` in `exportBackup`: expanding a
-        // multi-gigabyte archive on the main thread freezes the UI and invites a watchdog
-        // kill. Security-scoped access is process-wide, so the detached read is still
-        // covered by the `startAccessingSecurityScopedResource()` window above.
-        try await Task.detached { try ZipContainer.unzip(url, to: temp) }.value
+        try fm.createDirectory(at: temp, withIntermediateDirectories: true)
+
+        // Copy the picked file into our own sandbox with a COORDINATED read before we
+        // touch it. A `fileImporter` URL can point at an iCloud Drive / Files-provider
+        // item that isn't materialized on this device; reading it directly with
+        // `FileHandle` (as `ZipContainer` does) — and especially from a detached thread —
+        // fails there even though it works in the simulator against a local file. That is
+        // the exact "Couldn't restore the backup" a user hit with a perfectly valid
+        // archive. `NSFileCoordinator` triggers the download and hands us a stable,
+        // fully-present snapshot; from there we unzip a local file we own.
+        // Both the coordinated copy and the unzip run off the main actor: the archive can
+        // be multiple gigabytes, and copying/expanding it on the main thread would freeze
+        // the UI and invite a watchdog kill. Security-scoped access is process-wide, so the
+        // detached copy is still covered by the `startAccessingSecurityScopedResource()`
+        // window above.
+        let localZip = temp.appendingPathComponent("backup.zip")
+        let extracted = temp.appendingPathComponent("extracted", isDirectory: true)
+        try await Task.detached {
+            try readCoordinated(from: url, to: localZip)
+            try ZipContainer.unzip(localZip, to: extracted)
+        }.value
 
         // Request Photos access up front so the synchronous relink inside `restore` can
         // resolve still-present originals (and the async re-import below can save).
@@ -243,13 +277,13 @@ enum BackupService {
         // each) on the main thread, uninterruptibly — a 400-photo restore would hang the
         // UI. Two batched calls replace 2N: cloud→local, then "which of those still
         // exist". The closure is then just a dictionary hit.
-        let relinkByCloudID = photoAccess ? resolveRelinks(in: temp) : [:]
+        let relinkByCloudID = photoAccess ? resolveRelinks(in: extracted) : [:]
 
         // Phase A — restore metadata + thumbnails; relink synchronously, queue the
         // missing-original re-imports for the async pass.
         var pending: [PendingReimport] = []
         let summary = try BackupRestore(context: context).restore(
-            fromStagingDirectory: temp,
+            fromStagingDirectory: extracted,
             materializeAudio: { name, bytes in VoiceNoteStore.materialize(bytes, as: name) },
             reimportPhoto: { backup, mediaURL in
                 if let cloud = backup.assetCloudIdentifier, let localID = relinkByCloudID[cloud] {

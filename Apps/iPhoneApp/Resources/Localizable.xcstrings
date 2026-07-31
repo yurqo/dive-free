@@ -5390,6 +5390,52 @@
         }
       }
     },
+    "Couldn't create the backup. Please try again. (%@)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sicherung konnte nicht erstellt werden. Bitte erneut versuchen. (%@)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo crear la copia de seguridad. Inténtalo de nuevo. (%@)"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible de créer la sauvegarde. Veuillez réessayer. (%@)"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossibile creare il backup. Riprova. (%@)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "バックアップを作成できませんでした。もう一度お試しください。(%@)"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível criar o backup. Tente novamente. (%@)"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не вдалося створити резервну копію. Повторіть спробу. (%@)"
+          }
+        }
+      }
+    },
     "Couldn't open the Strava sign-in window. Please try again.": {
       "localizations": {
         "de": {
@@ -5524,6 +5570,52 @@
           "stringUnit": {
             "state": "translated",
             "value": "Не вдалося відновити з резервної копії. Спробуйте ще раз."
+          }
+        }
+      }
+    },
+    "Couldn't restore the backup. Please try again. (%@)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wiederherstellung der Sicherung fehlgeschlagen. Bitte erneut versuchen. (%@)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo restaurar la copia de seguridad. Inténtalo de nuevo. (%@)"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible de restaurer la sauvegarde. Veuillez réessayer. (%@)"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossibile ripristinare il backup. Riprova. (%@)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "バックアップを復元できませんでした。もう一度お試しください。(%@)"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível restaurar o backup. Tente novamente. (%@)"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не вдалося відновити резервну копію. Повторіть спробу. (%@)"
           }
         }
       }
@@ -19874,98 +19966,6 @@
         }
       }
     },
-    "Strava sign-in couldn't be verified (security check failed). Please try again.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Die Strava-Anmeldung konnte nicht verifiziert werden (Sicherheitsprüfung fehlgeschlagen). Bitte erneut versuchen."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No se pudo verificar el inicio de sesión de Strava (falló la comprobación de seguridad). Inténtalo de nuevo."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "La connexion à Strava n’a pas pu être vérifiée (échec du contrôle de sécurité). Veuillez réessayer."
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Impossibile verificare l’accesso a Strava (controllo di sicurezza non riuscito). Riprova."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Stravaのサインインを確認できませんでした（セキュリティチェックに失敗）。もう一度お試しください。"
-          }
-        },
-        "pt": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Não foi possível verificar o login do Strava (falha na verificação de segurança). Tente novamente."
-          }
-        },
-        "uk": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Не вдалося підтвердити вхід у Strava (перевірку безпеки не пройдено). Спробуйте ще раз."
-          }
-        }
-      }
-    },
-    "Strava sign-in failed (error %lld). Please try again.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Strava-Anmeldung fehlgeschlagen (Fehler %lld). Bitte erneut versuchen."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Error al iniciar sesión en Strava (error %lld). Inténtalo de nuevo."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Échec de la connexion à Strava (erreur %lld). Veuillez réessayer."
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Accesso a Strava non riuscito (errore %lld). Riprova."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Stravaのサインインに失敗しました（エラー %lld）。もう一度お試しください。"
-          }
-        },
-        "pt": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Falha ao entrar no Strava (erro %lld). Tente novamente."
-          }
-        },
-        "uk": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Не вдалося ввійти в Strava (помилка %lld). Спробуйте ще раз."
-          }
-        }
-      }
-    },
     "Strava is still processing the upload. Check Strava in a minute.": {
       "localizations": {
         "en": {
@@ -20066,6 +20066,98 @@
           "stringUnit": {
             "state": "translated",
             "value": "Досягнуто ліміт запитів Strava. Спробуйте пізніше."
+          }
+        }
+      }
+    },
+    "Strava sign-in couldn't be verified (security check failed). Please try again.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Strava-Anmeldung konnte nicht verifiziert werden (Sicherheitsprüfung fehlgeschlagen). Bitte erneut versuchen."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo verificar el inicio de sesión de Strava (falló la comprobación de seguridad). Inténtalo de nuevo."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La connexion à Strava n’a pas pu être vérifiée (échec du contrôle de sécurité). Veuillez réessayer."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossibile verificare l’accesso a Strava (controllo di sicurezza non riuscito). Riprova."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stravaのサインインを確認できませんでした（セキュリティチェックに失敗）。もう一度お試しください。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível verificar o login do Strava (falha na verificação de segurança). Tente novamente."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не вдалося підтвердити вхід у Strava (перевірку безпеки не пройдено). Спробуйте ще раз."
+          }
+        }
+      }
+    },
+    "Strava sign-in failed (error %lld). Please try again.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Strava-Anmeldung fehlgeschlagen (Fehler %lld). Bitte erneut versuchen."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Error al iniciar sesión en Strava (error %lld). Inténtalo de nuevo."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Échec de la connexion à Strava (erreur %lld). Veuillez réessayer."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Accesso a Strava non riuscito (errore %lld). Riprova."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stravaのサインインに失敗しました（エラー %lld）。もう一度お試しください。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Falha ao entrar no Strava (erro %lld). Tente novamente."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не вдалося ввійти в Strava (помилка %lld). Спробуйте ще раз."
           }
         }
       }
@@ -21898,6 +21990,236 @@
           "stringUnit": {
             "state": "translated",
             "value": "Далі iCloud об’єднує все"
+          }
+        }
+      }
+    },
+    "This backup file is corrupted — a file inside it failed its integrity check. Try transferring or exporting it again.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Sicherungsdatei ist beschädigt – eine enthaltene Datei hat die Integritätsprüfung nicht bestanden. Übertrage oder exportiere sie erneut."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Este archivo de copia de seguridad está dañado: uno de sus archivos no superó la comprobación de integridad. Vuelve a transferirlo o a exportarlo."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ce fichier de sauvegarde est corrompu : un fichier qu'il contient a échoué au contrôle d'intégrité. Transférez-le ou exportez-le à nouveau."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Questo file di backup è danneggiato: un file al suo interno non ha superato il controllo di integrità. Trasferiscilo o esportalo di nuovo."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このバックアップファイルは破損しています。内部のファイルが整合性チェックに失敗しました。もう一度転送またはエクスポートしてください。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Este arquivo de backup está corrompido — um arquivo dentro dele falhou na verificação de integridade. Tente transferi-lo ou exportá-lo novamente."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Цей файл резервної копії пошкоджено — файл усередині не пройшов перевірку цілісності. Спробуйте перенести або експортувати його ще раз."
+          }
+        }
+      }
+    },
+    "This backup file is damaged or incomplete. If it's stored in iCloud Drive, make sure it's fully downloaded, then try again.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Sicherungsdatei ist beschädigt oder unvollständig. Falls sie in iCloud Drive liegt, stelle sicher, dass sie vollständig geladen ist, und versuche es erneut."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Este archivo de copia de seguridad está dañado o incompleto. Si está en iCloud Drive, asegúrate de que se haya descargado por completo e inténtalo de nuevo."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ce fichier de sauvegarde est endommagé ou incomplet. S'il se trouve dans iCloud Drive, assurez-vous qu'il est entièrement téléchargé, puis réessayez."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Questo file di backup è danneggiato o incompleto. Se si trova su iCloud Drive, assicurati che sia stato scaricato completamente e riprova."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このバックアップファイルは破損しているか不完全です。iCloud Drive に保存されている場合は、完全にダウンロードされていることを確認してから、もう一度お試しください。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Este arquivo de backup está danificado ou incompleto. Se estiver no iCloud Drive, verifique se foi totalmente baixado e tente novamente."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Цей файл резервної копії пошкоджено або він неповний. Якщо він зберігається в iCloud Drive, переконайтеся, що його повністю завантажено, і повторіть спробу."
+          }
+        }
+      }
+    },
+    "This backup is too large for Dive Free to restore.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Sicherung ist zu groß, als dass Dive Free sie wiederherstellen könnte."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esta copia de seguridad es demasiado grande para que Dive Free la restaure."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cette sauvegarde est trop volumineuse pour que Dive Free puisse la restaurer."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Questo backup è troppo grande perché Dive Free possa ripristinarlo."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このバックアップは大きすぎて、Dive Free では復元できません。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Este backup é grande demais para o Dive Free restaurar."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ця резервна копія завелика, щоб Dive Free міг її відновити."
+          }
+        }
+      }
+    },
+    "This backup is too large to create. Individual files or the whole archive can't exceed 4 GB — try exporting without videos.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Sicherung ist zu groß, um erstellt zu werden. Einzelne Dateien oder das gesamte Archiv dürfen 4 GB nicht überschreiten – versuche den Export ohne Videos."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esta copia de seguridad es demasiado grande para crearse. Ni los archivos individuales ni el archivo completo pueden superar los 4 GB; prueba a exportar sin vídeos."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cette sauvegarde est trop volumineuse pour être créée. Les fichiers individuels ou l'archive entière ne peuvent pas dépasser 4 Go — essayez d'exporter sans les vidéos."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Questo backup è troppo grande per essere creato. I singoli file o l'intero archivio non possono superare i 4 GB: prova a esportare senza i video."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このバックアップは大きすぎて作成できません。個々のファイルまたはアーカイブ全体は 4 GB を超えられません。動画を含めずにエクスポートしてみてください。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Este backup é grande demais para ser criado. Arquivos individuais ou o arquivo inteiro não podem exceder 4 GB — tente exportar sem os vídeos."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ця резервна копія завелика для створення. Окремі файли або весь архів не можуть перевищувати 4 ГБ — спробуйте експортувати без відео."
+          }
+        }
+      }
+    },
+    "This backup uses a feature this version of Dive Free can't read. Update the app and try again.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Sicherung nutzt eine Funktion, die diese Version von Dive Free nicht lesen kann. Aktualisiere die App und versuche es erneut."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esta copia de seguridad usa una función que esta versión de Dive Free no puede leer. Actualiza la app e inténtalo de nuevo."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cette sauvegarde utilise une fonctionnalité que cette version de Dive Free ne peut pas lire. Mettez l'app à jour, puis réessayez."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Questo backup usa una funzione che questa versione di Dive Free non può leggere. Aggiorna l'app e riprova."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このバックアップには、このバージョンの Dive Free が読み取れない機能が使われています。アプリを更新してから、もう一度お試しください。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Este backup usa um recurso que esta versão do Dive Free não consegue ler. Atualize o app e tente novamente."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ця резервна копія використовує функцію, яку ця версія Dive Free не може прочитати. Оновіть застосунок і повторіть спробу."
           }
         }
       }
@@ -24694,6 +25016,52 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ви можете налаштувати ці правила — глибину й час кожного та чи воно ввімкнене — у **Налаштування ▸ Виявлення занурень** на вашому iPhone; вибір синхронізується з годинником і застосовується до наступної сесії."
+          }
+        }
+      }
+    },
+    "You have too many items to fit in a single backup.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Du hast zu viele Elemente für eine einzelne Sicherung."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tienes demasiados elementos para caber en una sola copia de seguridad."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vous avez trop d'éléments pour tenir dans une seule sauvegarde."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hai troppi elementi per un singolo backup."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "項目が多すぎて、1 つのバックアップに収まりません。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Você tem itens demais para caber em um único backup."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "У вас забагато елементів, щоб умістити їх в одну резервну копію."
           }
         }
       }

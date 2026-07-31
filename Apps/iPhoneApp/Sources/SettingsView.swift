@@ -223,8 +223,18 @@ struct SettingsView: View {
             return String(localized: "This backup was made by a newer version of Dive Free. Update the app and try again.")
         case BackupArchiveError.malformed:
             return String(localized: "This file isn't a valid Dive Free backup.")
+        case ZipContainer.ZipError.malformed:
+            return String(localized: "This backup file is damaged or incomplete. If it's stored in iCloud Drive, make sure it's fully downloaded, then try again.")
+        case ZipContainer.ZipError.unsupportedEntry:
+            return String(localized: "This backup uses a feature this version of Dive Free can't read. Update the app and try again.")
+        case ZipContainer.ZipError.crcMismatch:
+            return String(localized: "This backup file is corrupted — a file inside it failed its integrity check. Try transferring or exporting it again.")
+        case ZipContainer.ZipError.entryTooLarge, ZipContainer.ZipError.tooManyEntries:
+            return String(localized: "This backup is too large for Dive Free to restore.")
         default:
-            return String(localized: "Couldn't restore the backup. Please try again.")
+            // Never a dead end: surface the underlying cause (e.g. a SwiftData/CloudKit
+            // save failure or a filesystem error) so the next attempt is diagnosable.
+            return String(localized: "Couldn't restore the backup. Please try again. (\(error.localizedDescription))")
         }
     }
 
