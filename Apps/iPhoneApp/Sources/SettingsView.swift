@@ -223,8 +223,11 @@ struct SettingsView: View {
             return String(localized: "This backup was made by a newer version of Dive Free. Update the app and try again.")
         case BackupArchiveError.malformed:
             return String(localized: "This file isn't a valid Dive Free backup.")
-        case ZipContainer.ZipError.malformed:
-            return String(localized: "This backup file is damaged or incomplete. If it's stored in iCloud Drive, make sure it's fully downloaded, then try again.")
+        case ZipContainer.ZipError.malformed(let reason):
+            // Include the parser's reason: it names exactly which check failed (e.g. EOCD
+            // not found vs a write/permission error), which is what pins down a device-only
+            // failure on an archive that reads fine everywhere else.
+            return String(localized: "This backup file couldn't be read (\(reason)). Move it to \"On My iPhone\" in Files and try again.")
         case ZipContainer.ZipError.unsupportedEntry:
             return String(localized: "This backup uses a feature this version of Dive Free can't read. Update the app and try again.")
         case ZipContainer.ZipError.crcMismatch:
