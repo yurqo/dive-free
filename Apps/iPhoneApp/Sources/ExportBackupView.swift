@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import Domain
+import Persistence
 
 /// Configures and runs a backup export: pick which heavy media to bundle (all off by
 /// default), see a live, approximate size estimate per category, then export to a
@@ -203,8 +204,21 @@ struct ExportBackupView: View {
         } catch is CancellationError {
             // The user cancelled; `exportBackup` already removed its temp tree, so there
             // is nothing to clean up and nothing to apologize for.
+        } catch let error as ZipContainer.ZipError {
+            // The zip writer's own size ceilings are the export-side failures worth naming;
+            // anything else falls through to the diagnostic default below.
+            switch error {
+            case .entryTooLarge:
+                errorMessage = String(localized: "This backup is too large to create. Individual files or the whole archive can't exceed 4 GB — try exporting without videos.")
+            case .tooManyEntries:
+                errorMessage = String(localized: "You have too many items to fit in a single backup.")
+            default:
+                errorMessage = String(localized: "Couldn't create the backup. Please try again. (\(error.localizedDescription))")
+            }
         } catch {
-            errorMessage = String(localized: "Couldn't create the backup. Please try again.")
+            // Never a dead end: surface the underlying cause so a device-only failure is
+            // diagnosable on the next attempt.
+            errorMessage = String(localized: "Couldn't create the backup. Please try again. (\(error.localizedDescription))")
         }
     }
 
