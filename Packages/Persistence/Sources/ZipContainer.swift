@@ -456,7 +456,23 @@ public enum ZipContainer {
         if components.allSatisfy({ $0 == "." }) {
             throw ZipError.malformed("entry '\(name)' has no usable path component")
         }
-        var url = directory
+        // Resolve the destination's symlinks ONCE, up front, and build every entry path
+        // by appending to that already-resolved base. This is what keeps the containment
+        // check symmetric.
+        //
+        // The subtle bug this fixes (a valid backup that failed to restore only on device):
+        // `standardizedFileURL` — and `resolvingSymlinksInPath()` — resolve the `/private`
+        // symlink only for paths that already EXIST on disk. On a real device the temp
+        // destination lives under `/var` (a symlink to `/private/var`), so the destination
+        // directory, which exists, resolved to `/private/var/…/dest`, while an entry path
+        // whose leaf doesn't exist yet (e.g. `manifest.json`, not extracted) stayed
+        // `/var/…/dest/manifest.json`. The prefix check then rejected a perfectly valid
+        // entry as "outside the destination". The simulator's temp path isn't symlinked
+        // that way, so it never reproduced there. Resolving the base once and appending to
+        // it removes the existing-vs-missing asymmetry entirely (verified on macOS: a
+        // symlinked destination round-trips, and a `..` entry is still rejected).
+        let base = directory.resolvingSymlinksInPath()
+        var url = base
         for component in components {
             if component == ".." {
                 throw ZipError.malformed("entry '\(name)' escapes the destination via '..'")
@@ -464,10 +480,11 @@ public enum ZipContainer {
             if component == "." { continue }
             url.appendPathComponent(component)
         }
-        // Final containment check against normalization surprises.
-        let base = directory.standardizedFileURL.path
-        let resolved = url.standardizedFileURL.path
-        guard resolved == base || resolved.hasPrefix(base + "/") else {
+        // Belt-and-braces lexical containment (the `..` components are already rejected
+        // above): both paths derive from the same resolved base, so this is symmetric.
+        let basePath = base.standardizedFileURL.path
+        let resolvedPath = url.standardizedFileURL.path
+        guard resolvedPath == basePath || resolvedPath.hasPrefix(basePath + "/") else {
             throw ZipError.malformed("entry '\(name)' resolves outside the destination")
         }
         return url
