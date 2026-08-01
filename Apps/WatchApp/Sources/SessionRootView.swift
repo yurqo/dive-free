@@ -64,11 +64,13 @@ struct SessionRootView: View {
                 // bottom selector so they never move when the mode or content changes.
                 centerpiece
                 statsLine
-                // The selector is a non-AOD affordance; the Crown drives it both at the
-                // surface and underwater, and the Action button confirms it.
-                if !isLuminanceReduced {
-                    actionSelector
-                }
+                // The Crown drives the selector at the surface and underwater, and the
+                // Action button confirms it — so it stays on screen in AOD too, just
+                // dimmed: a diver glancing at a wrist-down watch should still see which
+                // marker is armed without raising the wrist. (Dimmed, never brighter,
+                // and with no added animation — the system throttles AOD redraws.)
+                actionSelector
+                    .opacity(isLuminanceReduced ? Self.aodDimOpacity : 1)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .padding(.horizontal, 8)
@@ -237,14 +239,22 @@ struct SessionRootView: View {
     }
 
     /// A small secondary readout under the hero time during surface recovery: the
-    /// recommended interval as "rec M:SS", plus a green checkmark once `.rested` so
-    /// the fully-recovered state reads clearly (green alone was ambiguous). Does NOT
-    /// replace the elapsed hero number — divers want the raw count. Hidden in
-    /// AOD/luminance-reduced (like the action selector) and off the surface.
+    /// recommended interval as "rec M:SS", plus a green checkmark while the "rested"
+    /// highlight is up so the fully-recovered state reads clearly (green alone was
+    /// ambiguous). Does NOT replace the elapsed hero number — divers want the raw
+    /// count. Shown in AOD/luminance-reduced too, dimmed: the recovery target is
+    /// exactly what a diver wants off a wrist-down glance. Off the surface it's hidden.
+    ///
+    /// The ✓ and the green text are one affordance with the hero tint — all three
+    /// appear on reaching the target and clear together when the highlight expires
+    /// (`SessionCoordinator.isRestedHighlightActive`). The "rec M:SS" text itself
+    /// stays, in secondary grey: the target is still useful context for the interval
+    /// you're in, and keeping the line resident avoids a layout jump under the hero
+    /// time when the highlight ends.
     @ViewBuilder
     private var recoveryTargetLine: some View {
-        if showsRecoveryTarget, !isLuminanceReduced, let recommended = session.recommendedRecovery {
-            let rested = session.recoveryTier == .rested
+        if showsRecoveryTarget, let recommended = session.recommendedRecovery {
+            let rested = session.isRestedHighlightActive
             HStack(spacing: 3) {
                 if rested {
                     Image(systemName: "checkmark.circle.fill")
@@ -258,21 +268,32 @@ struct SessionRootView: View {
             .font(.caption2)
             .monospacedDigit()
             .lineLimit(1)
+            .opacity(isLuminanceReduced ? Self.aodDimOpacity : 1)
         }
     }
+
+    /// Opacity for the affordances kept on screen in AOD (always-on display / wrist
+    /// down): visible enough to read at a glance, clearly dimmer than the live screen.
+    /// Matches the file's existing dimming idiom for stale/inactive values.
+    private static let aodDimOpacity = 0.5
 
     /// Tints the hero time by recovery tier during the surface interval after a
     /// dive: `.short`→red, `.building`→orange, `.nearly`→yellow, `.rested`→green.
     /// Dive time, the pre-first-dive clock, and disabled recovery stay white —
     /// preserving today's untinted behaviour when the feature is off (see
     /// `recoveryTier`, which is nil unless recovery is on with a completed dive).
+    ///
+    /// The green **expires**: it holds for `recommended / multiplier` (the last dive's
+    /// own duration) after the target is reached, then the time returns to the same
+    /// neutral white it uses before the first dive. The cue is "you're rested *now*",
+    /// so leaving it green until the next submersion would overstate it.
     private var heroTimeColor: Color {
         guard !session.currentDiveConfirmed, let tier = session.recoveryTier else { return .white }
         switch tier {
         case .short:    return .red
         case .building: return .orange
         case .nearly:   return .yellow
-        case .rested:   return .green
+        case .rested:   return session.isRestedHighlightActive ? .green : .white
         }
     }
 

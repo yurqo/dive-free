@@ -58,6 +58,79 @@ struct SurfaceRecoveryTests {
         #expect(SurfaceRecovery.hasReachedRecovery(surfaceInterval: 100, recommended: 0) == false)
     }
 
+    // MARK: - restedHighlightDwell / isRestedHighlightActive
+
+    @Test("the rested highlight lasts the dive's own duration, at any multiplier")
+    func highlightDwellMatchesDiveDuration() {
+        // Above the floor, recommended = multiplier × duration, so recommended/multiplier
+        // collapses back to the dive's duration — 40 s of green for a 40 s dive.
+        for multiplier in [2.0, 2.5, 3.0, 5.0] {
+            let recommended = SurfaceRecovery.recommendedInterval(lastDiveDuration: 40, multiplier: multiplier, minimum: 60)
+            #expect(SurfaceRecovery.restedHighlightDwell(recommended: recommended, multiplier: multiplier) == 40)
+        }
+    }
+
+    @Test("on the 60 s floor the highlight is a proportionate share of the floor")
+    func highlightDwellOnTheFloor() {
+        // A 10 s dive is pinned to the 60 s minimum: 60/3 = 20 s of green, 60/2 = 30 s.
+        let atThree = SurfaceRecovery.recommendedInterval(lastDiveDuration: 10, multiplier: 3, minimum: 60)
+        #expect(SurfaceRecovery.restedHighlightDwell(recommended: atThree, multiplier: 3) == 20)
+        let atTwo = SurfaceRecovery.recommendedInterval(lastDiveDuration: 10, multiplier: 2, minimum: 60)
+        #expect(SurfaceRecovery.restedHighlightDwell(recommended: atTwo, multiplier: 2) == 30)
+    }
+
+    @Test("the highlight is active from the target until the dwell expires")
+    func highlightExpiryBoundary() {
+        // 40 s dive at 3× → 120 s target, 40 s of green → active over [120, 160).
+        let recommended: TimeInterval = 120
+        func active(_ interval: TimeInterval) -> Bool {
+            SurfaceRecovery.isRestedHighlightActive(surfaceInterval: interval, recommended: recommended, multiplier: 3)
+        }
+        #expect(active(119.9) == false)  // not rested yet
+        #expect(active(120) == true)     // the crossing lights it up
+        #expect(active(159.9) == true)   // still inside the dwell
+        #expect(active(160) == false)    // boundary is exclusive — green clears
+        #expect(active(600) == false)    // and stays cleared
+    }
+
+    @Test("the tier stays .rested after the highlight expires")
+    func tierUnchangedByHighlightExpiry() {
+        // The four bands are untouched: reaching the target is still permanent, only
+        // the highlight is transient (so the haptic's one-shot crossing is unaffected).
+        #expect(SurfaceRecovery.tier(surfaceInterval: 600, recommended: 120) == .rested)
+        #expect(SurfaceRecovery.hasReachedRecovery(surfaceInterval: 600, recommended: 120) == true)
+        #expect(SurfaceRecovery.isRestedHighlightActive(surfaceInterval: 600, recommended: 120, multiplier: 3) == false)
+    }
+
+    @Test("a multiplier of 1 makes the highlight last the whole recovery period, and still ends")
+    func highlightAtUnitMultiplier() {
+        #expect(SurfaceRecovery.restedHighlightDwell(recommended: 90, multiplier: 1) == 90)
+        #expect(SurfaceRecovery.isRestedHighlightActive(surfaceInterval: 179.9, recommended: 90, multiplier: 1) == true)
+        #expect(SurfaceRecovery.isRestedHighlightActive(surfaceInterval: 180, recommended: 90, multiplier: 1) == false)
+    }
+
+    @Test("a degenerate multiplier clamps the dwell to the recovery period — never zero, NaN, or unbounded")
+    func highlightDwellClampsDegenerateMultipliers() {
+        for multiplier in [0.0, -3.0, 0.5, Double.nan, .infinity, -.infinity] {
+            let dwell = SurfaceRecovery.restedHighlightDwell(recommended: 90, multiplier: multiplier)
+            #expect(dwell == 90, "multiplier \(multiplier) should clamp to a 1× dwell")
+            #expect(dwell.isFinite)
+            #expect(dwell > 0)
+        }
+        // …and the window it produces still terminates.
+        #expect(SurfaceRecovery.isRestedHighlightActive(surfaceInterval: 179.9, recommended: 90, multiplier: 0) == true)
+        #expect(SurfaceRecovery.isRestedHighlightActive(surfaceInterval: 180, recommended: 90, multiplier: 0) == false)
+    }
+
+    @Test("no target means no highlight and a zero dwell")
+    func highlightWithoutTarget() {
+        #expect(SurfaceRecovery.restedHighlightDwell(recommended: 0, multiplier: 3) == 0)
+        #expect(SurfaceRecovery.restedHighlightDwell(recommended: -5, multiplier: 3) == 0)
+        #expect(SurfaceRecovery.restedHighlightDwell(recommended: .nan, multiplier: 3) == 0)
+        #expect(SurfaceRecovery.isRestedHighlightActive(surfaceInterval: 100, recommended: 0, multiplier: 3) == false)
+        #expect(SurfaceRecovery.isRestedHighlightActive(surfaceInterval: 100, recommended: -5, multiplier: 3) == false)
+    }
+
     // MARK: - DiveDetectionConfig recovery fields (Codable back-compat + clamp)
 
     @Test("a payload missing the recovery keys decodes to the on/3× defaults")

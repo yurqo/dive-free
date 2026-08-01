@@ -126,10 +126,27 @@ final class SessionCoordinator {
 
     /// The diver's current recovery tier, or `nil` when there's no target to measure
     /// against (recovery off, or before the first completed dive). Drives the hero
-    /// timer's colour + the "rested" checkmark.
+    /// timer's colour.
+    ///
+    /// Note `.rested` stays put once reached — for the green tint + ✓, which expire,
+    /// ask `isRestedHighlightActive`.
     var recoveryTier: SurfaceRecovery.RecoveryTier? {
         guard let interval = surfaceInterval, let recommended = recommendedRecovery else { return nil }
         return SurfaceRecovery.tier(surfaceInterval: interval, recommended: recommended)
+    }
+
+    /// Whether the "you're rested" highlight (green hero time + ✓) should be showing:
+    /// the recommended interval has been reached and the diver is still inside the
+    /// short window that follows it (`recommended / multiplier` — i.e. the last dive's
+    /// own duration). Afterwards the hero time returns to plain white: the cue means
+    /// "rested **now**", so it clears rather than sitting green until the next dive.
+    var isRestedHighlightActive: Bool {
+        guard let interval = surfaceInterval, let recommended = recommendedRecovery else { return false }
+        return SurfaceRecovery.isRestedHighlightActive(
+            surfaceInterval: interval,
+            recommended: recommended,
+            multiplier: recoveryMultiplier
+        )
     }
 
     /// True while the diver is below the surface threshold. The Action button
