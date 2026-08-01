@@ -16,6 +16,13 @@ struct WatchSettingsView: View {
     @AppStorage("defaultMarkerKindID") private var defaultMarkerKindID = EventKind.note.rawValue
     @AppStorage(GPSPrecision.highPrecisionKey) private var highPrecisionGPS = false
 
+    // Auto Water Lock: deterministically engage Water Lock at session start and on
+    // each descent, since the swim workout doesn't do it reliably. Both default ON
+    // so the underwater touch-out works out of the box (see SessionCoordinator,
+    // which reads these same keys with a genuine ON-when-unset default).
+    @AppStorage("waterLockOnStart") private var waterLockOnStart = true
+    @AppStorage("waterLockOnSubmersion") private var waterLockOnSubmersion = true
+
     // Periodic underwater time cues (#178). Default off so existing users aren't
     // surprised by new sounds; 0 disables a tier.
     @AppStorage("timeCuesEnabled") private var timeCuesEnabled = false
@@ -95,6 +102,15 @@ struct WatchSettingsView: View {
                     Text("Crown")
                 } footer: {
                     Text("Turn the Crown to feel each speed before you pick. Slower is easier underwater.")
+                }
+
+                Section {
+                    Toggle("On session start", isOn: $waterLockOnStart)
+                    Toggle("On submersion", isOn: $waterLockOnSubmersion)
+                } header: {
+                    Text("Ensure Water Lock")
+                } footer: {
+                    Text("Water Lock stops a wet screen registering taps. It doesn't always turn on by itself when a session starts, so these turn it on for you. Turn the Digital Crown to exit and eject water.")
                 }
 
                 Section {

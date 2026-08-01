@@ -275,6 +275,33 @@ final class SessionCoordinator {
         return (tiers + ["ends \(Int(config.surfaceExitDwellSeconds)) s"]).joined(separator: " · ")
     }
 
+    // MARK: - Water Lock (auto-engage)
+
+    /// UserDefaults keys for the diver's auto Water-Lock preferences (bound by the
+    /// watch Settings toggles). Both default ON when unset.
+    @ObservationIgnored private static let waterLockOnStartKey = "waterLockOnStart"
+    @ObservationIgnored private static let waterLockOnSubmersionKey = "waterLockOnSubmersion"
+
+    /// A Water-Lock toggle's value, defaulting genuinely ON when the key has never
+    /// been written — `bool(forKey:)` returns `false` for an absent key, so the
+    /// default-true reading needs the explicit `object(forKey:) == nil` check.
+    private func isWaterLockPreferenceOn(_ key: String) -> Bool {
+        let defaults = UserDefaults.standard
+        return defaults.object(forKey: key) == nil ? true : defaults.bool(forKey: key)
+    }
+
+    /// Engages Water Lock (touch-out for the underwater Crown/Action-button UX) at
+    /// a configurable session moment, if the diver hasn't turned that moment off.
+    /// `enableWaterLock()` is idempotent and safe to call when already locked; there
+    /// is NO programmatic disable — the diver exits by turning the Digital Crown.
+    /// Guarded out of the simulator, where it's a device-only API.
+    private func enableWaterLock(ifEnabled key: String) {
+        guard isWaterLockPreferenceOn(key) else { return }
+        #if !targetEnvironment(simulator)
+        WKInterfaceDevice.current().enableWaterLock()
+        #endif
+    }
+
     func addMarker(kind: MarkerKind) {
         sessionManager.addMarker(kind: kind)
     }
@@ -579,6 +606,10 @@ final class SessionCoordinator {
         sessionManager.onSubmerge = { [weak self] in
             self?.stopVoiceNote()
             self?.interaction.setSubmerged(true)
+            // Re-engage Water Lock on each descent (false→true submersion), so a
+            // diver who turned the Crown to exit Water Lock and interact at the
+            // surface between dives gets re-locked. Gated by its own Setting.
+            self?.enableWaterLock(ifEnabled: Self.waterLockOnSubmersionKey)
             // Leaving the surface begins a new recovery cycle: cancel the pending
             // one-shot and re-arm the fired flag so the next surface interval can
             // schedule and fire its own "rested" cue.
@@ -784,6 +815,11 @@ final class SessionCoordinator {
                 kinds: EventKind.builtInMarkerKinds + customKinds, defaultMarkerID: defaultMarkerKindID
             )
             state = .active(start: sessionManager.startTime ?? Date())
+            // Deterministically engage Water Lock now the workout is actually
+            // running (the swim workout is *supposed* to auto-engage it but doesn't
+            // reliably). Gated by its own Setting. Only reached on the success path,
+            // so it never fires when the session failed to start.
+            enableWaterLock(ifEnabled: Self.waterLockOnStartKey)
             // Start mirroring the live session to the phone (#118).
             startLiveSync()
         } catch {

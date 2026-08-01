@@ -20,6 +20,11 @@ struct WatchUserGuideView: View {
                         systemImage: "drop.fill"
                     )
                     item(
+                        "Water Lock",
+                        "Water Lock turns on for you when a session starts and each time you dive, so a wet screen won't register taps. Turn the Digital Crown to exit it and eject water; you can turn either off in Settings.",
+                        systemImage: "drop.circle"
+                    )
+                    item(
                         "Default marker",
                         "Set your most-used marker as the default in Settings — it's pre-selected and what the Action button drops underwater.",
                         systemImage: "mappin"
