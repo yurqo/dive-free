@@ -56,6 +56,31 @@ struct ZipContainerTests {
         #expect(try snapshot(dest) == snapshot(src))
     }
 
+    @Test("unzips into a destination reached through a symlink (device /var → /private/var)")
+    func roundTripThroughSymlinkedDestination() throws {
+        // Repro of the shape that failed only on device: the temp destination is reached
+        // via a symlink (on device, `/var` → `/private/var`). The containment check must
+        // resolve the destination's symlinks symmetrically, or it rejects a valid entry
+        // whose leaf doesn't exist yet as "outside the destination". A naive fix that
+        // resolves each side independently *breaks* exactly this case, so it's the guard.
+        let src = try makeDir()
+        try write(Data("hello manifest".utf8), to: src, path: "manifest.json")
+        try write(Data([0x01, 0x02, 0x03]), to: src, path: "thumbnails/a.jpg")
+        let archive = try makeDir().appendingPathComponent("out.zip")
+        try ZipContainer.zip(directory: src, to: archive)
+
+        let fm = FileManager.default
+        let realRoot = try makeDir()
+        let link = FileManager.default.temporaryDirectory
+            .appendingPathComponent("zip-link-\(UUID().uuidString)", isDirectory: true)
+        try fm.createSymbolicLink(at: link, withDestinationURL: realRoot)
+        let dest = link.appendingPathComponent("extracted", isDirectory: true)
+
+        try ZipContainer.unzip(archive, to: dest)
+        // Files must land under the real target, byte-identical.
+        #expect(try snapshot(realRoot.appendingPathComponent("extracted")) == snapshot(src))
+    }
+
     @Test("its own output has a valid EOCD / central directory")
     func ownOutputParses() throws {
         let src = try makeDir()
