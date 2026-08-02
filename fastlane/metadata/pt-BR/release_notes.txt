@@ -1,8 +1,9 @@
-Novidades da 1.3.3:
+Novidades da 1.3.7:
 • Recorte uma sessão — remova um rastro de superfície esquecido (ou um início antecipado) direto no iPhone: arraste o início e o fim no mapa, veja exatamente o que será removido e seus mergulhos permanecem intactos.
 • Exporte seus mergulhos — compartilhe qualquer sessão como UDDF (diários como o Subsurface), FIT (Garmin/Strava), GPX, CSV ou TCX. Seus dados, para levar a qualquer lugar.
 • Trajetos de superfície mais limpos — um novo suavizador desenha os caminhos de GPS e as distâncias mais próximos do que você realmente nadou.
 • Aviso de recuperação na superfície — entre mergulhos, o cronômetro do relógio muda de cor e vibra suavemente quando você descansa o intervalo recomendado (uma regra geral, não uma orientação de segurança — mergulhe sempre acompanhado).
+• Bloqueio por água, automático — o relógio bloqueia a tela ao iniciar uma sessão e a cada mergulho, para que uma tela molhada não registre toques acidentais. Gire a Digital Crown para desbloquear e ejetar a água; os dois momentos são opcionais nos ajustes do relógio.
 • Faça backup de tudo — sessões, pontos de mergulho e viagens — em um único arquivo e escolha se quer incluir notas de voz, fotos e vídeos. Você vê o tamanho estimado antes de exportar. A restauração é aditiva, então nada do que você já tem é perdido, e as fotos só são reimportadas quando os originais estão faltando.
 • Traduções melhores — rótulos que ainda apareciam em inglês agora aparecem no seu idioma.
 Além de pequenas correções e melhorias.
