@@ -3,6 +3,7 @@ New in 1.3.7:
 • Export your dives — share any session as UDDF (dive logs like Subsurface), FIT (Garmin/Strava), GPX, CSV or TCX. Your data, yours to take anywhere.
 • Cleaner surface tracks — a new smoothing engine draws GPS paths and distances closer to what you actually swam.
 • Surface-recovery hint — between dives, your watch's timer changes colour and gives a gentle buzz once you've rested the recommended interval (a common rule of thumb, not safety advice — always dive with a buddy).
+• Water Lock, handled for you — the watch locks its screen when a session starts and each time you dive, so a wet screen can't register stray taps. Turn the Digital Crown to unlock and eject water; both moments are optional in the watch's settings.
 • Back up everything — sessions, dive spots and trips — to a single file, and choose whether to include your voice notes, photos and videos. You see the estimated size before you export. Restoring is additive, so nothing already on your device is lost, and photos are only re-imported when the originals are missing.
 • Better translations — labels that were still appearing in English now show in your language.
 Plus smaller fixes and polish.
