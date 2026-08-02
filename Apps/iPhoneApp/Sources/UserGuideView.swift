@@ -342,7 +342,7 @@ private enum UserGuide {
             .subheading("Reading the colours"),
             .text("As you rest, the timer warms from red through orange to yellow — each step a third of the way to your recommended interval — then turns green the moment you reach it. An at-a-glance sense of how recovered you are."),
             .subheading("The green doesn't last"),
-            .text("The green — and the ✓ beside the **rec** time — hold for about as long as your last dive, then the timer goes back to plain white. That's deliberate: it tells you you're rested **now**, rather than staying green for the rest of your surface interval. The **rec** target stays on screen either way."),
+            .text("The green — and the ✓ beside the **rec** time — hold for a share of your recommended rest (after a normal dive, about as long as the dive itself), then the timer goes back to plain white. That's deliberate: it tells you you're rested **now**, rather than staying green for the rest of your surface interval. The **rec** target stays on screen either way."),
             .text("This is a **common rule of thumb, not medical or safety advice**. It doesn't mean you're safe to dive — **always dive with a trained buddy** and stay well within your limits."),
         ]
     )

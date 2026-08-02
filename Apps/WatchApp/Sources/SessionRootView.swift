@@ -221,6 +221,11 @@ struct SessionRootView: View {
     /// icon followed by the current depth.
     private var centerpiece: some View {
         TimelineView(.periodic(from: .now, by: 1)) { _ in
+            // ONE recovery sample per tick, shared by the tint and the ✓. Asking the
+            // coordinator twice would re-read the clock, and on the tick that crosses a
+            // boundary the two answers can differ — painting a frame of green hero time
+            // with no ✓ beside "rec" (or the reverse at the entry boundary).
+            let recovery = session.recoverySnapshot
             VStack(spacing: 4) {
                 // Stay on the surface/recovery clock until the dive is *confirmed*
                 // (a detection tier is met); the provisional descent shows the
@@ -228,8 +233,8 @@ struct SessionRootView: View {
                 heroTime(seconds: session.currentDiveConfirmed
                          ? (session.currentDiveElapsed ?? 0)
                          : (session.surfaceInterval ?? session.elapsedTime),
-                         color: heroTimeColor)
-                recoveryTargetLine
+                         color: heroTimeColor(recovery))
+                recoveryTargetLine(recovery)
                 secondLine
             }
         }
@@ -252,9 +257,12 @@ struct SessionRootView: View {
     /// you're in, and keeping the line resident avoids a layout jump under the hero
     /// time when the highlight ends.
     @ViewBuilder
-    private var recoveryTargetLine: some View {
+    private func recoveryTargetLine(
+        _ recovery: (tier: SurfaceRecovery.RecoveryTier?, isHighlightActive: Bool)
+    ) -> some View {
+        Group {
         if showsRecoveryTarget, let recommended = session.recommendedRecovery {
-            let rested = session.isRestedHighlightActive
+            let rested = recovery.isHighlightActive
             HStack(spacing: 3) {
                 if rested {
                     Image(systemName: "checkmark.circle.fill")
@@ -269,6 +277,7 @@ struct SessionRootView: View {
             .monospacedDigit()
             .lineLimit(1)
             .opacity(isLuminanceReduced ? Self.aodDimOpacity : 1)
+        }
         }
     }
 
@@ -287,13 +296,15 @@ struct SessionRootView: View {
     /// own duration) after the target is reached, then the time returns to the same
     /// neutral white it uses before the first dive. The cue is "you're rested *now*",
     /// so leaving it green until the next submersion would overstate it.
-    private var heroTimeColor: Color {
-        guard !session.currentDiveConfirmed, let tier = session.recoveryTier else { return .white }
+    private func heroTimeColor(
+        _ recovery: (tier: SurfaceRecovery.RecoveryTier?, isHighlightActive: Bool)
+    ) -> Color {
+        guard !session.currentDiveConfirmed, let tier = recovery.tier else { return .white }
         switch tier {
         case .short:    return .red
         case .building: return .orange
         case .nearly:   return .yellow
-        case .rested:   return session.isRestedHighlightActive ? .green : .white
+        case .rested:   return recovery.isHighlightActive ? .green : .white
         }
     }
 

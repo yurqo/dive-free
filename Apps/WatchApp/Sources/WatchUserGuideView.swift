@@ -51,7 +51,7 @@ struct WatchUserGuideView: View {
                     )
                     item(
                         "Surface interval",
-                        "After a dive the big timer is your surface recovery, tinted by how long you've rested vs. your last dive: red under 1×, orange under 2×, yellow under 3×, white beyond.",
+                        "After a dive the big timer is your surface recovery, tinted by how far through your recommended rest you are: red, then orange, then yellow, turning green the moment you reach it. The green clears shortly after, leaving the timer white.",
                         systemImage: "timer"
                     )
                     item(

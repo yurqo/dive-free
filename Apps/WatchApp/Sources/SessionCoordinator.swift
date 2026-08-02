@@ -109,7 +109,11 @@ final class SessionCoordinator {
     /// The recovery multiplier applied this session (config's `recoveryMultiplier`,
     /// default 3.0). Captured at `start()` so the recommended interval matches the
     /// rules in force when the session began.
-    @ObservationIgnored private var recoveryMultiplier = 3.0
+    ///
+    /// Observed (not `@ObservationIgnored`) like `recoveryEnabled` above: it now feeds
+    /// `isRestedHighlightActive`, so a mid-session config resync must invalidate the
+    /// views that read it rather than leave the green tint on a stale multiplier.
+    private(set) var recoveryMultiplier = 3.0
 
     /// Recommended surface interval (s) for the current recovery, or `nil` when
     /// recovery is disabled or there's no completed dive to scale from (the
@@ -130,22 +134,33 @@ final class SessionCoordinator {
     ///
     /// Note `.rested` stays put once reached — for the green tint + ✓, which expire,
     /// ask `isRestedHighlightActive`.
-    var recoveryTier: SurfaceRecovery.RecoveryTier? {
-        guard let interval = surfaceInterval, let recommended = recommendedRecovery else { return nil }
-        return SurfaceRecovery.tier(surfaceInterval: interval, recommended: recommended)
-    }
+    var recoveryTier: SurfaceRecovery.RecoveryTier? { recoverySnapshot.tier }
 
     /// Whether the "you're rested" highlight (green hero time + ✓) should be showing:
     /// the recommended interval has been reached and the diver is still inside the
     /// short window that follows it (`recommended / multiplier` — i.e. the last dive's
     /// own duration). Afterwards the hero time returns to plain white: the cue means
     /// "rested **now**", so it clears rather than sitting green until the next dive.
-    var isRestedHighlightActive: Bool {
-        guard let interval = surfaceInterval, let recommended = recommendedRecovery else { return false }
-        return SurfaceRecovery.isRestedHighlightActive(
-            surfaceInterval: interval,
-            recommended: recommended,
-            multiplier: recoveryMultiplier
+    var isRestedHighlightActive: Bool { recoverySnapshot.isHighlightActive }
+
+    /// Tier + highlight derived from a SINGLE `surfaceInterval` sample.
+    ///
+    /// `surfaceInterval` reads the clock on every access, so asking for the tier and the
+    /// highlight separately samples it twice — and on the tick that crosses a boundary
+    /// the two can disagree, painting one frame of green hero time with no ✓ (or the
+    /// mirror case at the entry boundary). A view that renders both should read this
+    /// once per tick instead.
+    var recoverySnapshot: (tier: SurfaceRecovery.RecoveryTier?, isHighlightActive: Bool) {
+        guard let interval = surfaceInterval, let recommended = recommendedRecovery else {
+            return (nil, false)
+        }
+        return (
+            SurfaceRecovery.tier(surfaceInterval: interval, recommended: recommended),
+            SurfaceRecovery.isRestedHighlightActive(
+                surfaceInterval: interval,
+                recommended: recommended,
+                multiplier: recoveryMultiplier
+            )
         )
     }
 
