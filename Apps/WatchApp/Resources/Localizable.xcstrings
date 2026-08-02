@@ -1876,6 +1876,53 @@
         }
       }
     },
+    "Ensure Water Lock": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Water Lock sicherstellen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Asegurar el Bloqueo por agua"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Garantir le Verrouillage à l’eau"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Garantisci il Blocco per l’acqua"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "防水ロックを確実に"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Garantir o Bloqueio por água"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Забезпечити блокування водою"
+          }
+        }
+      }
+    },
     "Fahrenheit": {
       "localizations": {
         "es": {
@@ -3207,6 +3254,100 @@
           "stringUnit": {
             "state": "translated",
             "value": "Desligado"
+          }
+        }
+      }
+    },
+    "On session start": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beim Sitzungsstart"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Al iniciar la sesión"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Au démarrage de la session"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All’avvio della sessione"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "セッション開始時"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ao iniciar a sessão"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "На початку сесії"
+          }
+        }
+      }
+    },
+    "On submersion": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beim Abtauchen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Al sumergirse"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "À l’immersion"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All’immersione"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "潜水時"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ao submergir"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Під час занурення"
           }
         }
       }
@@ -5415,6 +5556,144 @@
           "stringUnit": {
             "state": "translated",
             "value": "Notas de voz"
+          }
+        }
+      }
+    },
+    "Water Lock": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wassersperre"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bloqueo por agua"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verrouillage à l’eau"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Blocco per l’acqua"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "防水ロック"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bloqueio por água"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Блокування водою"
+          }
+        }
+      }
+    },
+    "Water Lock stops a wet screen registering taps. It doesn't always turn on by itself when a session starts, so these turn it on for you. Turn the Digital Crown to exit and eject water.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Wassersperre verhindert, dass ein nasses Display Berührungen registriert. Sie schaltet sich beim Start einer Sitzung nicht immer von selbst ein, daher aktivieren diese Optionen sie für dich. Drehe die Digital Crown, um sie zu beenden und Wasser auszustoßen."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El bloqueo por agua evita que una pantalla mojada registre toques. No siempre se activa por sí solo al iniciar una sesión, así que estas opciones lo activan por ti. Gira la corona digital para salir y expulsar el agua."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le verrouillage à l’eau empêche un écran mouillé d’enregistrer des touchers. Il ne s’active pas toujours tout seul au démarrage d’une session ; ces options l’activent donc pour vous. Tournez la Digital Crown pour le quitter et éjecter l’eau."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il blocco per l’acqua impedisce che uno schermo bagnato registri i tocchi. Non si attiva sempre da solo all’avvio di una sessione, quindi queste opzioni lo attivano per te. Ruota la Digital Crown per uscire ed espellere l’acqua."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "防水ロックは、濡れた画面がタップを認識しないようにします。セッション開始時に自動でオンにならないことがあるため、これらの設定で自動的にオンにします。Digital Crownを回すと解除され、水が排出されます。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O bloqueio por água impede que uma tela molhada registre toques. Nem sempre é ativado sozinho ao iniciar uma sessão, então estas opções o ativam para você. Gire a Digital Crown para sair e ejetar a água."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Блокування водою не дає мокрому екрану реагувати на дотики. Воно не завжди вмикається саме на початку сесії, тож ці параметри вмикають його за вас. Прокрутіть коронку Digital Crown, щоб вийти й виштовхнути воду."
+          }
+        }
+      }
+    },
+    "Water Lock turns on for you when a session starts and each time you dive, so a wet screen won't register taps. Turn the Digital Crown to exit it and eject water; you can turn either off in Settings.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Wassersperre wird beim Start einer Sitzung und bei jedem Tauchgang für dich aktiviert, damit ein nasses Display keine Berührungen registriert. Drehe die Digital Crown, um sie zu beenden und Wasser auszustoßen; beides kannst du in den Einstellungen deaktivieren."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El bloqueo por agua se activa por ti al iniciar una sesión y cada vez que buceas, para que una pantalla mojada no registre toques. Gira la corona digital para salir y expulsar el agua; puedes desactivar cualquiera de las dos opciones en Ajustes."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le verrouillage à l’eau s’active pour vous au démarrage d’une session et à chaque plongée, afin qu’un écran mouillé n’enregistre pas de touchers. Tournez la Digital Crown pour le quitter et éjecter l’eau ; vous pouvez désactiver l’une ou l’autre option dans les Réglages."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il blocco per l’acqua si attiva per te all’avvio di una sessione e a ogni immersione, così uno schermo bagnato non registra i tocchi. Ruota la Digital Crown per uscire ed espellere l’acqua; puoi disattivare entrambe le opzioni in Impostazioni."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "防水ロックは、セッション開始時とダイブのたびに自動でオンになり、濡れた画面がタップを認識しないようにします。Digital Crownを回すと解除され、水が排出されます。どちらも設定でオフにできます。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O bloqueio por água é ativado para você ao iniciar uma sessão e a cada mergulho, para que uma tela molhada não registre toques. Gire a Digital Crown para sair e ejetar a água; você pode desativar qualquer uma das opções nos Ajustes."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Блокування водою вмикається за вас на початку сесії та щоразу, коли ви занурюєтеся, щоб мокрий екран не реагував на дотики. Прокрутіть коронку Digital Crown, щоб вийти й виштовхнути воду; будь-який із цих параметрів можна вимкнути в Налаштуваннях."
           }
         }
       }
