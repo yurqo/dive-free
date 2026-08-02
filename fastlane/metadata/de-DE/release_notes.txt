@@ -1,4 +1,4 @@
-Neu in 1.3.3:
+Neu in 1.3.7:
 • Session zuschneiden — schneide einen vergessenen Oberflächen-Rest (oder einen zu frühen Start) direkt auf dem iPhone weg: Start und Ende auf der Karte ziehen, genau sehen, was entfernt wird — deine Tauchgänge bleiben erhalten.
 • Tauchgänge exportieren — teile jede Session als UDDF (Logbücher wie Subsurface), FIT (Garmin/Strava), GPX, CSV oder TCX. Deine Daten, überallhin mitnehmbar.
 • Sauberere Oberflächen-Tracks — eine neue Glättung zeichnet GPS-Wege und Distanzen näher an dem, was du tatsächlich geschwommen bist.

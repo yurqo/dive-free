@@ -1,4 +1,4 @@
-Novità della 1.3.3:
+Novità della 1.3.7:
 • Ritaglia una sessione — elimina una coda in superficie dimenticata (o un avvio anticipato) direttamente dall'iPhone: trascina inizio e fine sulla mappa, vedi esattamente cosa verrà rimosso e le tue immersioni restano intatte.
 • Esporta le immersioni — condividi qualsiasi sessione in UDDF (log come Subsurface), FIT (Garmin/Strava), GPX, CSV o TCX. I tuoi dati, da portare ovunque.
 • Tracce di superficie più pulite — un nuovo motore di smussatura disegna i percorsi GPS e le distanze più vicini a quanto hai realmente nuotato.

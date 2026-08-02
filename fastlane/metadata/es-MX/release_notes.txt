@@ -1,4 +1,4 @@
-Novedades de la 1.3.3:
+Novedades de la 1.3.7:
 • Recorta una sesión: elimina una cola de superficie olvidada (o un inicio anticipado) desde tu iPhone: arrastra el inicio y el final en el mapa, mira exactamente qué se eliminará y tus inmersiones quedan intactas.
 • Exporta tus inmersiones: comparte cualquier sesión como UDDF (bitácoras como Subsurface), FIT (Garmin/Strava), GPX, CSV o TCX. Tus datos, para llevarlos a donde quieras.
 • Trazas de superficie más limpias: un nuevo motor de suavizado dibuja las rutas GPS y las distancias más cerca de lo que realmente nadaste.
