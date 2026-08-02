@@ -52,6 +52,17 @@ struct SettingsView: View {
             } footer: {
                 Text("Tune when a descent counts as a dive. Syncs to your watch and applies to your next session.")
             }
+            // Recovery is its own row rather than a section inside Dive detection: it's
+            // the setting a diver revisits between sessions. Same stored blob, same sync.
+            Section {
+                NavigationLink {
+                    RecoverySettingsView()
+                } label: {
+                    Label("Recovery", systemImage: "lungs")
+                }
+            } footer: {
+                Text("Set how long to rest between dives, and whether the watch hints when you're rested. Syncs to your watch and applies to your next session.")
+            }
             iCloudSection
             backupSection
             Section {

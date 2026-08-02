@@ -131,6 +131,25 @@ struct DiveDetectionSettings: Equatable, RawRepresentable {
     /// Number of currently-enabled tiers (at least one must stay on).
     var enabledCount: Int { tiers.filter(\.isEnabled).count }
 
+    /// Whether the **detection** half (tiers + dwell) already matches `.default`.
+    /// The recovery fields are edited on their own screen, so they don't gate the
+    /// Dive detection screen's reset button.
+    var matchesDefaultDetection: Bool {
+        tiers == Self.default.tiers && dwellSeconds == Self.default.dwellSeconds
+    }
+
+    /// A copy with the detection half reset to `.default`, **keeping** the diver's
+    /// recovery choices — "Reset to defaults" on the Dive detection screen must not
+    /// silently undo a setting that now lives on the Recovery screen.
+    func resettingDetection() -> DiveDetectionSettings {
+        DiveDetectionSettings(
+            tiers: Self.default.tiers,
+            dwellSeconds: Self.default.dwellSeconds,
+            recoveryEnabled: recoveryEnabled,
+            recoveryMultiplier: recoveryMultiplier
+        )
+    }
+
     /// The synced detection config: enabled tiers only (falling back to the default
     /// tiers if somehow none survive), with the dwell — then `sanitized()` so the
     /// watch never receives out-of-range values.
@@ -150,6 +169,9 @@ struct DiveDetectionSettings: Equatable, RawRepresentable {
 /// Lets the diver tune the dive-detection tiers (depth + minimum time, OR-ed) and
 /// the end-of-dive dwell on the iPhone. Persisted as one `@AppStorage` blob and
 /// synced to the watch on every change; applies to the watch's next session.
+///
+/// The blob's recovery fields are edited on their own Settings screen
+/// (`RecoverySettingsView`) — same storage, same sync, separate row.
 struct DiveDetectionSettingsView: View {
     @Environment(\.syncManager) private var sync
 
@@ -176,24 +198,8 @@ struct DiveDetectionSettingsView: View {
             }
 
             Section {
-                Toggle("Recovery hint", isOn: $settings.recoveryEnabled)
-                Picker("Recommended interval", selection: $settings.recoveryMultiplier) {
-                    // Tags must match `DiveDetectionSettings.multiplierOptions`, which
-                    // the decoded value is snapped to — so the selection is never blank.
-                    ForEach(DiveDetectionSettings.multiplierOptions, id: \.self) { multiplier in
-                        Text(multiplier.formatted(.number.precision(.fractionLength(0...1))) + "×").tag(multiplier)
-                    }
-                }
-                .disabled(!settings.recoveryEnabled)
-            } header: {
-                Text("Surface recovery")
-            } footer: {
-                Text("Between dives, the watch's surface timer turns green — with a buzz — once you've rested the recommended interval: this multiple of your last dive's time, and at least 1 minute. This is a common rule of thumb, not medical or safety advice — always dive with a buddy.")
-            }
-
-            Section {
-                Button("Reset to defaults") { settings = .default }
-                    .disabled(settings == .default)
+                Button("Reset to defaults") { settings = settings.resettingDetection() }
+                    .disabled(settings.matchesDefaultDetection)
             } footer: {
                 Text("A dive counts when it meets ANY enabled rule — the deeper you go, the sooner it registers. Keep at least one rule on.")
             }

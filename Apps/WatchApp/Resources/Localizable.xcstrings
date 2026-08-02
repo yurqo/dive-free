@@ -173,48 +173,49 @@
         }
       }
     },
-    "After a dive the big timer is your surface recovery, tinted by how long you've rested vs. your last dive: red under 1×, orange under 2×, yellow under 3×, white beyond.": {
+    "After a dive the big timer is your surface recovery, tinted by how far through your recommended rest you are: red, then orange, then yellow, turning green the moment you reach it. The green clears shortly after, leaving the timer white.": {
+      "extractionState": "manual",
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nach einem Tauchgang ist der große Timer deine Oberflächen-Erholung, eingefärbt danach, wie weit du in deiner empfohlenen Pause bist: rot, dann orange, dann gelb, und grün, sobald du sie erreichst. Das Grün verschwindet kurz danach und der Timer wird weiß."
+          }
+        },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tras una inmersión, el cronómetro grande es tu recuperación en superficie, teñido según cuánto has descansado frente a tu última inmersión: rojo por debajo de 1×, naranja por debajo de 2×, amarillo por debajo de 3× y blanco más allá."
+            "value": "Tras una inmersión, el temporizador grande es tu recuperación en superficie, teñido según lo avanzado de tu descanso recomendado: rojo, luego naranja, luego amarillo, y verde en cuanto lo alcanzas. El verde desaparece poco después y el temporizador queda blanco."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Après une plongée, le grand chrono indique votre récupération en surface, teinté selon la durée de repos par rapport à votre dernière plongée : rouge sous 1×, orange sous 2×, jaune sous 3×, blanc au-delà."
+            "value": "Après une plongée, le grand minuteur affiche votre récupération en surface, teinté selon votre progression dans le repos recommandé : rouge, puis orange, puis jaune, et vert dès que vous l'atteignez. Le vert s'efface peu après et le minuteur redevient blanc."
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Dopo un’immersione il timer grande è il tuo recupero in superficie, colorato in base a quanto hai riposato rispetto all’ultima immersione: rosso sotto 1×, arancione sotto 2×, giallo sotto 3×, bianco oltre."
+            "value": "Dopo un'immersione il timer grande è il tuo recupero in superficie, colorato in base a quanto sei avanti nel riposo consigliato: rosso, poi arancione, poi giallo, e verde nel momento in cui lo raggiungi. Il verde svanisce poco dopo e il timer torna bianco."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "ダイブ後、大きなタイマーは水面での回復を示し、前回のダイブに対する休息の長さで色が変わります。1×未満は赤、2×未満はオレンジ、3×未満は黄、それ以上は白です。"
-          }
-        },
-        "uk": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Після занурення великий таймер показує відновлення на поверхні, забарвлений залежно від того, скільки ви відпочивали порівняно з попереднім зануренням: червоний до 1×, помаранчевий до 2×, жовтий до 3×, білий далі."
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nach einem Tauchgang zeigt der große Timer deine Erholung an der Oberfläche, gefärbt danach, wie lange du dich im Vergleich zum letzten Tauchgang erholt hast: rot unter 1×, orange unter 2×, gelb unter 3×, weiß darüber hinaus."
+            "value": "ダイブ後、大きなタイマーは水面での回復時間です。推奨休憩のどこまで進んだかで色が変わり、赤、オレンジ、黄となり、到達した瞬間に緑になります。緑はまもなく消え、タイマーは白に戻ります。"
           }
         },
         "pt": {
           "stringUnit": {
             "state": "translated",
-            "value": "Depois de um mergulho, o cronômetro grande mostra sua recuperação na superfície, colorido conforme quanto você descansou em relação ao último mergulho: vermelho abaixo de 1×, laranja abaixo de 2×, amarelo abaixo de 3×, branco além disso."
+            "value": "Após um mergulho, o cronômetro grande é a sua recuperação na superfície, tingido conforme o quanto você avançou no descanso recomendado: vermelho, depois laranja, depois amarelo, ficando verde assim que você o atinge. O verde some pouco depois e o cronômetro fica branco."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Після занурення великий таймер показує відновлення на поверхні й забарвлюється залежно від того, наскільки ви просунулися у рекомендованому відпочинку: червоний, потім помаранчевий, потім жовтий, і зелений, щойно ви його досягнете. Зелений невдовзі зникає, і таймер стає білим."
           }
         }
       }

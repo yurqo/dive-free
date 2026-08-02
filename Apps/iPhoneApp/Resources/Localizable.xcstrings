@@ -958,48 +958,49 @@
         }
       }
     },
-    "**Recovery colour** — after a dive the timer is tinted by how long you've rested versus your last dive: red under 1×, orange under 2×, yellow under 3×, white once well rested. A gentle nudge to pace yourself, not medical advice.": {
+    "**Recovery colour** — after a dive the timer is tinted by how far through your recommended rest you are: red, then orange, then yellow, turning green the moment you reach it. The green clears shortly after, leaving the timer white. A gentle nudge to pace yourself, not medical advice.": {
+      "extractionState": "manual",
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "**Erholungsfarbe** — nach einem Tauchgang färbt sich der Timer je nachdem, wie lange du dich im Vergleich zum letzten Tauchgang erholt hast: rot unter 1×, orange unter 2×, gelb unter 3×, weiß bei guter Erholung. Ein sanfter Hinweis zum Pacing, kein medizinischer Rat."
+            "value": "**Erholungsfarbe** — nach einem Tauchgang zeigt die Farbe des Timers, wie weit du in deiner empfohlenen Pause bist: rot, dann orange, dann gelb, und grün, sobald du sie erreichst. Das Grün verschwindet kurz danach und der Timer wird weiß. Ein sanfter Hinweis zum Pacing, kein medizinischer Rat."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "**Color de recuperación**: tras una inmersión, el cronómetro se tiñe según cuánto has descansado frente a tu última inmersión: rojo por debajo de 1×, naranja por debajo de 2×, amarillo por debajo de 3× y blanco cuando ya te has recuperado. Un empujoncito para dosificarte, no un consejo médico."
+            "value": "**Color de recuperación**: tras una inmersión, el temporizador se tiñe según lo avanzado de tu descanso recomendado: rojo, luego naranja, luego amarillo, y verde en cuanto lo alcanzas. El verde desaparece poco después y el temporizador queda blanco. Un recordatorio suave para dosificarte, no un consejo médico."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "**Couleur de récupération** — après une plongée, le chrono se teinte selon la durée de repos par rapport à votre dernière plongée : rouge sous 1×, orange sous 2×, jaune sous 3×, blanc une fois bien reposé. Un petit rappel pour gérer votre rythme, pas un avis médical."
+            "value": "**Couleur de récupération** — après une plongée, le minuteur se teinte selon votre progression dans le repos recommandé : rouge, puis orange, puis jaune, et vert dès que vous l'atteignez. Le vert s'efface peu après et le minuteur redevient blanc. Un rappel discret pour gérer votre rythme, pas un avis médical."
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "**Colore di recupero**: dopo un’immersione il timer si colora in base a quanto hai riposato rispetto all’ultima immersione: rosso sotto 1×, arancione sotto 2×, giallo sotto 3×, bianco quando sei ben riposato. Un piccolo promemoria per dosare il ritmo, non un consiglio medico."
+            "value": "**Colore del recupero** — dopo un'immersione il timer si colora in base a quanto sei avanti nel riposo consigliato: rosso, poi arancione, poi giallo, e verde nel momento in cui lo raggiungi. Il verde svanisce poco dopo e il timer torna bianco. Un promemoria gentile per dosarti, non un consiglio medico."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "**回復の色** — ダイブ後、前回のダイブに対する休息の長さに応じてタイマーの色が変わります。1×未満は赤、2×未満はオレンジ、3×未満は黄、十分に休むと白。ペース配分の目安であり、医療的な助言ではありません。"
+            "value": "**リカバリーの色** — ダイブ後、推奨休憩のどこまで進んだかでタイマーが色づきます。赤、オレンジ、黄と変わり、到達した瞬間に緑になります。緑はまもなく消え、タイマーは白に戻ります。ペース配分のためのやさしい目安であり、医学的な助言ではありません。"
           }
         },
         "pt": {
           "stringUnit": {
             "state": "translated",
-            "value": "**Cor de recuperação** — depois de um mergulho, o cronômetro muda de cor conforme quanto você descansou em relação ao último mergulho: vermelho abaixo de 1×, laranja abaixo de 2×, amarelo abaixo de 3×, branco quando bem recuperado. Um lembrete gentil para dosar o ritmo, não um conselho médico."
+            "value": "**Cor de recuperação** — após um mergulho, o cronômetro é tingido conforme o quanto você avançou no descanso recomendado: vermelho, depois laranja, depois amarelo, ficando verde assim que você o atinge. O verde some pouco depois e o cronômetro fica branco. Um lembrete gentil para dosar o ritmo, não uma orientação médica."
           }
         },
         "uk": {
           "stringUnit": {
             "state": "translated",
-            "value": "**Колір відновлення** — після занурення таймер забарвлюється залежно від того, скільки ви відпочивали порівняно з попереднім зануренням: червоний до 1×, помаранчевий до 2×, жовтий до 3×, білий після повного відпочинку. Це м’яке нагадування дозувати навантаження, а не медична порада."
+            "value": "**Колір відновлення** — після занурення таймер забарвлюється залежно від того, наскільки ви просунулися у рекомендованому відпочинку: червоний, потім помаранчевий, потім жовтий, і зелений, щойно ви його досягнете. Зелений зникає невдовзі, і таймер стає білим. М'яке нагадування розподіляти сили, а не медична порада."
           }
         }
       }
@@ -3181,54 +3182,49 @@
         }
       }
     },
-    "As you rest, the timer warms from red through orange and yellow to white, then flips to green once you pass the recommended interval — an at-a-glance sense of how recovered you are.": {
+    "As you rest, the timer warms from red through orange to yellow — each step a third of the way to your recommended interval — then turns green the moment you reach it. An at-a-glance sense of how recovered you are.": {
+      "extractionState": "manual",
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "As you rest, the timer warms from red through orange and yellow to white, then flips to green once you pass the recommended interval — an at-a-glance sense of how recovered you are."
-          }
-        },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Während du dich erholst, wandert der Timer von Rot über Orange und Gelb zu Weiß und springt auf Grün, sobald du die empfohlene Pause überschreitest — ein Gefühl auf einen Blick, wie erholt du bist."
+            "value": "Während du dich erholst, wandert der Timer von Rot über Orange zu Gelb — jede Stufe ein Drittel des Wegs zu deinem empfohlenen Intervall — und wird grün, sobald du es erreichst. Ein Gefühl auf einen Blick, wie erholt du bist."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mientras descansas, el cronómetro pasa del rojo al naranja, al amarillo y al blanco, y cambia a verde en cuanto superas el intervalo recomendado: una idea de un vistazo de lo recuperado que estás."
+            "value": "Mientras descansas, el temporizador pasa de rojo a naranja y a amarillo (cada paso es un tercio del camino hacia tu intervalo recomendado) y se vuelve verde en cuanto lo alcanzas. Una idea de un vistazo de lo recuperado que estás."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pendant que vous récupérez, le minuteur passe du rouge à l’orange, au jaune puis au blanc, et vire au vert dès que vous dépassez l’intervalle recommandé — un aperçu instantané de votre récupération."
+            "value": "Pendant que vous récupérez, le minuteur passe du rouge à l'orange puis au jaune — chaque étape correspond à un tiers de votre intervalle recommandé — puis devient vert dès que vous l'atteignez. Un aperçu immédiat de votre récupération."
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mentre riposi, il timer passa dal rosso all’arancione, al giallo e al bianco, poi diventa verde una volta superato l’intervallo consigliato — un’idea a colpo d’occhio di quanto sei recuperato."
+            "value": "Mentre recuperi, il timer passa dal rosso all'arancione al giallo — ogni passo è un terzo del percorso verso l'intervallo consigliato — e diventa verde nel momento in cui lo raggiungi. Un'idea immediata di quanto sei recuperato."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "休んでいる間、タイマーは赤からオレンジ、黄、白へと変わり、推奨インターバルを過ぎると緑になります。回復度合いがひと目で分かります。"
+            "value": "休息するにつれてタイマーは赤からオレンジ、黄へと変わり（各段階が推奨インターバルの3分の1）、達した瞬間に緑になります。回復具合がひと目で分かります。"
           }
         },
         "pt": {
           "stringUnit": {
             "state": "translated",
-            "value": "Enquanto você descansa, o cronômetro esquenta do vermelho, passando por laranja e amarelo, até o branco, e muda para verde assim que você ultrapassa o intervalo recomendado — uma noção rápida de quão recuperado você está."
+            "value": "Enquanto você descansa, o cronômetro passa de vermelho para laranja e amarelo — cada etapa é um terço do caminho até o intervalo recomendado — e fica verde assim que você o atinge. Uma noção imediata de quão recuperado você está."
           }
         },
         "uk": {
           "stringUnit": {
             "state": "translated",
-            "value": "Поки ви відпочиваєте, таймер теплішає від червоного через помаранчевий і жовтий до білого, а щойно ви проходите рекомендований інтервал — стає зеленим — щоб з першого погляду оцінити, наскільки ви відновилися."
+            "value": "Поки ви відпочиваєте, таймер змінюється з червоного через помаранчевий до жовтого — кожен крок це третина шляху до рекомендованого інтервалу — і стає зеленим, щойно ви його досягнете. Миттєве уявлення про те, наскільки ви відновилися."
           }
         }
       }
@@ -3938,54 +3934,49 @@
         }
       }
     },
-    "Between dives, the watch's surface timer turns green — with a buzz — once you've rested the recommended interval: this multiple of your last dive's time, and at least 1 minute. This is a common rule of thumb, not medical or safety advice — always dive with a buddy.": {
+    "Between dives, the watch's surface timer turns green — with a buzz — once you've rested the recommended interval: this multiple of your last dive's time, and at least 1 minute. The green clears again shortly after, so it always means you're rested right now. This is a common rule of thumb, not medical or safety advice — always dive with a buddy.": {
+      "extractionState": "manual",
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Between dives, the watch's surface timer turns green — with a buzz — once you've rested the recommended interval: this multiple of your last dive's time, and at least 1 minute. This is a common rule of thumb, not medical or safety advice — always dive with a buddy."
-          }
-        },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Zwischen den Tauchgängen wird der Oberflächen-Timer der Uhr grün — mit einem Summen —, sobald du die empfohlene Pause eingehalten hast: dieses Vielfache der Zeit deines letzten Tauchgangs, mindestens jedoch 1 Minute. Das ist eine gängige Faustregel, keine medizinische oder Sicherheitsberatung — tauche immer mit einem Partner."
+            "value": "Zwischen den Tauchgängen wird der Oberflächen-Timer der Watch grün — mit einem Vibrieren —, sobald du das empfohlene Intervall geruht hast: dieses Vielfache deines letzten Tauchgangs, mindestens jedoch 1 Minute. Das Grün verschwindet kurz danach wieder, es bedeutet also immer, dass du gerade jetzt erholt bist. Das ist eine gängige Faustregel, kein medizinischer oder Sicherheitshinweis — tauche immer mit einem Partner."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Entre inmersiones, el cronómetro de superficie del reloj se pone verde — con una vibración — cuando has descansado el intervalo recomendado: este múltiplo del tiempo de tu última inmersión y al menos 1 minuto. Es una regla general habitual, no un consejo médico ni de seguridad; bucea siempre con un compañero."
+            "value": "Entre inmersiones, el temporizador de superficie del reloj se vuelve verde —con una vibración— cuando has descansado el intervalo recomendado: este múltiplo del tiempo de tu última inmersión, y al menos 1 minuto. El verde desaparece poco después, así que siempre significa que estás recuperado ahora mismo. Es una regla general, no un consejo médico ni de seguridad: sumérgete siempre acompañado."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Entre les plongées, le minuteur de surface de la montre passe au vert — avec une vibration — une fois que vous avez respecté l’intervalle recommandé : ce multiple de la durée de votre dernière plongée, et au moins 1 minute. C’est une règle empirique courante, pas un avis médical ou de sécurité — plongez toujours avec un binôme."
+            "value": "Entre les plongées, le minuteur de surface de la montre devient vert — avec une vibration — une fois que vous avez récupéré l'intervalle recommandé : ce multiple de votre dernière plongée, et au moins 1 minute. Le vert s'efface peu après, il signifie donc toujours que vous êtes récupéré à l'instant. C'est une règle générale, pas un avis médical ou de sécurité — plongez toujours accompagné."
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tra un’immersione e l’altra, il timer di superficie dell’orologio diventa verde — con una vibrazione — una volta trascorso l’intervallo consigliato: questo multiplo della durata dell’ultima immersione, e almeno 1 minuto. È una comune regola pratica, non un consiglio medico o di sicurezza — immergiti sempre con un compagno."
+            "value": "Tra un'immersione e l'altra il timer di superficie dell'orologio diventa verde — con una vibrazione — quando hai riposato l'intervallo consigliato: questo multiplo dell'ultima immersione, e almeno 1 minuto. Il verde svanisce poco dopo, quindi significa sempre che sei recuperato adesso. È una regola generale, non un consiglio medico o di sicurezza: immergiti sempre con un compagno."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "ダイブの合間、推奨インターバル（前回のダイブ時間のこの倍数で、最低 1 分）だけ休むと、時計の水面タイマーが緑になり、振動でお知らせします。これは一般的な目安であり、医療や安全に関する助言ではありません。必ずバディと一緒に潜ってください。"
+            "value": "ダイブの合間、推奨インターバルだけ休むとウォッチの水面タイマーが緑になり、振動でお知らせします。推奨時間は直前のダイブ時間のこの倍数で、最低1分です。緑はまもなく消えるので、常に「今」回復したことを意味します。これは一般的な目安であり、医学的・安全上の助言ではありません。必ずバディと潜ってください。"
           }
         },
         "pt": {
           "stringUnit": {
             "state": "translated",
-            "value": "Entre mergulhos, o cronômetro de superfície do relógio fica verde — com uma vibração — depois de você descansar o intervalo recomendado: este múltiplo do tempo do seu último mergulho, e no mínimo 1 minuto. É uma regra prática comum, não um conselho médico ou de segurança — mergulhe sempre com um parceiro."
+            "value": "Entre mergulhos, o cronômetro de superfície do relógio fica verde — com uma vibração — assim que você descansa o intervalo recomendado: este múltiplo do tempo do seu último mergulho, e no mínimo 1 minuto. O verde some pouco depois, então sempre significa que você está recuperado agora. É uma regra geral, não uma orientação médica ou de segurança — mergulhe sempre acompanhado."
           }
         },
         "uk": {
           "stringUnit": {
             "state": "translated",
-            "value": "Між зануреннями таймер поверхні на годиннику стає зеленим — з вібрацією — щойно ви відпочили рекомендований інтервал: цей множник часу вашого останнього занурення, але щонайменше 1 хвилину. Це поширене емпіричне правило, а не медична порада чи порада з безпеки — завжди занурюйтесь із напарником."
+            "value": "Між зануреннями таймер на поверхні стає зеленим — із вібрацією — щойно ви відпочили рекомендований інтервал: цю кратність часу останнього занурення, але не менше 1 хвилини. Зелений невдовзі зникає, тож він завжди означає, що ви відновилися саме зараз. Це загальне правило, а не медична порада чи порада з безпеки — завжди пірнайте з напарником."
           }
         }
       }
@@ -11754,54 +11745,49 @@
         }
       }
     },
-    "In **Settings ▸ Dive detection** under **Surface recovery**, pick the multiplier (**2×**, **2.5×**, or **3×**) or turn the hint off entirely. The choice syncs to your watch and applies to your next session.": {
+    "In **Settings ▸ Recovery**, pick the multiplier (**2×**, **2.5×**, or **3×**) or turn the hint off entirely. The choice syncs to your watch and applies to your next session.": {
+      "extractionState": "manual",
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "In **Settings ▸ Dive detection** under **Surface recovery**, pick the multiplier (**2×**, **2.5×**, or **3×**) or turn the hint off entirely. The choice syncs to your watch and applies to your next session."
-          }
-        },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Wähle unter **Einstellungen ▸ Tauch­erkennung** bei **Erholung an der Oberfläche** das Vielfache (**2×**, **2,5×** oder **3×**) oder schalte den Hinweis ganz aus. Die Wahl wird mit deiner Uhr synchronisiert und gilt für deine nächste Sitzung."
+            "value": "Wähle unter **Einstellungen ▸ Erholung** den Faktor (**2×**, **2,5×** oder **3×**) oder schalte den Hinweis ganz aus. Die Auswahl wird mit deiner Watch synchronisiert und gilt ab der nächsten Sitzung."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "En **Ajustes ▸ Detección de inmersiones**, dentro de **Recuperación en superficie**, elige el multiplicador (**2×**, **2,5×** o **3×**) o desactiva el aviso por completo. La elección se sincroniza con tu reloj y se aplica a tu próxima sesión."
+            "value": "En **Ajustes ▸ Recuperación**, elige el multiplicador (**2×**, **2,5×** o **3×**) o desactiva el aviso por completo. La elección se sincroniza con tu reloj y se aplica a tu próxima sesión."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Dans **Réglages ▸ Détection des plongées**, sous **Récupération en surface**, choisissez le multiplicateur (**2×**, **2,5×** ou **3×**) ou désactivez complètement l’indice. Le choix se synchronise avec votre montre et s’applique à votre prochaine session."
+            "value": "Dans **Réglages ▸ Récupération**, choisissez le multiplicateur (**2×**, **2,5×** ou **3×**) ou désactivez complètement l'indication. Le choix est synchronisé avec votre montre et s'applique à votre prochaine session."
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "In **Impostazioni ▸ Rilevamento immersioni**, alla voce **Recupero in superficie**, scegli il moltiplicatore (**2×**, **2,5×** o **3×**) oppure disattiva del tutto il suggerimento. La scelta si sincronizza con l’orologio e si applica alla prossima sessione."
+            "value": "In **Impostazioni ▸ Recupero** scegli il moltiplicatore (**2×**, **2,5×** o **3×**) oppure disattiva del tutto il suggerimento. La scelta si sincronizza con l'orologio e vale dalla prossima sessione."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "**設定 ▸ ダイブ検出**の**水面での回復**で、倍率（**2×**、**2.5×**、**3×**）を選ぶか、目安を完全にオフにできます。選択は時計に同期され、次のセッションから適用されます。"
+            "value": "**設定 ▸ リカバリー**で倍率（**2倍**、**2.5倍**、**3倍**）を選ぶか、ヒントを完全にオフにできます。設定はウォッチと同期し、次のセッションから適用されます。"
           }
         },
         "pt": {
           "stringUnit": {
             "state": "translated",
-            "value": "Em **Ajustes ▸ Detecção de mergulhos**, em **Recuperação à superfície**, escolha o multiplicador (**2×**, **2,5×** ou **3×**) ou desligue o aviso por completo. A escolha sincroniza com o seu relógio e vale para a próxima sessão."
+            "value": "Em **Ajustes ▸ Recuperação**, escolha o multiplicador (**2×**, **2,5×** ou **3×**) ou desative a dica por completo. A escolha sincroniza com o seu relógio e vale para a próxima sessão."
           }
         },
         "uk": {
           "stringUnit": {
             "state": "translated",
-            "value": "У **Налаштування ▸ Виявлення занурень** у розділі **Відновлення на поверхні** виберіть множник (**2×**, **2,5×** або **3×**) чи повністю вимкніть підказку. Вибір синхронізується з годинником і застосується до наступної сесії."
+            "value": "У **Налаштування ▸ Відновлення** виберіть множник (**2×**, **2,5×** або **3×**) чи вимкніть підказку зовсім. Вибір синхронізується з годинником і діє з наступної сесії."
           }
         }
       }
@@ -17333,6 +17319,53 @@
         }
       }
     },
+    "Recovery": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erholung"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recuperación"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Récupération"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recupero"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "リカバリー"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recuperação"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Відновлення"
+          }
+        }
+      }
+    },
     "Recovery hint": {
       "localizations": {
         "en": {
@@ -18790,6 +18823,53 @@
           "stringUnit": {
             "state": "translated",
             "value": "Сесії та мініатюри"
+          }
+        }
+      }
+    },
+    "Set how long to rest between dives, and whether the watch hints when you're rested. Syncs to your watch and applies to your next session.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lege fest, wie lange du zwischen Tauchgängen ruhst und ob die Watch dich darauf hinweist, wenn du erholt bist. Wird mit deiner Watch synchronisiert und gilt ab der nächsten Sitzung."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Define cuánto descansar entre inmersiones y si el reloj te avisa cuando estás recuperado. Se sincroniza con tu reloj y se aplica a tu próxima sesión."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Définissez la durée de repos entre les plongées et si la montre vous signale que vous êtes récupéré. Synchronisé avec votre montre et appliqué à votre prochaine session."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Imposta quanto riposare tra un'immersione e l'altra e se l'orologio ti avvisa quando sei recuperato. Si sincronizza con l'orologio e vale dalla prossima sessione."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ダイブの合間にどれだけ休むか、回復したときにウォッチが知らせるかどうかを設定します。ウォッチと同期し、次のセッションから適用されます。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Defina quanto descansar entre mergulhos e se o relógio avisa quando você está recuperado. Sincroniza com o seu relógio e vale para a próxima sessão."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Визначте, скільки відпочивати між зануреннями і чи має годинник підказувати, коли ви відновилися. Синхронізується з годинником і діє з наступної сесії."
           }
         }
       }
@@ -20532,58 +20612,6 @@
         }
       }
     },
-    "Surface recovery": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Surface recovery"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Erholung an der Oberfläche"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Recuperación en superficie"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Récupération en surface"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Recupero in superficie"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "水面での回復"
-          }
-        },
-        "pt": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Recuperação à superfície"
-          }
-        },
-        "uk": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Відновлення на поверхні"
-          }
-        }
-      }
-    },
     "Surface recovery hint": {
       "localizations": {
         "en": {
@@ -21564,6 +21592,100 @@
           "stringUnit": {
             "state": "translated",
             "value": "Проміжок між зануреннями — це ваш **поверхневий інтервал** — час на відновлення."
+          }
+        }
+      }
+    },
+    "The green doesn't last": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Grün bleibt nicht"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El verde no dura"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le vert ne dure pas"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il verde non dura"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "緑は続きません"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O verde não dura"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Зелений не триває довго"
+          }
+        }
+      }
+    },
+    "The green — and the ✓ beside the **rec** time — hold for a share of your recommended rest (after a normal dive, about as long as the dive itself), then the timer goes back to plain white. That's deliberate: it tells you you're rested **now**, rather than staying green for the rest of your surface interval. The **rec** target stays on screen either way.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Grün — und das ✓ neben der **rec**-Zeit — halten einen Teil deiner empfohlenen Pause an (nach einem normalen Tauchgang etwa so lange wie der Tauchgang selbst), danach wird der Timer wieder schlicht weiß. Das ist Absicht: Es sagt dir, dass du **jetzt** erholt bist, statt für den Rest deiner Oberflächenpause grün zu bleiben. Das **rec**-Ziel bleibt so oder so sichtbar."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El verde —y el ✓ junto al tiempo **rec**— se mantienen una parte de tu descanso recomendado (tras una inmersión normal, más o menos lo que duró la inmersión) y luego el temporizador vuelve al blanco. Es intencionado: te dice que estás recuperado **ahora**, en vez de quedarse verde el resto del intervalo. El objetivo **rec** sigue en pantalla en cualquier caso."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le vert — et le ✓ à côté du temps **rec** — durent une partie de votre repos recommandé (après une plongée normale, à peu près la durée de la plongée), puis le minuteur redevient blanc. C'est voulu : cela vous dit que vous êtes récupéré **maintenant**, plutôt que de rester vert tout le reste de l'intervalle. L'objectif **rec** reste affiché dans tous les cas."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il verde — e il ✓ accanto al tempo **rec** — durano una parte del riposo consigliato (dopo un'immersione normale, più o meno quanto l'immersione stessa), poi il timer torna bianco. È voluto: ti dice che sei recuperato **adesso**, invece di restare verde per tutto l'intervallo. L'obiettivo **rec** resta comunque a schermo."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "緑と、**rec**時間の横の✓は、推奨休憩の一部の間だけ表示され（通常のダイブならダイブとほぼ同じ長さ）、その後タイマーは白に戻ります。これは意図的で、水面インターバルの残り全部で緑のままにするのではなく、「**今**」回復したことを伝えるためです。**rec**の目標はどちらの場合も画面に残ります。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O verde — e o ✓ ao lado do tempo **rec** — duram uma parte do seu descanso recomendado (após um mergulho normal, mais ou menos o tempo do próprio mergulho) e depois o cronômetro volta ao branco. É proposital: diz que você está recuperado **agora**, em vez de ficar verde pelo resto do intervalo. O alvo **rec** continua na tela de qualquer forma."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Зелений — і ✓ поруч із часом **rec** — тримаються частину рекомендованого відпочинку (після звичайного занурення приблизно стільки ж, скільки тривало занурення), а потім таймер знову стає білим. Це навмисно: він каже, що ви відновилися **зараз**, а не залишається зеленим до кінця інтервалу. Ціль **rec** лишається на екрані в будь-якому разі."
           }
         }
       }
