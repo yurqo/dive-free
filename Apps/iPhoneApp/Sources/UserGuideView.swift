@@ -235,7 +235,7 @@ private enum UserGuide {
             .text("Started one by mistake? On the summary that appears when a session ends, tap **Discard** and confirm — it throws the session away, so it's removed from the watch and never appears on your iPhone."),
             .subheading("What the numbers mean"),
             .bullet("**Big timer** — your current dive time underwater, or your surface recovery time between dives."),
-            .bullet("**Recovery colour** — after a dive the timer is tinted by how long you've rested versus your last dive: red under 1×, orange under 2×, yellow under 3×, white once well rested. A gentle nudge to pace yourself, not medical advice."),
+            .bullet("**Recovery colour** — after a dive the timer is tinted by how far through your recommended rest you are: red, then orange, then yellow, turning green the moment you reach it. The green clears shortly after, leaving the timer white. A gentle nudge to pace yourself, not medical advice."),
             .bullet("**Depth** shows underwater on Apple Watch Ultra, Series 10, and Series 11. Other watches skip depth but still log your GPS track, markers, and heart rate."),
             .bullet("**Heart rate** beats on the right on any watch; **water temperature** shows on the left on Ultra while you're under."),
             .bullet("**GPS** (top-left) tags where you dived — let it get a fix at the surface before you drop, since GPS can't reach underwater."),
@@ -338,9 +338,11 @@ private enum UserGuide {
         ],
         details: [
             .subheading("Setting the multiple"),
-            .text("In **Settings ▸ Dive detection** under **Surface recovery**, pick the multiplier (**2×**, **2.5×**, or **3×**) or turn the hint off entirely. The choice syncs to your watch and applies to your next session."),
+            .text("In **Settings ▸ Recovery**, pick the multiplier (**2×**, **2.5×**, or **3×**) or turn the hint off entirely. The choice syncs to your watch and applies to your next session."),
             .subheading("Reading the colours"),
-            .text("As you rest, the timer warms from red through orange and yellow to white, then flips to green once you pass the recommended interval — an at-a-glance sense of how recovered you are."),
+            .text("As you rest, the timer warms from red through orange to yellow — each step a third of the way to your recommended interval — then turns green the moment you reach it. An at-a-glance sense of how recovered you are."),
+            .subheading("The green doesn't last"),
+            .text("The green — and the ✓ beside the **rec** time — hold for about as long as your last dive, then the timer goes back to plain white. That's deliberate: it tells you you're rested **now**, rather than staying green for the rest of your surface interval. The **rec** target stays on screen either way."),
             .text("This is a **common rule of thumb, not medical or safety advice**. It doesn't mean you're safe to dive — **always dive with a trained buddy** and stay well within your limits."),
         ]
     )
