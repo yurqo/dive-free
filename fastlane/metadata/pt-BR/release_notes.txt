@@ -1,4 +1,4 @@
-Novidades da versão 1.4.0:
+Novidades da versão 1.4.1:
 • Personalize suas notas: edite títulos, descrições e ícones no iPhone ou iPad. Edite títulos e ícones no Watch e remova gravações ou exclua notas em ambos os dispositivos.
 • Converta notas de voz em texto editável com transcrição no dispositivo, quando compatível. Revise o resultado antes de salvar e mantenha a gravação até decidir removê-la. Os resumos opcionais exigem Apple Intelligence em dispositivos e idiomas compatíveis.
 • Os perfis agora preservam o início da descida antes que a detecção automática confirme um mergulho.

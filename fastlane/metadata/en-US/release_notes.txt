@@ -1,4 +1,4 @@
-New in 1.4.0:
+New in 1.4.1:
 • Make your dive notes your own: edit titles, descriptions and icons on iPhone or iPad. Edit titles and icons on Watch, and remove recordings or delete notes on either device.
 • Turn voice notes into editable text with on-device transcription where supported. Review the result before saving, and keep the recording unless you choose to remove it. Optional summaries are available with Apple Intelligence on supported devices and languages.
 • Dive profiles now retain the beginning of your descent before automatic detection confirms a dive.
