@@ -30,6 +30,7 @@ struct MarkerEditView: View {
     @State private var confirmRemove = false
     @State private var languages: [Locale] = []
     @State private var languageID = Bundle.main.preferredLocalizations.first ?? "en"
+    @AppStorage("noteTranscriptionLanguage") private var savedLanguageID = ""
     @State private var processing: Task<Void, Never>?
     @State private var busy = false
     @State private var error: String?
@@ -59,7 +60,7 @@ struct MarkerEditView: View {
                     .pickerStyle(.navigationLink)
                 }
                 Section("Note") {
-                    TextField("Title", text: $title)
+                    TextField("Title", text: $title).accessibilityIdentifier("note.title")
                     TextField("Description", text: $description, axis: .vertical).lineLimit(4...12)
                 }
                 audioSection
@@ -118,8 +119,12 @@ struct MarkerEditView: View {
                 }
             }
             .task {
-                languages = await transcriber.languages()
-                if let match = languages.first(where: { $0.language.languageCode == Locale(identifier: languageID).language.languageCode }) { languageID = match.identifier }
+                let supported = await transcriber.languages()
+                guard !Task.isCancelled else { return }
+                languages = supported
+                if let selected = NoteTranscriptionLocale.select(from: supported, savedIdentifier: savedLanguageID) {
+                    languageID = selected.identifier
+                }
             }
             .confirmationDialog("Delete this note and its recording?", isPresented: $confirmDelete, titleVisibility: .visible) {
                 Button("Delete Note", role: .destructive) { deleteNote() }
@@ -134,6 +139,9 @@ struct MarkerEditView: View {
     }
 
     private var kindBinding: Binding<String> { $kindID }
+    private var languageBinding: Binding<String> {
+        Binding(get: { languageID }, set: { languageID = $0; savedLanguageID = $0 })
+    }
 
     private func load() {
         photoIDs = Set((marker.photos ?? []).map(\.id)); originalPhotoIDs = photoIDs
@@ -182,7 +190,7 @@ struct MarkerEditView: View {
                 VoiceNotePlayButton(fileName: name)
                 if languages.isEmpty { Text("On-device transcription is unavailable. You can still edit the description.").font(.caption) }
                 else {
-                    Picker("Language", selection: $languageID) {
+                    Picker("Language", selection: languageBinding) {
                         if !languages.contains(where: { $0.identifier == languageID }) {
                             Text(Locale.current.localizedString(forIdentifier: languageID) ?? languageID).tag(languageID)
                         }

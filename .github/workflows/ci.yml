@@ -14,6 +14,53 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  note-editor:
+    name: Note editor UI regression
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Detect non-docs changes
+        id: changes
+        run: |
+          base='${{ github.event.pull_request.base.sha }}'
+          head='${{ github.event.pull_request.head.sha }}'
+          files=$(git diff --name-only "$base...$head" 2>/dev/null) || files=""
+          if [ -z "$files" ] || printf '%s\n' "$files" | grep -qvE '^(docs/|.*\.md$|\.github/workflows/testflight\.yml$)'; then
+            echo 'code=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'code=false' >> "$GITHUB_OUTPUT"
+          fi
+      - uses: maxim-lobanov/setup-xcode@v1
+        if: steps.changes.outputs.code == 'true'
+        with:
+          xcode-version: "~> 26.4"
+      - uses: jdx/mise-action@v2
+        if: steps.changes.outputs.code == 'true'
+      - name: Generate workspace
+        if: steps.changes.outputs.code == 'true'
+        run: tuist generate --no-open
+      - name: Test first note opening on iPhone
+        if: steps.changes.outputs.code == 'true'
+        run: |
+          set -o pipefail
+          xcodebuild test -workspace DiveFree.xcworkspace -scheme NoteEditorUITests \
+            -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' \
+            -resultBundlePath NoteEditor-iPhone.xcresult CODE_SIGNING_ALLOWED=NO | xcbeautify
+      - name: Test first note opening on iPad
+        if: steps.changes.outputs.code == 'true'
+        run: |
+          set -o pipefail
+          xcodebuild test -workspace DiveFree.xcworkspace -scheme NoteEditorUITests \
+            -destination 'platform=iOS Simulator,name=iPad Pro 13-inch (M5)' \
+            -resultBundlePath NoteEditor-iPad.xcresult CODE_SIGNING_ALLOWED=NO | xcbeautify
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.changes.outputs.code == 'true'
+        with:
+          name: note-editor-results
+          path: '*.xcresult'
+
   build-test:
     name: Build & Test
     runs-on: macos-26

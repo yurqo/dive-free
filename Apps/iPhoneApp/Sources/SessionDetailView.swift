@@ -15,11 +15,12 @@ struct SessionDetailView: View {
     @State private var exportStatus: ExportStatus = .idle
     @State private var showFullMap = false
 
-    /// Drives the single edit/crop/share sheet. Multiple `.sheet(item:)` modifiers
+    /// Drives the single note/edit/crop/share sheet. Multiple `.sheet(item:)` modifiers
     /// on one view can mis-fire in SwiftUI (only one presents reliably), so they all
     /// share one `.sheet(item:)`.
     private enum ActiveSheet: Identifiable {
         case edit, crop
+        case note(MarkerRecord)
         /// An exported file to hand off to the system share sheet.
         case share(URL)
 
@@ -27,6 +28,7 @@ struct SessionDetailView: View {
             switch self {
             case .edit: "edit"
             case .crop: "crop"
+            case .note(let marker): "note:\(marker.id)"
             case .share(let url): "share:\(url.path)"
             }
         }
@@ -81,7 +83,9 @@ struct SessionDetailView: View {
 
             segmentsSection(domain)
 
-            MarkerListSection(markers: domain.markers, session: session)
+            MarkerListSection(markers: domain.markers, session: session) { marker in
+                activeSheet = .note(marker)
+            }
 
             // Full session map.
             locationSection(domain)
@@ -107,6 +111,7 @@ struct SessionDetailView: View {
             switch sheet {
             case .edit: SessionEditView(session: session)
             case .crop: NavigationStack { SessionCropView(session: session) }
+            case .note(let marker): MarkerEditView(marker: marker, session: session)
             case .share(let url): ActivityView(activityItems: [url])
             }
         }
@@ -488,7 +493,9 @@ struct MarkerListSection: View {
     let markers: [EventMarker]
     /// When provided, rows are tappable to edit the matching record (#143).
     var session: SessionRecord? = nil
-    @State private var editing: MarkerRecord?
+    /// The session screen owns presentation so list-section updates cannot
+    /// dismiss the editor, and the review prompt sees that a modal is open.
+    var onEdit: ((MarkerRecord) -> Void)? = nil
 
     var body: some View {
         if !markers.isEmpty {
@@ -496,12 +503,10 @@ struct MarkerListSection: View {
                 ForEach(markers.sorted { $0.timestamp < $1.timestamp }) { marker in
                     let record = session.flatMap { session in (session.markers ?? []).first { $0.id == marker.id } }
                     MarkerRow(marker: marker)
+                        .accessibilityIdentifier("note.row.\(marker.id)")
                         .contentShape(Rectangle())
-                        .onTapGesture { if let record { editing = record } }
+                        .onTapGesture { if let record { onEdit?(record) } }
                 }
-            }
-            .sheet(item: $editing) { record in
-                if let session { MarkerEditView(marker: record, session: session) }
             }
         }
     }

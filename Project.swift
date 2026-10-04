@@ -236,12 +236,23 @@ let project = Project(
     ]),
     targets: [iphoneApp, watchApp, widgetExtension, screenshotTests,
         .target(
+            name: "NoteEditorUITests",
+            destinations: .iOS,
+            product: .uiTests,
+            bundleId: "\(bundlePrefix).noteeditor.tests",
+            deploymentTargets: .iOS(iOSVersion),
+            infoPlist: .default,
+            sources: ["Apps/iPhoneApp/UITests/**"],
+            dependencies: [.target(name: "DiveFree")]
+        ),
+        .target(
             name: "ReviewRequestTests",
             destinations: .iOS,
             product: .unitTests,
             bundleId: "\(bundlePrefix).review.tests",
             deploymentTargets: .iOS(iOSVersion),
-            sources: ["Apps/iPhoneApp/Tests/**", "Apps/iPhoneApp/Sources/ReviewMilestoneAttempt.swift"],
+            sources: ["Apps/iPhoneApp/Tests/**", "Apps/iPhoneApp/Sources/ReviewMilestoneAttempt.swift",
+                      "Apps/iPhoneApp/Sources/NoteTranscriptionLocale.swift"],
             dependencies: [.target(name: "Domain")]
         )]
         + module("Domain", resources: ["Packages/Domain/Resources/**"])

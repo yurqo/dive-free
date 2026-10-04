@@ -52,4 +52,21 @@ import Domain
         #expect(try await !task.value)
         #expect(!defaults.bool(forKey: ReviewMilestoneAttempt.key))
     }
+
+    @Test func openingNoteEditorDefersPendingReviewUntilAfterDismissal() async throws {
+        let suite = UUID().uuidString
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let gate = ReviewMilestoneAttempt(defaults: defaults)
+        var context = ready
+        let task = Task {
+            try await gate.request(after: .milliseconds(30), context: { context }, action: { Issue.record("Review interrupted the note editor") })
+        }
+        try await Task.sleep(for: .milliseconds(5))
+        context.presentingModal = true
+        #expect(try await !task.value)
+        #expect(!defaults.bool(forKey: ReviewMilestoneAttempt.key))
+        context.presentingModal = false
+        #expect(try await gate.request(after: .zero, context: { context }, action: {}))
+    }
 }
