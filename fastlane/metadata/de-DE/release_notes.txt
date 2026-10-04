@@ -1,4 +1,5 @@
-Neu in Version 1.4.1:
+Neu in Version 1.4.2:
+• Notizen schließen sich beim ersten Öffnen nicht mehr. Die Standardsprache für die Transkription berücksichtigt Sprache und Region. Die Bestätigung zum Entfernen einer Aufnahme erscheint nun am zugehörigen Button.
 • Gestalte deine Notizen: Bearbeite Titel, Beschreibungen und Symbole auf iPhone oder iPad. Auf der Watch kannst du Titel und Symbole bearbeiten. Auf beiden Geräten lassen sich Aufnahmen entfernen und Notizen löschen.
 • Wandle Sprachnotizen mit der Transkription auf dem Gerät in bearbeitbaren Text um, sofern unterstützt. Prüfe das Ergebnis vor dem Speichern; die Aufnahme bleibt erhalten, bis du sie entfernst. Optionale Zusammenfassungen erfordern Apple Intelligence auf unterstützten Geräten und in unterstützten Sprachen.
 • Tauchprofile enthalten jetzt den Beginn des Abstiegs, bevor die automatische Erkennung einen Tauchgang bestätigt.

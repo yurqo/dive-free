@@ -90,3 +90,21 @@ token is configured, and CloudKit Console requires sign-in. The console is open
 for the user to authenticate; confirm the note-journal type and new marker fields
 before relying on cross-device note-edit sync. Physical-device testing of the new
 speech, intelligence, GPS and offline-sync behaviour remains necessary.
+
+### 2026-10-04 — 1.4.2 note-editor follow-up
+
+Published **1.4.2 (205)** from `9f62052` through the signed TestFlight workflow
+(run `37182264664`). Apple reports `VALID` and `IN_BETA_TESTING`, with the build
+available in the existing **Me** internal group. The App Store draft is also
+**1.4.2**, with build **205** selected and state **PREPARE_FOR_SUBMISSION**.
+API reads verified the nine localized release notes in both App Store Connect
+and TestFlight, and preservation of all **153** existing screenshots and other
+metadata during the version/build change.
+
+The release moves note presentation to the session screen's shared sheet state,
+so initial list updates cannot tear down the editor and pending review requests
+are deferred while it is open. Transcription selection respects app language,
+preferred regional languages and device region, falls back to UK/US English,
+and remembers explicit picker choices. Recording-removal and note-deletion
+confirmations now anchor to their action buttons. The local marketing-version
+floor and all nine release-note headings have been aligned to **1.4.2**.
