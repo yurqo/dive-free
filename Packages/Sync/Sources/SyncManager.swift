@@ -85,6 +85,28 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     /// old-phone-never-acks safety. Fires on an arbitrary thread.
     public var onAudioImported: (@Sendable (String) -> Void)?
 
+    public var onNoteTransportReady: (@Sendable () -> Void)?
+    public var onReceiveNoteMutation: (@Sendable (NoteMutation) -> Void)?
+    public var onNoteMutationAcknowledged: (@Sendable (UUID) -> Void)?
+
+    public func sendNoteMutation(_ mutation: NoteMutation) {
+        #if canImport(WatchConnectivity)
+        guard WCSession.isSupported(), WCSession.default.activationState == .activated,
+              let data = try? JSONEncoder().encode(mutation) else { return }
+        // The persistent SwiftData journal is the outbox. Avoid duplicate OS slots.
+        guard !WCSession.default.outstandingUserInfoTransfers.contains(where: {
+            $0.userInfo["noteMutationID"] as? String == mutation.id.uuidString
+        }) else { return }
+        WCSession.default.transferUserInfo(["noteMutation": data, "noteMutationID": mutation.id.uuidString])
+        #endif
+    }
+    public func acknowledgeNoteMutation(_ id: UUID) {
+        #if canImport(WatchConnectivity)
+        guard WCSession.isSupported(), WCSession.default.activationState == .activated else { return }
+        WCSession.default.transferUserInfo(["noteMutationAck": id.uuidString])
+        #endif
+    }
+
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
     static let payloadKey = "session"
@@ -637,6 +659,7 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     /// or the session finishes activating, so a backlog drains promptly. Resets
     /// the per-payload retry budget so a fresh reachability window gets new tries.
     func retryPending() {
+        onNoteTransportReady?()
         // Snapshot the OS's still-queued transfer ids ONCE and use it for both the
         // reclaim below and the duplicate-enqueue guard on the main filter. An id
         // still in `outstandingTransfers` — system-owned OR one of ours the OS hasn't
@@ -705,6 +728,13 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     /// The ack messages carry no `payloadKey`, so — like deletions — adoption,
     /// `didFinish`, and the session decode below all skip them.
     func handleReceived(_ userInfo: [String: Any]) {
+        if let data = userInfo["noteMutation"] as? Data,
+           let mutation = try? JSONDecoder().decode(NoteMutation.self, from: data) {
+            onReceiveNoteMutation?(mutation); return
+        }
+        if let value = userInfo["noteMutationAck"] as? String, let id = UUID(uuidString: value) {
+            onNoteMutationAcknowledged?(id); return
+        }
         if let idString = userInfo[Self.deletedKey] as? String, let id = UUID(uuidString: idString) {
             onDeleteSession?(id)
             return

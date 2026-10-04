@@ -46,16 +46,36 @@ final class SessionCoordinator {
     /// merged clip rather than a source file the merge is about to delete.
     @ObservationIgnored private var pendingMergeTask: Task<Void, Never>?
 
-    var currentDepthMeters: Double { sessionManager.currentDepthMeters }
+    #if DEBUG
+    /// Freezes the real live view at a shared fixture timestamp for capture only.
+    var screenshotSnapshot: WatchScreenshotMode.LiveSnapshot?
+    #endif
+
+    var currentDepthMeters: Double {
+        #if DEBUG
+        if let screenshotSnapshot { return screenshotSnapshot.depthMeters }
+        #endif
+        return sessionManager.currentDepthMeters
+    }
 
     /// Live heart rate (bpm) from the workout, or `nil` until the first reading.
     var currentHeartRate: Int? { workout.currentHeartRate }
 
     /// Live water temperature (°C) from the submersion sensor, or `nil`.
-    var currentTemperatureCelsius: Double? { sessionManager.currentTemperatureCelsius }
+    var currentTemperatureCelsius: Double? {
+        #if DEBUG
+        if let screenshotSnapshot { return screenshotSnapshot.temperatureCelsius }
+        #endif
+        return sessionManager.currentTemperatureCelsius
+    }
 
     // Exposed so `SessionRootView` can bind to elapsed time.
-    var elapsedTime: TimeInterval { sessionManager.elapsedTime }
+    var elapsedTime: TimeInterval {
+        #if DEBUG
+        if let screenshotSnapshot { return screenshotSnapshot.sessionElapsed }
+        #endif
+        return sessionManager.elapsedTime
+    }
 
     /// Number of finalized dives detected so far in the current session.
     var diveCount: Int { sessionManager.diveCount }
@@ -70,18 +90,38 @@ final class SessionCoordinator {
     var surfaceDistanceMeters: Double { sessionManager.surfaceDistanceMeters }
 
     /// Number of markers placed in the current session.
-    var markerCount: Int { sessionManager.markers.count }
+    var markerCount: Int {
+        #if DEBUG
+        if let screenshotSnapshot { return screenshotSnapshot.markerCount }
+        #endif
+        return sessionManager.markers.count
+    }
 
     /// Markers placed during the dive currently in progress.
-    var currentDiveMarkerCount: Int { sessionManager.currentDiveMarkerCount }
+    var currentDiveMarkerCount: Int {
+        #if DEBUG
+        if let screenshotSnapshot { return screenshotSnapshot.markerCount }
+        #endif
+        return sessionManager.currentDiveMarkerCount
+    }
 
     /// Elapsed time below the surface threshold, or `nil` at the surface.
-    var currentDiveElapsed: TimeInterval? { sessionManager.currentDiveElapsed }
+    var currentDiveElapsed: TimeInterval? {
+        #if DEBUG
+        if let screenshotSnapshot { return screenshotSnapshot.diveElapsed }
+        #endif
+        return sessionManager.currentDiveElapsed
+    }
 
     /// Whether the dive in progress has met the detector's criteria (so it's being
     /// logged). Drives the live screen's switch from the provisional descent
     /// (surface icon + greyed depth/countdown) to the confirmed dive readout.
-    var currentDiveConfirmed: Bool { sessionManager.currentDiveConfirmed }
+    var currentDiveConfirmed: Bool {
+        #if DEBUG
+        if screenshotSnapshot != nil { return true }
+        #endif
+        return sessionManager.currentDiveConfirmed
+    }
 
     /// Seconds until the descending dive locks in, or `nil` at the surface / once
     /// confirmed. Drives the greyed "dive in N s" countdown.
@@ -167,7 +207,12 @@ final class SessionCoordinator {
     /// True while the diver is below the surface threshold. The Action button
     /// drops a marker when submerged and confirms the focused menu item when at
     /// the surface.
-    var isSubmerged: Bool { sessionManager.currentDiveStart != nil }
+    var isSubmerged: Bool {
+        #if DEBUG
+        if screenshotSnapshot != nil { return true }
+        #endif
+        return sessionManager.currentDiveStart != nil
+    }
 
     /// When the most recent GPS fix arrived this session, or `nil` if none yet.
     /// Drives the live GPS-status indicator on the active screen.
@@ -564,6 +609,7 @@ final class SessionCoordinator {
 
     private let sessionManager: SessionManager
     private let modelContext: ModelContext
+    private var noteSync: NoteSyncBridge?
     /// Repeating per-second time-cue ticker, live only while submerged (#178).
     private var timeCueTask: Task<Void, Never>?
     /// Per-second surface ticker that fires the one-shot "rested" haptic when the
@@ -668,6 +714,7 @@ final class SessionCoordinator {
             }
         }
         sync.activate()
+        noteSync = NoteSyncBridge(context: modelContext, sync: sync, directory: AudioNoteRecorder.directory)
         // Let the Action-button intent route into this live coordinator.
         LiveSessionRegistry.shared.coordinator = self
     }

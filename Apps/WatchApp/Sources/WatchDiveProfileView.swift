@@ -223,7 +223,7 @@ struct WatchMarkerList: View {
             Text(marker.kind.emoji)
             VStack(alignment: .leading, spacing: 2) {
                 HStack {
-                    Text(marker.kind.label).font(.caption)
+                    Text(marker.displayTitle).font(.caption)
                     Spacer()
                     Text(marker.timestamp, format: .dateTime.hour().minute())
                         .font(.caption2)

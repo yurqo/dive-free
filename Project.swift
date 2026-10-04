@@ -80,7 +80,7 @@ let watchApp = Target.target(
         // submerged-shallow-depth-and-pressure entitlement (see entitlements).
         "WKBackgroundModes": ["workout-processing", "underwater-depth"],
     ]),
-    sources: ["Apps/WatchApp/Sources/**"],
+    sources: ["Apps/WatchApp/Sources/**", "Apps/Shared/**"],
     resources: ["Apps/WatchApp/Resources/**"],
     entitlements: .file(path: "Apps/WatchApp/DiveFreeWatch.entitlements"),
     dependencies: [
@@ -134,6 +134,7 @@ let iphoneApp = Target.target(
         "NSHealthShareUsageDescription": "Used to read your dive workouts.",
         "NSHealthUpdateUsageDescription": "Used to store your dive sessions.",
         "NSLocationWhenInUseUsageDescription": "Used to record the location of your dive spots.",
+        "NSSpeechRecognitionUsageDescription": "Transcribe your dive voice notes into editable text on this device.",
         "NSPhotoLibraryUsageDescription": "Used to attach photos to your dive spots, including shots imported from underwater cameras.",
         "NSPhotoLibraryAddUsageDescription": "Used to save dive spot photos to your library.",
         "NSCameraUsageDescription": "Used to take photos at your dive spots.",
@@ -145,7 +146,7 @@ let iphoneApp = Target.target(
             ]
         ],
     ]),
-    sources: ["Apps/iPhoneApp/Sources/**"],
+    sources: ["Apps/iPhoneApp/Sources/**", "Apps/Shared/**"],
     resources: ["Apps/iPhoneApp/Resources/**"],
     entitlements: .file(path: "Apps/iPhoneApp/DiveFree.entitlements"),
     dependencies: [
@@ -228,12 +229,21 @@ let project = Project(
         // across minor bumps (a 1.0.x→1.1.0 jump would otherwise reset build=patch
         // backwards and TestFlight would reject it). Both targets bind their
         // Info.plist to these so the values reach the bundle.
-        "MARKETING_VERSION": "1.3.0",
+        "MARKETING_VERSION": "1.4.0",
         "CURRENT_PROJECT_VERSION": "1",
         "DEVELOPMENT_TEAM": SettingValue(stringLiteral: developmentTeam),
         "CODE_SIGN_STYLE": "Automatic",
     ]),
-    targets: [iphoneApp, watchApp, widgetExtension, screenshotTests]
+    targets: [iphoneApp, watchApp, widgetExtension, screenshotTests,
+        .target(
+            name: "ReviewRequestTests",
+            destinations: .iOS,
+            product: .unitTests,
+            bundleId: "\(bundlePrefix).review.tests",
+            deploymentTargets: .iOS(iOSVersion),
+            sources: ["Apps/iPhoneApp/Tests/**", "Apps/iPhoneApp/Sources/ReviewMilestoneAttempt.swift"],
+            dependencies: [.target(name: "Domain")]
+        )]
         + module("Domain", resources: ["Packages/Domain/Resources/**"])
         + module("Persistence", dependencies: [.target(name: "Domain")])
         + module(

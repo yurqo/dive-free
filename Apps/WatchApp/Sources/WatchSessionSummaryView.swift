@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 import WatchKit
 import Domain
 import Persistence
@@ -8,7 +9,15 @@ import Persistence
 /// the Done / Dive-again toolbar and a sync badge, `showSync: true`) and when a
 /// past session is tapped in the list (pushed with a back button).
 struct WatchSessionSummaryView: View {
-    let session: DiveSession
+    private let initialSession: DiveSession
+    @Query private var savedSessions: [SessionRecord]
+    private var session: DiveSession { savedSessions.first?.toDomain() ?? initialSession }
+    init(session: DiveSession, showSync: Bool = false) {
+        initialSession = session
+        self.showSync = showSync
+        let id = session.id
+        _savedSessions = Query(filter: #Predicate<SessionRecord> { $0.id == id })
+    }
     /// Show the watch→iPhone sync badge — only meaningful for the session that
     /// just finished, not historical ones browsed from the list.
     var showSync = false
@@ -41,6 +50,7 @@ struct WatchSessionSummaryView: View {
                 segmentsSection
 
                 markerSummary
+                WatchNotesList(sessionID: session.id)
 
                 if showSync { syncStatus }
 
@@ -138,7 +148,7 @@ struct WatchSessionSummaryView: View {
             if let average = session.averageSurfaceInterval {
                 summaryRow("Avg surface", Duration.seconds(average).formatted(.time(pattern: .minuteSecond)))
             }
-            summaryRow("Distance", DistanceFormat.string(session.surfaceDistanceMeters))
+            summaryRow(LocalizedStringKey(session.smoothTrack ? "Distance" : "Raw GPS distance"), DistanceFormat.string(session.surfaceDistanceMeters))
             summaryRow("Location", locationText)
         }
     }

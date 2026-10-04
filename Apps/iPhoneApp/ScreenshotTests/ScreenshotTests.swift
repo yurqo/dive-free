@@ -1,11 +1,13 @@
 import XCTest
+import UIKit
 
 /// Automated App Store / marketing screenshot capture.
 ///
 /// Launches the iPhone app with `--screenshot-demo` so it boots a fresh
 /// in-memory store seeded with deterministic demo content (3 spots / 4 sessions
-/// / 1 trip — see `DemoData`), then walks each top-level tab and the session
-/// detail, attaching a PNG for each. `Scripts/screenshots.sh` drives this test
+/// / 1 trip — see `DemoData`), then walks each top-level tab and session
+/// summary. Separate dive-profile captures supply the heroes without
+/// replacing a published screenshot. `Scripts/screenshots.sh` drives this test
 /// across every supported locale × device and exports the attachments.
 ///
 /// Tabs are addressed by a stable, locale-independent accessibility identifier
@@ -14,6 +16,7 @@ import XCTest
 /// on iPad (regular width, `.sidebarAdaptable`), where SwiftUI renders the tabs
 /// as cells/buttons rather than tab-bar buttons — so a fixed `boundBy:` index
 /// against `tabBars` would silently find nothing on iPad.
+@MainActor
 final class ScreenshotTests: XCTestCase {
 
     /// A top-level tab, identified by the accessibility identifier its `Tab`
@@ -28,16 +31,18 @@ final class ScreenshotTests: XCTestCase {
 
     private var app: XCUIApplication!
 
-    override func setUpWithError() throws {
-        // Resilient by design: one missing screen must not abort the rest, so a
-        // failed assertion is recorded but the test keeps navigating.
-        continueAfterFailure = true
+    nonisolated override func setUp() async throws {
+        await MainActor.run {
+            // Resilient by design: one missing screen must not abort the rest, so a
+            // failed assertion is recorded but the test keeps navigating.
+            continueAfterFailure = true
 
-        app = XCUIApplication()
-        app.launchArguments += ["--screenshot-demo"]
-        applyLanguageOverridesFromEnvironment()
-        app.launch()
-        assertRequestedLanguageApplied()
+            app = XCUIApplication()
+            app.launchArguments += ["--screenshot-demo"]
+            applyLanguageOverridesFromEnvironment()
+            app.launch()
+            assertRequestedLanguageApplied()
+        }
     }
 
     /// Fails the test unless the app *resolved* the language we requested.
@@ -127,8 +132,8 @@ final class ScreenshotTests: XCTestCase {
     /// localization on every launch.) Overriding `-AppleLanguages` / `-AppleLocale`
     /// at launch is what fastlane's own `snapshot` does, and it works on every path.
     ///
-    /// When neither variable is set (e.g. running this test straight from Xcode)
-    /// nothing is injected and the app uses the device default, as before.
+    /// Without language/region overrides, use the device defaults. Screenshot
+    /// units remain metric even when running this test straight from Xcode.
     private func applyLanguageOverridesFromEnvironment() {
         let environment = ProcessInfo.processInfo.environment
         // `-AppleLanguages` takes a plist-style array *string*: "(uk)".
@@ -139,10 +144,13 @@ final class ScreenshotTests: XCTestCase {
         if let locale = environment["SCREENSHOT_LOCALE"], !locale.isEmpty {
             app.launchArguments += ["-AppleLocale", locale]
         }
+        // Pin units as well as locale: a saved simulator preference otherwise
+        // survives capture runs and can disagree with the companion Watch.
+        app.launchArguments += ["-unitMode", "metric"]
     }
 
-    override func tearDownWithError() throws {
-        app = nil
+    nonisolated override func tearDown() async throws {
+        await MainActor.run { app = nil }
     }
 
     func testCaptureScreenshots() throws {
@@ -150,12 +158,11 @@ final class ScreenshotTests: XCTestCase {
         if selectTab(.dives) {
             capture(order: 1, name: "dives")
 
-            // 02 — Session detail (depth chart). Tap the first dive row, capture,
-            // then pop back so the following tab switches start from the list.
-            if openFirstDivesRow() {
+            // 02 — Preserve the session summary on both devices.
+            if launchScreenshotScreen("02-detail") {
                 capture(order: 2, name: "detail")
-                navigateBack()
             }
+            navigateBack()
         }
 
         // 03 — Trips.
@@ -172,9 +179,32 @@ final class ScreenshotTests: XCTestCase {
         if selectTab(.passport) {
             capture(order: 5, name: "passport")
         }
+
+        // Input only: Fastlane excludes this raw image from the published set.
+        // Each hero reuses these alongside the companion devices and Watch live.
+        if launchScreenshotScreen("02-dive-profile") {
+            capture(order: 90, name: "hero-dive-profile")
+        }
     }
 
     // MARK: - Navigation
+
+    private func launchScreenshotScreen(_ screen: String) -> Bool {
+        app.terminate()
+        if let flag = app.launchArguments.firstIndex(of: "--screenshot-screen") {
+            app.launchArguments.removeSubrange(flag...flag + 1)
+        }
+        app.launchArguments += ["--screenshot-screen", screen]
+        app.launch()
+        assertRequestedLanguageApplied()
+        let destination = app.descendants(matching: .any)
+            .matching(identifier: "screenshot.\(screen)").firstMatch
+        guard destination.waitForExistence(timeout: 15) else {
+            XCTFail("The screenshot screen \(screen) did not appear")
+            return false
+        }
+        return true
+    }
 
     /// Taps the tab carrying `tab.identifier`, robustly across layouts. Returns
     /// `false` (without failing hard) if no such element ever becomes hittable,
@@ -299,22 +329,6 @@ final class ScreenshotTests: XCTestCase {
         return false
     }
 
-    /// Opens the first row in the Dives list. Returns `false` if no cell is
-    /// present (e.g. seeding produced no sessions) rather than failing hard.
-    @discardableResult
-    private func openFirstDivesRow() -> Bool {
-        let firstCell = app.cells.element(boundBy: 0)
-        guard firstCell.waitForExistence(timeout: 10) else {
-            XCTFail("No Dives row to open for the detail screenshot")
-            return false
-        }
-        firstCell.tap()
-        // The detail hosts the depth chart; give the NavigationStack push time
-        // to complete before capturing.
-        _ = app.windows.firstMatch.waitForExistence(timeout: 5)
-        return true
-    }
-
     /// Pops the current NavigationStack destination. Uses the leading nav-bar
     /// button (localized "Back") via `firstMatch` so it stays locale-independent.
     private func navigateBack() {
@@ -330,12 +344,19 @@ final class ScreenshotTests: XCTestCase {
     /// Attaches a full-window screenshot named `NN-<screen>` (zero-padded order),
     /// kept always so `Scripts/screenshots.sh` can export it from the xcresult.
     private func capture(order: Int, name: String) {
-        // Prefer the app window (excludes the simulator chrome); fall back to the
-        // whole screen if no window is resolvable.
+        // Capture the rectangular app window. A whole-display capture can bake
+        // the hardware corner mask into the five regular App Store images.
         let window = app.windows.firstMatch
-        let screenshot = window.exists ? window.screenshot() : XCUIScreen.main.screenshot()
-
-        let attachment = XCTAttachment(screenshot: screenshot)
+        guard window.exists else { XCTFail("Missing app window for \(name)"); return }
+        let image = window.screenshot().image
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = image.scale
+        format.opaque = true
+        let opaque = UIGraphicsImageRenderer(size: image.size, format: format).image { _ in
+            image.draw(in: CGRect(origin: .zero, size: image.size))
+        }
+        guard let png = opaque.pngData() else { XCTFail("PNG encoding failed for \(name)"); return }
+        let attachment = XCTAttachment(data: png, uniformTypeIdentifier: "public.png")
         attachment.name = String(format: "%02d-%@", order, name)
         attachment.lifetime = .keepAlways
         add(attachment)

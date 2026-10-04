@@ -1,9 +1,7 @@
-Neu in 1.3.7:
-• Session zuschneiden — schneide einen vergessenen Oberflächen-Rest (oder einen zu frühen Start) direkt auf dem iPhone weg: Start und Ende auf der Karte ziehen, genau sehen, was entfernt wird — deine Tauchgänge bleiben erhalten.
-• Tauchgänge exportieren — teile jede Session als UDDF (Logbücher wie Subsurface), FIT (Garmin/Strava), GPX, CSV oder TCX. Deine Daten, überallhin mitnehmbar.
-• Sauberere Oberflächen-Tracks — eine neue Glättung zeichnet GPS-Wege und Distanzen näher an dem, was du tatsächlich geschwommen bist.
-• Oberflächen-Erholungshinweis — zwischen den Tauchgängen wechselt der Timer der Watch die Farbe und vibriert sanft, sobald du das empfohlene Intervall geruht hast (eine Faustregel, kein Sicherheitshinweis — tauche immer mit einem Partner).
-• Wassersperre, automatisch — die Watch sperrt den Bildschirm beim Start einer Sitzung und bei jedem Tauchgang, damit ein nasses Display keine versehentlichen Berührungen registriert. Drehe die Digital Crown zum Entsperren und Wasser auswerfen; beide Momente sind in den Einstellungen der Watch abschaltbar.
-• Sichere alles — Sessions, Tauchspots und Reisen — in einer einzigen Datei und entscheide, ob Sprachnotizen, Fotos und Videos mitgehen. Die geschätzte Größe siehst du vor dem Export. Das Wiederherstellen ist additiv, sodass nichts verloren geht, was bereits auf deinem Gerät ist, und Fotos werden nur dann neu importiert, wenn die Originale fehlen.
-• Bessere Übersetzungen — Bezeichnungen, die noch auf Englisch erschienen, sind jetzt in deiner Sprache.
-Dazu kleinere Fehlerbehebungen und Feinschliff.
+Neu in Version 1.4.0:
+• Gestalte deine Notizen: Bearbeite Titel, Beschreibungen und Symbole auf iPhone oder iPad. Auf der Watch kannst du Titel und Symbole bearbeiten. Auf beiden Geräten lassen sich Aufnahmen entfernen und Notizen löschen.
+• Wandle Sprachnotizen mit der Transkription auf dem Gerät in bearbeitbaren Text um, sofern unterstützt. Prüfe das Ergebnis vor dem Speichern; die Aufnahme bleibt erhalten, bis du sie entfernst. Optionale Zusammenfassungen erfordern Apple Intelligence auf unterstützten Geräten und in unterstützten Sprachen.
+• Tauchprofile enthalten jetzt den Beginn des Abstiegs, bevor die automatische Erkennung einen Tauchgang bestätigt.
+• Feiere zehn protokollierte Tauchgänge mit einer Glückwunschnachricht und einer einmaligen Gelegenheit, die App zu bewerten.
+• Verbesserte GPS-Tracks und Entfernungsschätzungen: weniger Drift im Stillstand, bessere Filterung unplausibler Bewegungen und einheitliche Entfernungen auf der Watch und im Logbuch.
+Aus Liebe zum Tauchen entwickelt. Alle Funktionen der App sind kostenlos nutzbar. Die grundlegenden Funktionen zur Tauchaufzeichnung und zum Logbuch bleiben immer kostenlos.

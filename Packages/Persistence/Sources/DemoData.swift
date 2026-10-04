@@ -262,14 +262,13 @@ public enum DemoData {
             )
             dives.append(dive)
 
-            // One water-temperature sample at the bottom of each dive.
-            let bottom = diveCursor.addingTimeInterval(profile.count > 0 ? Double(profile.count) / 2 : 0)
-            temperatureSamples.append(
-                TemperatureSample(
-                    timestamp: bottom,
+            // A stable temperature series is visible even in a single-dive chart.
+            for (index, sample) in profile.enumerated() where index.isMultiple(of: 5) {
+                temperatureSamples.append(TemperatureSample(
+                    timestamp: sample.timestamp,
                     celsius: conditions.waterTemperatureCelsius ?? 25.0
-                )
-            )
+                ))
+            }
 
             // Attach a marker mid-dive (localized emoji/label via built-in kind).
             if markerCursor < markerKinds.count {
@@ -307,7 +306,7 @@ public enum DemoData {
             latitude: fixture.latitude,
             longitude: fixture.longitude,
             track: surfaceTrack(start: sessionStart, end: sessionEnd, fixture: fixture),
-            heartRateSamples: heartRateSamples(start: sessionStart, end: sessionEnd),
+            heartRateSamples: heartRateSamples(start: sessionStart, end: sessionEnd, dives: dives),
             temperatureSamples: temperatureSamples,
             locationName: fixture.name,
             locationNameEdited: true, // proper-noun name; don't let geocoding clobber
@@ -325,16 +324,19 @@ public enum DemoData {
         return record
     }
 
-    /// A smooth descent/ascent depth profile (1 Hz), triangular with an eased
-    /// bottom, capped at `maxDepth`. Deterministic — depends only on inputs.
+    /// A deterministic simulated dive: uneven descent, a short bottom phase,
+    /// and a slower ascent with small changes in pace. No symmetrical sine bowl.
     private static func depthProfile(start: Date, maxDepth: Double) -> [DepthSample] {
         let totalSeconds = 90
         var samples: [DepthSample] = []
         samples.reserveCapacity(totalSeconds + 1)
         for second in 0...totalSeconds {
-            let t = Double(second) / Double(totalSeconds) // 0…1
-            // Symmetric sine bump: 0 at ends, 1 at the middle → smooth V.
-            let shape = sin(t * .pi)
+            let shape = interpolated(Double(second), anchors: [
+                (0, 0), (3, 0.04), (9, 0.22), (16, 0.56), (24, 0.88),
+                (29, 1), (34, 0.97), (40, 0.99), (45, 0.93),
+                (53, 0.76), (60, 0.65), (65, 0.64), (73, 0.43),
+                (80, 0.24), (86, 0.08), (90, 0)
+            ])
             let depth = (maxDepth * shape * 100).rounded() / 100 // 2-dp, tidy
             samples.append(
                 DepthSample(
@@ -374,24 +376,41 @@ public enum DemoData {
         return points
     }
 
-    /// A handful of heart-rate samples spread across the session, plausible for a
-    /// relaxed freedive (60–110 bpm), deterministic.
-    private static func heartRateSamples(start: Date, end: Date) -> [HeartRateSample] {
-        let count = 8
+    /// Simulated heart rate follows each dive, with modest deterministic variation
+    /// at the surface. Demo data only; not a physiological prediction.
+    private static func heartRateSamples(start: Date, end: Date, dives: [DiveRecord]) -> [HeartRateSample] {
         let span = end.timeIntervalSince(start)
+        let count = max(2, Int(span / 3) + 1)
         var samples: [HeartRateSample] = []
         samples.reserveCapacity(count)
-        let bpms: [Double] = [72, 68, 64, 88, 96, 70, 66, 74]
         for index in 0..<count {
             let fraction = count > 1 ? Double(index) / Double(count - 1) : 0
+            let timestamp = start.addingTimeInterval(span * fraction)
+            let elapsed = timestamp.timeIntervalSince(start)
+            var bpm = 76 + 3 * sin(elapsed / 19) + 1.5 * sin(elapsed / 7)
+            if let dive = dives.first(where: { timestamp >= $0.startTime && timestamp <= $0.endTime }) {
+                bpm = interpolated(timestamp.timeIntervalSince(dive.startTime), anchors: [
+                    (0, 80), (9, 85), (18, 79), (30, 68), (42, 63),
+                    (51, 66), (63, 70), (72, 76), (81, 84), (90, 89)
+                ]) + 1.2 * sin(elapsed / 4)
+            }
             samples.append(
                 HeartRateSample(
-                    timestamp: start.addingTimeInterval(span * fraction),
-                    bpm: bpms[index % bpms.count]
+                    timestamp: timestamp,
+                    bpm: bpm.rounded()
                 )
             )
         }
         return samples
+    }
+
+    private static func interpolated(_ time: Double, anchors: [(Double, Double)]) -> Double {
+        for index in 1..<anchors.count where time <= anchors[index].0 {
+            let left = anchors[index - 1], right = anchors[index]
+            let fraction = max(0, (time - left.0) / (right.0 - left.0))
+            return left.1 + (right.1 - left.1) * fraction
+        }
+        return anchors.last?.1 ?? 0
     }
 }
 #endif

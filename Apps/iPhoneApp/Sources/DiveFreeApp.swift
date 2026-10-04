@@ -29,6 +29,7 @@ struct DiveFreeApp: App {
     /// the App Store Connect products are live AND the remote kill-switch is on
     /// (see `SupportStore`). `start()` runs at launch, background priority.
     @State private var support = SupportStore()
+    @State private var logbookActivity = LogbookActivity()
     @State private var strava = StravaAuthManager(
         store: KeychainTokenStore(),
         webAuth: ASWebAuthenticationProvider()
@@ -36,6 +37,7 @@ struct DiveFreeApp: App {
     /// Built once and shared between the scene and the sync importer so incoming
     /// sessions land in the same store the list queries.
     private let container: ModelContainer
+    private let noteSync: NoteSyncBridge
 
     init() {
         let container = Self.makeContainer()
@@ -51,6 +53,7 @@ struct DiveFreeApp: App {
         let sync = SyncManager()
         let liveSession = LiveSessionMonitor()
         Self.configureSync(sync, liveSession: liveSession, container: container)
+        noteSync = NoteSyncBridge(context: container.mainContext, sync: sync, directory: VoiceNoteStore.directory)
         // Observe the Live Activity push-to-start token (iOS 17.2+, #18 stage 2)
         // from init so a background WC launch captures/rotates it too. Persists the
         // latest token for the background push-to-start fallback in LiveSessionMonitor.
@@ -195,6 +198,9 @@ struct DiveFreeApp: App {
             Task { @MainActor in
                 let context = container.mainContext
                 let fileName = url.lastPathComponent
+                if (try? NoteMutationStore(context: context).removedAudioNames().contains(fileName)) == true {
+                    VoiceNoteStore.delete(fileName); sync.sendAudioImportAck(fileName); return
+                }
                 // The file is already copied into storage by the time this fires (the
                 // receiver only calls back on a successful copy), so ACK it: this — not
                 // the transport didFinish — is the safe signal watch retention gates on
@@ -242,6 +248,7 @@ struct DiveFreeApp: App {
                 .environment(photoSuggestions)
                 .environment(cloudSync)
                 .environment(support)
+                .environment(logbookActivity)
                 .environment(\.syncManager, sync)
                 .unitsAware()
                 // Fetch the remote kill-switch + StoreKit products at launch, off

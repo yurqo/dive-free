@@ -179,6 +179,8 @@ public struct DiveDetector: Sendable {
         // Shallow samples buffered since the last threshold crossing, pending a
         // surface-exit decision (bounce → fold back in; dwell → drop).
         var shallowTail: [DepthSample] = []
+        var descent = DiveDescentBuffer()
+        var descentPrefix: [DepthSample] = []
 
         // Emits a dive from a completed candidate if it clears an acceptance tier.
         // Two spans matter and they differ on purpose:
@@ -188,8 +190,8 @@ public struct DiveDetector: Sendable {
         //    deep sample followed by a shallow tail can't borrow the tail's duration
         //    to sneak past a tier (e.g. [0, 2.3, 0.8, 0.6, 0] would otherwise clear
         //    the 2 m / 2 s tier on a zero-duration deep spike).
-        //  - the LOGGED dive keeps the FULL sample set (`deep` + `tail`): startTime =
-        //    first deep sample, endTime = last overall sample, maxDepth over all. A
+        //  - the LOGGED dive keeps the FULL sample set (descent + deep + tail):
+        //    startTime = descent onset, endTime = last overall sample. A
         //    0 m exit folds the ascent tail in here, so the ascent counts toward the
         //    logged duration even though it doesn't help pass acceptance.
         func finalize(deep: [DepthSample], tail: [DepthSample]) {
@@ -211,12 +213,12 @@ public struct DiveDetector: Sendable {
             guard config.thresholds.contains(where: {
                 deepMaxDepth >= $0.minimumDepthMeters && deepSpan >= $0.minimumDuration
             }) else { return }
-            let all = deep + tail
+            let all = descentPrefix + deep + tail
             let last = all.last ?? deepLast
             let maxDepth = all.map(\.depthMeters).max() ?? deepMaxDepth
             dives.append(
                 Dive(
-                    startTime: deepFirst.timestamp,
+                    startTime: all.first?.timestamp ?? deepFirst.timestamp,
                     endTime: last.timestamp,
                     maxDepthMeters: maxDepth,
                     samples: all
@@ -227,14 +229,22 @@ public struct DiveDetector: Sendable {
         for sample in ordered {
             let depth = sample.depthMeters
             if depth > config.surfaceThresholdMeters {
+                if current.isEmpty {
+                    // The threshold confirms submersion; it does not mark the
+                    // beginning of the descent stored in the dive profile.
+                    if let last = descent.samples.last,
+                       sample.timestamp.timeIntervalSince(last.timestamp) <= max(3, config.surfaceExitDwellSeconds) {
+                        descentPrefix = descent.samples
+                    } else { descentPrefix = [] }
+                    descent.reset()
+                }
                 // Deep: fold any pending shallow bounce back into the dive, then
                 // extend it with this sample.
                 if !current.isEmpty { current.append(contentsOf: shallowTail) }
                 shallowTail.removeAll()
                 current.append(sample)
             } else if current.isEmpty {
-                // At/near the surface with no dive open — surface bobbing, ignore.
-                continue
+                descent.append(sample, dwell: config.surfaceExitDwellSeconds)
             } else if depth <= DiveDetectionConfig.surfaceExitDepthMeters {
                 // Explicit 0 m: fully surfaced. End the dive; the deep run gates
                 // acceptance while the shallow tail + this 0 m sample are logged so
@@ -242,6 +252,8 @@ public struct DiveDetector: Sendable {
                 finalize(deep: current, tail: shallowTail + [sample])
                 current.removeAll()
                 shallowTail.removeAll()
+                descentPrefix = []
+                descent.append(sample, dwell: config.surfaceExitDwellSeconds)
             } else {
                 // Shallow band (above the surface, below the threshold): buffer this
                 // sample first, then measure the dwell as the span from the FIRST
@@ -258,6 +270,10 @@ public struct DiveDetector: Sendable {
                     // drop the shallow hang.
                     finalize(deep: current, tail: [])
                     current.removeAll()
+                    descentPrefix = []
+                    // Start the next candidate at the latest shallow reading,
+                    // rather than borrowing the previous dive's ascent.
+                    descent.append(sample, dwell: config.surfaceExitDwellSeconds)
                     shallowTail.removeAll()
                 }
             }
@@ -288,9 +304,18 @@ public struct DiveDetector: Sendable {
         let preemption = manualSegments.map { segment in
             DateInterval(start: segment.start, end: firstSurfaceExit(after: segment.end, in: ordered))
         }
-        let auto = detectDives(from: ordered).filter { dive in
-            let window = DateInterval(start: dive.startTime, end: dive.endTime)
-            return !preemption.contains { $0.intersects(window) }
+        let auto = detectDives(from: ordered).compactMap { dive -> Dive? in
+            // Sharing a surface boundary is not an overlapping dive. Keeping
+            // that baseline sample must not suppress the following auto dive.
+            let deepStart = dive.samples.first { $0.depthMeters > config.surfaceThresholdMeters }?.timestamp ?? dive.startTime
+            guard !preemption.contains(where: { $0.start < dive.endTime && $0.end > deepStart }) else { return nil }
+            // A manual stop after surfacing can fall between the retained surface
+            // baseline and the next reading. Drop only that overlapping prefix.
+            let retained = dive.samples.filter { sample in
+                !preemption.contains { $0.start <= sample.timestamp && $0.end > sample.timestamp }
+            }
+            return Dive(id: dive.id, startTime: retained.first?.timestamp ?? deepStart,
+                        endTime: dive.endTime, maxDepthMeters: dive.maxDepthMeters, samples: retained)
         }
         let manual = manualSegments.map { segment -> Dive in
             let inSegment = ordered.filter { segment.contains($0.timestamp) }

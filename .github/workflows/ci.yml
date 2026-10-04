@@ -110,6 +110,28 @@ jobs:
             -resultBundlePath TestResults-Sensors.xcresult \
             CODE_SIGNING_ALLOWED=NO | xcbeautify
 
+      - name: Test — Session
+        if: steps.changes.outputs.code == 'true'
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -workspace DiveFree.xcworkspace \
+            -scheme Session \
+            -destination "platform=iOS Simulator,name=$SIM_DEVICE" \
+            -resultBundlePath TestResults-Session.xcresult \
+            CODE_SIGNING_ALLOWED=NO | xcbeautify
+
+      - name: Test — Review requests
+        if: steps.changes.outputs.code == 'true'
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -workspace DiveFree.xcworkspace \
+            -scheme ReviewRequestTests \
+            -destination "platform=iOS Simulator,name=$SIM_DEVICE" \
+            -resultBundlePath TestResults-ReviewRequest.xcresult \
+            CODE_SIGNING_ALLOWED=NO | xcbeautify
+
       - name: Test — Sync
         if: steps.changes.outputs.code == 'true'
         run: |

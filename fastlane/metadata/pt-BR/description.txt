@@ -1,28 +1,24 @@
-O Dive Free é o companheiro para Apple Watch feito para mergulho livre e snorkeling recreativos: um lindo diário do seu tempo na água, não um computador de mergulho.
+Mergulhe com seu Apple Watch. Volte com mais do que lembranças. Dive Free reúne sessões, perfis de profundidade, lugares favoritos, fotos e notas de voz no iPhone e iPad.
 
-Inicie uma sessão no seu Apple Watch antes de entrar na água. O Dive Free registra sua profundidade e seus mergulhos totalmente com as mãos livres, usando a Digital Crown e o botão Action, sem precisar tocar em uma tela bloqueada pela água. De volta à superfície, reviva cada mergulho no iPhone ou iPad com gráficos de profundidade, mapas dos seus pontos de mergulho e as fotos que você tirou naquele dia.
+Criado por amor ao mergulho. Todas as funções do app são gratuitas. As funções principais de registro de mergulhos e diário sempre serão gratuitas.
 
-O WATCH EM PRIMEIRO LUGAR, MÃOS LIVRES
-• Controle a sessão com as mãos livres pela Digital Crown, além do botão Action no Apple Watch Ultra: sem toques debaixo d'água
-• Detecção automática de mergulhos e controle do intervalo na superfície
-• Profundidade ao vivo (até 6 m) e duração do mergulho debaixo d'água (Apple Watch Ultra, Series 10 e Series 11)
-• Acompanhe sua sessão ao vivo no iPhone: um aviso dentro do app, além de uma Live Activity na Tela Bloqueada e na Dynamic Island
-• Adicione marcadores durante um mergulho
+REGISTRE PELO PULSO
+• Detecção automática de mergulhos, perfis de profundidade e intervalos na superfície
+• Adicione marcadores debaixo d’água com a Digital Crown e, no Apple Watch Ultra, o botão de Ação
+• Acompanhe a sessão ao vivo no iPhone, na Tela Bloqueada e na Dynamic Island
 
-LEMBRE-SE DE CADA MERGULHO
-• Gráfico do perfil de profundidade de cada mergulho
-• Seus pontos de mergulho agrupados automaticamente e mostrados em um mapa
-• Agrupe seus mergulhos em viagens de vários dias e acompanhe seus totais em um passaporte de mergulho
-• Anexe fotos e vídeos, incluindo imagens da sua câmera subaquática
-• Grave notas de voz e avalie suas sessões
-• Organize suas fotos e vídeos de mergulho em um álbum "Dive Free" no Fotos
+LEMBRE DOS DETALHES
+• Grave notas de voz na superfície e avalie suas sessões
+• Adicione fotos e vídeos e reúna-os em um álbum Dive Free no Fotos
 
-SINCRONIZE ENTRE SEUS DISPOSITIVOS
-• Seu diário, seus pontos e suas fotos sincronizam de forma privada entre iPhone e iPad pela sua própria conta do iCloud: seus dados ficam no seu iCloud
+CRIE SEU DIÁRIO DE MERGULHO
+• Explore pontos agrupados automaticamente em um mapa
+• Organize sessões em viagens e consulte seus totais no passaporte de mergulho
 
-COMPARTILHE
-• Exporte para o Strava os mergulhos que você escolher
+GUARDE E COMPARTILHE LEMBRANÇAS
+• Sincronize seu diário de forma privada entre iPhone e iPad com sua conta do iCloud
+• Exporte mergulhos para o Strava e faça backup do diário
 
-O Dive Free é um diário e um espaço de memórias para praticantes de mergulho livre, snorkeling e viajantes. NÃO é um computador de mergulho e não tem funções de computador de mergulho: não oferece informações de descompressão, planejamento ou segurança, e o registro de profundidade é limitado a 6 metros (águas rasas). Nunca o use como equipamento de segurança. Sempre mergulhe dentro do seu treinamento, siga as regras locais e nunca pratique mergulho livre sozinho.
+A medição de profundidade suporta atualmente até 6 m no Apple Watch Ultra, Series 10 e Series 11. Outros Apple Watch compatíveis registram sessões com localização e frequência cardíaca, sem profundidade. Apple Watch Ultra oferece também os controles do botão de Ação.
 
-O Apple Watch Ultra oferece a melhor experiência: registra a profundidade e permite controlar toda a sessão debaixo d'água, com as mãos livres: inicie e pare sessões, registre mergulhos e adicione marcadores com os botões do relógio. O Apple Watch Series 10 e 11 também registram a profundidade, e outros modelos de Apple Watch registram suas sessões com localização GPS e frequência cardíaca.
+Dive Free é um diário de apneia e snorkel recreativos, não um computador de mergulho. Não fornece informações de descompressão, planejamento ou segurança. Nunca o use como dispositivo de segurança. Respeite seu treinamento e nunca pratique apneia sozinho.

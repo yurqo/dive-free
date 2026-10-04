@@ -16,6 +16,77 @@ struct TrackCleanerTests {
     /// tolerances into lat/lon deltas and back.
     private let mPerDeg = 111_320.0
 
+    @Test("two minutes of stationary pool scatter do not accumulate distance, including noisy endpoints")
+    func stationaryPoolDistance() {
+        let track: [TrackPoint] = (0..<25).map { i in
+            let lat = Double((i * 5) % 13 - 6) * 0.3 / mPerDeg
+            let lon = Double((i * 7) % 11 - 5) * 0.4 / mPerDeg
+            return pt(lat, lon, t: Double(i) * 5, acc: 10)
+        }
+        #expect(track.surfaceDistanceMeters > 50)
+        let cleaned = TrackCleaner.clean(track)
+        #expect(cleaned.surfaceDistanceMeters < 0.01)
+        #expect(cleaned.map(\.id) == track.map(\.id))
+        #expect(cleaned.map(\.timestamp) == track.map(\.timestamp))
+        #expect(track.first?.location != cleaned.first?.location)
+    }
+
+    @Test("sustained slow movement is retained even below the stationary speed threshold")
+    func preservesSlowDrift() {
+        let track = (0..<61).map { pt(0, Double($0) * 0.75 / mPerDeg, t: Double($0) * 5, acc: 3) }
+        #expect(abs(TrackCleaner.clean(track).surfaceDistanceMeters - 45) < 2)
+    }
+
+    @Test("a pool lap returning to its start is not stationary")
+    func preservesOutAndBack() {
+        let track = (0..<41).map { i in
+            pt(0, Double(i <= 20 ? i : 40 - i) * 2 / mPerDeg, t: Double(i) * 2, acc: 2)
+        }
+        #expect(TrackCleaner.clean(track).surfaceDistanceMeters > 72)
+    }
+
+    @Test("isolated impossible swimming hops below the old 50 m/s limit are rejected")
+    func rejectsModestSpikeAndEndpoints() {
+        let track = [pt(0, 0, t: 0, acc: 1), pt(0, 0.5 / mPerDeg, t: 1, acc: 1),
+                     pt(40 / mPerDeg, 1 / mPerDeg, t: 2, acc: 1),
+                     pt(0, 1.5 / mPerDeg, t: 3, acc: 1), pt(0, 2 / mPerDeg, t: 4, acc: 1)]
+        let cleaned = TrackCleaner.clean(track)
+        #expect(cleaned.count == 4)
+        #expect(cleaned.surfaceDistanceMeters < 3)
+        let initial = [pt(40 / mPerDeg, 0, t: -1, acc: 1)] + track.filter { $0.timestamp != Date(timeIntervalSince1970: 2) }
+        #expect(TrackCleaner.clean(initial).first?.timestamp == Date(timeIntervalSince1970: 0))
+    }
+
+    @Test("unrealistic acceleration is rejected even when hop speed is below the swim bound")
+    func rejectsAccelerationSpike() {
+        let track = [pt(0, 0, t: 0, acc: 1), pt(0, 0, t: 2, acc: 1),
+                     pt(7 / mPerDeg, 0, t: 4, acc: 1), pt(0, 0, t: 6, acc: 1),
+                     pt(0, 0, t: 8, acc: 1)]
+        #expect(TrackCleaner.clean(track).count == 4)
+        #expect(TrackCleaner.clean(track).surfaceDistanceMeters < 0.01)
+    }
+
+    @Test("duplicate timestamps and invalid fixes cannot create a distance jump")
+    func validatesFixes() {
+        let track = [pt(0, 0, t: 0, acc: 5), pt(0, 1, t: 0, acc: 80),
+                     pt(.nan, 0, t: 1), pt(0, 0, t: 2, acc: -1),
+                     pt(0, 1 / mPerDeg, t: 3, acc: 5)]
+        let cleaned = TrackCleaner.clean(track)
+        #expect(cleaned.count == 2)
+        #expect(cleaned.surfaceDistanceMeters < 2)
+    }
+
+    @Test("smoothing a short track across the date line does not cross the globe")
+    func dateLine() {
+        let track = (0..<21).map { i in
+            let lon = 179.9999 + Double(i) * 2 / mPerDeg
+            return pt(0, lon > 180 ? lon - 360 : lon, t: Double(i), acc: 3)
+        }
+        let cleaned = TrackCleaner.clean(track)
+        #expect(abs(cleaned.surfaceDistanceMeters - 40) < 3)
+        #expect(cleaned.allSatisfy { abs($0.location.longitude) > 179.99 })
+    }
+
     // MARK: - Outlier rejection (spike / accuracy gates)
 
     @Test("empty / single / pair pass through (too few to judge spikes)")

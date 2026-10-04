@@ -18,6 +18,10 @@ struct SessionListView: View {
     /// Sessions whose weather fetch was attempted this launch (a failed fetch
     /// isn't persisted, so it retries on a later launch when back online).
     @State private var weatherAttempted: Set<UUID> = []
+    #if DEBUG
+    @State private var screenshotDivePresented = false
+    @State private var screenshotSessionPresented = false
+    #endif
 
     var body: some View {
         NavigationStack {
@@ -109,6 +113,37 @@ struct SessionListView: View {
                     .accessibilityLabel("Settings")
                 }
             }
+            #if DEBUG
+            // Open the real segment screen directly for deterministic capture,
+            // preserving the normal navigation bar and surrounding tab layout.
+            .navigationDestination(isPresented: $screenshotDivePresented) {
+                if let session = sessions.first?.toDomain(), let dive = session.dives.first {
+                    DiveDetailView(
+                        dive: dive, index: 1, markers: session.markers,
+                        heartRateSamples: session.heartRateSamples,
+                        temperatureSamples: session.temperatureSamples
+                    )
+                    .accessibilityIdentifier("screenshot.02-dive-profile")
+                }
+            }
+            .navigationDestination(isPresented: $screenshotSessionPresented) {
+                if let session = sessions.first {
+                    SessionDetailView(session: session)
+                        .accessibilityIdentifier("screenshot.02-detail")
+                }
+            }
+            .task {
+                let arguments = ProcessInfo.processInfo.arguments
+                guard arguments.contains("--screenshot-demo"),
+                      let flag = arguments.firstIndex(of: "--screenshot-screen"),
+                      arguments.indices.contains(flag + 1) else { return }
+                switch arguments[flag + 1] {
+                case "02-dive-profile": screenshotDivePresented = true
+                case "02-detail": screenshotSessionPresented = true
+                default: break
+                }
+            }
+            #endif
         }
     }
 
@@ -120,7 +155,7 @@ struct SessionListView: View {
         // characters back out to get the inflected plain string.
         var parts = [String(AttributedString(localized: "^[\(domain.diveCount) dive](inflect: true)").characters)]
         if domain.totalDuration > 0 {
-            parts.append(Duration.seconds(domain.totalDuration).formatted(.units(allowed: [.hours, .minutes], width: .narrow)))
+            parts.append(Duration.seconds(domain.totalDuration).formatted(.units(allowed: [.hours, .minutes], width: .abbreviated)))
         }
         parts.append("max \(DepthFormat.string(domain.maxDepthMeters))")
         var line = parts.joined(separator: " · ")

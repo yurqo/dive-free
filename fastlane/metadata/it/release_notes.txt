@@ -1,9 +1,7 @@
-Novità della 1.3.7:
-• Ritaglia una sessione — elimina una coda in superficie dimenticata (o un avvio anticipato) direttamente dall'iPhone: trascina inizio e fine sulla mappa, vedi esattamente cosa verrà rimosso e le tue immersioni restano intatte.
-• Esporta le immersioni — condividi qualsiasi sessione in UDDF (log come Subsurface), FIT (Garmin/Strava), GPX, CSV o TCX. I tuoi dati, da portare ovunque.
-• Tracce di superficie più pulite — un nuovo motore di smussatura disegna i percorsi GPS e le distanze più vicini a quanto hai realmente nuotato.
-• Indicatore di recupero in superficie — tra un'immersione e l'altra, il timer dell'orologio cambia colore e vibra delicatamente una volta trascorso l'intervallo di riposo consigliato (una regola generale, non un consiglio di sicurezza — immergiti sempre con un compagno).
-• Blocco per l'acqua, in automatico — l'orologio blocca lo schermo all'avvio di una sessione e a ogni immersione, così uno schermo bagnato non registra tocchi involontari. Ruota la Digital Crown per sbloccare ed espellere l'acqua; entrambi i momenti sono opzionali nelle impostazioni dell'orologio.
-• Fai il backup di tutto — sessioni, spot di immersione e viaggi — in un unico file, e scegli se includere note vocali, foto e video. Vedi la dimensione stimata prima di esportare. Il ripristino è additivo, quindi nulla di ciò che hai già va perso, e le foto vengono reimportate solo se mancano gli originali.
-• Traduzioni migliori — le etichette che comparivano ancora in inglese ora sono nella tua lingua.
-Inoltre piccole correzioni e rifiniture.
+Novità della versione 1.4.0:
+• Personalizza le note: modifica titoli, descrizioni e icone su iPhone o iPad. Modifica titoli e icone su Watch ed elimina registrazioni o note su entrambi i dispositivi.
+• Converti le note vocali in testo modificabile con la trascrizione sul dispositivo, dove supportata. Controlla il risultato prima di salvare e conserva la registrazione se non decidi di eliminarla. I riepiloghi facoltativi richiedono Apple Intelligence su dispositivi e lingue supportati.
+• I profili ora conservano l’inizio della discesa prima che il rilevamento automatico confermi un’immersione.
+• Festeggia dieci immersioni registrate con un messaggio di congratulazioni e un’unica occasione per recensire l’app.
+• Tracce GPS e stime della distanza migliorate: meno deriva da fermi, filtro più efficace dei movimenti improbabili e distanza coerente su Watch e nel diario.
+Creata per amore delle immersioni. Tutte le funzioni dell’app sono gratuite. Le funzioni principali di registrazione delle immersioni e diario resteranno sempre gratuite.

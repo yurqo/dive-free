@@ -272,7 +272,8 @@ public struct BackupRestore {
             sessions: sessions,
             spots: spots,
             trips: trips,
-            photos: photoBackups
+            photos: photoBackups,
+            noteMutations: try NoteMutationStore(context: context).all().filter { edit in sessions.contains { $0.id == edit.sessionID } }
         )
         try archive.encoded().write(to: stagingDir.appendingPathComponent("manifest.json"), options: .atomic)
         return archive
@@ -354,6 +355,7 @@ public struct BackupRestore {
             throw BackupArchiveError.malformed("manifest.json is missing from the backup")
         }
         let archive = try BackupArchive.decode(manifestData)
+        for mutation in archive.noteMutations ?? [] { try NoteMutationStore(context: context).receive(mutation) }
 
         // 1. Load bundled voice notes (small; safe to hold in memory) and materialize
         //    each to disk so on-device playback finds the file. `audioByName` also feeds

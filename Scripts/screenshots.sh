@@ -71,9 +71,9 @@
 #          clock is baked into every capture and no two watch PNGs are ever
 #          byte-identical. A whole-image compare would therefore be vacuous. So the
 #          watch backstop (`check_watch_locales_differ`) compares a status-bar-
-#          CROPPED region instead, and skips `01-live` entirely (its dive clock
-#          ticks every second, so even the crop is never stable) — that screen rests
-#          on net 1 alone.
+#          CROPPED region instead. `01-live` now freezes the shared dive at 18 s
+#          and verifies a native 5:02 clock, but remains excluded: several valid
+#          languages share the same sole action label ("Nota"). It uses net 1.
 #
 # Prerequisites:
 #   - `tuist generate` has been run (DiveFree.xcworkspace + the ScreenshotTests /
@@ -89,6 +89,11 @@
 # `prune_stale_device_dirs`.
 
 set -euo pipefail
+
+if [ "${1:-}" = "--compose-only" ]; then
+    shift
+    exec swift Scripts/compose-screenshots.swift screenshots "$@"
+fi
 
 # ---------------------------------------------------------------------------
 # Configuration — edit these to taste.
@@ -130,26 +135,20 @@ WATCH_DEVICES=(
 # `WatchScreenshotMode.Screen` (an unknown slug is a hard error there, not a
 # fallback). Keep this list in step with that enum.
 #
-# The dwell is a POST-READY settle: capture waits for the app to confirm the screen
-# rendered (see `wait_watch_ready`) and only then sleeps `dwell` before shooting —
-# so this is no longer load-bearing for correctness, only for polish. `01-live`
-# gets the longest one because the dwell is the dive clock advancing on screen: the
-# app places its markers ~6 s in (when the marker becomes ready), then this settle
-# carries the clock to a plausible mid-dive "0:2x" rather than a just-started
-# "0:0x". The static screens only need a moment for charts to finish drawing.
+# Static screens settle after readiness so charts can finish drawing. The live
+# helper handles its own settling and native-clock verification, freezing the
+# same featured dive at 18 seconds rather than advancing a capture timer.
 WATCH_SCREENS=(
-    "01-live:14"
+    "01-live:3"
     "02-summary:3"
     "03-profile:3"
     "04-sessions:3"
     "05-start:2"
 )
 
-# Screens EXCLUDED from the watch cross-locale byte check (see
-# `check_watch_locales_differ`). `01-live` is a running session whose central dive
-# clock ticks every second, so even a status-bar-cropped comparison can never be
-# byte-stable across two captures — its language is covered by
-# `verify_watch_language` alone. The four static screens ARE byte-checked.
+# The live screen's only action label can legitimately match across languages
+# (e.g. Spanish/Italian/Portuguese "Nota"). Verify its resolved language directly;
+# compare the richer static screens across locales as an additional backstop.
 WATCH_BYTE_EXCLUDE=("01-live")
 
 # Pixels cropped off the TOP and BOTTOM of each watch capture before the
@@ -182,11 +181,13 @@ BOOTED_UDIDS=()
 
 usage() {
     cat <<'USAGE'
-Usage: Scripts/screenshots.sh [--ios] [--watch]
+Usage: Scripts/screenshots.sh [--ios] [--watch] [--compose-only]
 
   (no flags)  capture both the iOS (iPhone + iPad) and the Apple Watch sets
   --ios       capture only the iOS set (XCUITest-driven)
   --watch     capture only the Apple Watch set (simctl-driven)
+  --compose-only  regenerate iPhone/Watch composites from existing captures
+                  add --locale en to iterate on English heroes only
 
 Output: screenshots/<locale>/<device>/NN-slug.png
 USAGE
@@ -456,6 +457,7 @@ patch_xctestrun() {
 import plistlib, sys
 
 src, dest, lang, locale, region = sys.argv[1:6]
+unit_mode = "metric"
 
 with open(src, "rb") as handle:
     plist = plistlib.load(handle)
@@ -497,6 +499,7 @@ for target in test_targets(plist):
     target["UITargetAppCommandLineArguments"] = arguments + [
         "-AppleLanguages", "(%s)" % lang,
         "-AppleLocale", locale,
+        "-unitMode", unit_mode,
     ]
     patched += 1
 
@@ -675,6 +678,19 @@ verify_watch_language() {
 # wrong (the caller counts that as a failed combination, which forces `exit 1`).
 capture_watch_screen() {
     local udid="$1" screen="$2" dwell="$3" lang="$4" app_locale="$5" dest="$6"
+    if [ "$screen" = "01-live" ]; then
+        # The featured dive starts at 17:02. Capture its ongoing moment with
+        # the native Watch clock, rather than the later host capture time.
+        /usr/bin/python3 Scripts/capture-watch-live.py \
+            --device "$udid" --bundle "$WATCH_BUNDLE_ID" \
+            --language "$lang" --locale "$app_locale" \
+            --clock "${WATCH_SCREENSHOT_TIME:-17:02}" --output "$dest/$screen.png" || return 1
+        assert_no_alpha "$dest/$screen.png"
+        return
+    fi
+    # Language/region overrides do not clear a simulator's saved units. Pin the
+    # mode in NSArgumentDomain, above persisted defaults and incoming phone sync.
+    local unit_mode="metric"
 
     # Start from a clean slate: kill any previous instance and give the OS a moment
     # to tear it down. On a first install→terminate→launch, launching too soon
@@ -702,7 +718,7 @@ capture_watch_screen() {
     # if all was well. That is a wrong-language screenshot with a zero exit code, so
     # the single-dash arguments lead and the double-dash ones trail.
     if ! xcrun simctl launch --terminate-running-process "$udid" "$WATCH_BUNDLE_ID" \
-        -AppleLanguages "($lang)" -AppleLocale "$app_locale" \
+        -AppleLanguages "($lang)" -AppleLocale "$app_locale" -unitMode "$unit_mode" \
         --screenshot-demo --screenshot-screen "$screen" >/dev/null 2>&1; then
         echo "       !! simctl launch failed for $screen" >&2
         return 1
@@ -712,8 +728,8 @@ capture_watch_screen() {
     # rather than blindly sleeping and photographing whatever is up.
     wait_watch_ready "$udid" "$screen" || return 1
 
-    # Post-ready settle. For `01-live` this is also the dive clock advancing to a
-    # plausible mid-dive value; for the static screens it lets charts finish drawing.
+    # Post-ready settle lets layout and charts finish drawing. The live view
+    # is frozen at 18 s in the same featured dive as the phone/iPad charts.
     sleep "$dwell"
 
     verify_watch_language "$udid" "$lang" || return 1
@@ -976,11 +992,8 @@ print("==> Cross-locale sanity check passed (%d screen comparisons, none identic
 # leaves a deterministic, localized middle: if two locales rendered the SAME
 # language their crops are byte-identical and this fires.
 #
-# `01-live` is deliberately NOT byte-checked here (it is passed in the exclude
-# list): it is a running session whose central dive clock ticks every second, so
-# even its crop differs between two captures of the same locale. Its language is
-# covered by `verify_watch_language` alone — the primary, fail-closed net that all
-# five screens rely on regardless.
+# `01-live` uses the resolved-language probe: its sparse labels can legitimately
+# be identical across locales, even with the frozen timer and native-clock check.
 #
 # Usage: check_watch_locales_differ <root> <device> <strip_px> <locale>… -- <slug>…
 check_watch_locales_differ() {
@@ -1357,6 +1370,10 @@ if [ "$captured" -gt 0 ] && [ "${#WATCH_DEVICES[@]}" -gt 0 ]; then
                 "${LOCALES[@]}" -- "${watch_static_slugs[@]}" || identical=1
         fi
     done
+fi
+
+if [ "$failed" -eq 0 ] && [ "$identical" -eq 0 ] && [ "$RUN_IOS" -eq 1 ] && [ "$RUN_WATCH" -eq 1 ]; then
+    swift Scripts/compose-screenshots.swift "$OUTPUT_ROOT"
 fi
 
 echo "==> Done"

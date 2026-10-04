@@ -57,8 +57,8 @@ struct SessionDetailView: View {
                         value: Duration.seconds(average).formatted(.time(pattern: .minuteSecond))
                     )
                 }
-                if domain.surfaceDistanceMeters >= 1 {
-                    LabeledContent("Distance", value: DistanceFormat.string(domain.surfaceDistanceMeters))
+                if domain.track.count >= 2 {
+                    LabeledContent(LocalizedStringKey(domain.smoothTrack ? "Distance" : "Raw GPS distance"), value: DistanceFormat.string(domain.surfaceDistanceMeters))
                 }
                 if let rating = domain.rating {
                     LabeledContent("Rating") { StarRating(rating: rating) }
@@ -98,6 +98,10 @@ struct SessionDetailView: View {
         .navigationTitle(domain.title ?? domain.startTime.formatted(date: .abbreviated, time: .omitted))
         .navigationBarTitleDisplayMode(.inline)
         .task { reconcileVoiceNotes() }
+        .tenDiveReviewMilestone(
+            completedSession: domain.endTime != nil,
+            presentingModal: activeSheet != nil || showFullMap || exportError != nil || exportStatus == .uploading
+        )
         .fullScreenCover(isPresented: $showFullMap) { fullMap(domain) }
         .sheet(item: $activeSheet) { sheet in
             switch sheet {
@@ -511,7 +515,7 @@ private struct MarkerRow: View {
             Text(marker.kind.emoji)
                 .font(.title3)
             VStack(alignment: .leading, spacing: 2) {
-                Text(marker.kind.label)
+                Text(marker.displayTitle)
                 if let text = marker.text, !text.isEmpty {
                     Text(text)
                         .font(.caption)
