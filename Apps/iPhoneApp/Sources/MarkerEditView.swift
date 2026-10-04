@@ -99,7 +99,11 @@ struct MarkerEditView: View {
                 }
                 if !summary.isEmpty { Section("Saved Summary") { Text(summary) } }
                 photosSection
-                Button("Delete Note", role: .destructive) { confirmDelete = true }.disabled(busy || marker.modelContext == nil)
+                Button("Delete Note", role: .destructive) { confirmDelete = true }
+                    .disabled(busy || marker.modelContext == nil)
+                    .confirmationDialog("Delete this note and its recording?", isPresented: $confirmDelete, titleVisibility: .visible) {
+                        Button("Delete Note", role: .destructive) { deleteNote() }
+                    }
             }
             .navigationTitle("Edit Note")
             .navigationBarTitleDisplayMode(.inline)
@@ -125,12 +129,6 @@ struct MarkerEditView: View {
                 if let selected = NoteTranscriptionLocale.select(from: supported, savedIdentifier: savedLanguageID) {
                     languageID = selected.identifier
                 }
-            }
-            .confirmationDialog("Delete this note and its recording?", isPresented: $confirmDelete, titleVisibility: .visible) {
-                Button("Delete Note", role: .destructive) { deleteNote() }
-            }
-            .confirmationDialog("Remove the recording? Your text will be kept.", isPresented: $confirmRemove, titleVisibility: .visible) {
-                Button("Remove Recording", role: .destructive) { removedAudio = true }
             }
             .sheet(isPresented: $showAttachExisting) {
                 AttachExistingPhotosView(session: session, selectedIDs: $photoIDs)
@@ -209,7 +207,11 @@ struct MarkerEditView: View {
                         }
                     }.disabled(busy || !languages.contains(where: { $0.identifier == languageID }))
                 }
-                Button("Remove Recording", role: .destructive) { confirmRemove = true }.disabled(busy)
+                Button("Remove Recording", role: .destructive) { confirmRemove = true }
+                    .disabled(busy)
+                    .confirmationDialog("Remove the recording? Your text will be kept.", isPresented: $confirmRemove, titleVisibility: .visible) {
+                        Button("Remove Recording", role: .destructive) { removedAudio = true }
+                    }
             }
         }
     }
