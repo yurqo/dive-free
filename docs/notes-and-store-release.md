@@ -55,3 +55,38 @@ All 432 tests across Domain, Persistence, Session, Sync and the app-layer review
 The regular five phone/tablet captures previously had the simulator's black rounded-display mask baked into their corners. All 80 regular captures across eight languages were recaptured with the unmasked rectangular framebuffer and encoded as opaque RGB. The 16 hero images remain byte-identical. Screenshot staging now rejects black corner masks in regular captures, and the XCUITest capture path explicitly uses an opaque app-window image. `opaque-screenshot.swift` converts an unmasked simctl capture from RGBA to RGB. All 153 corrected store images were uploaded to the 1.4.0 draft; a fresh API read verified processing, source checksums, filenames, counts and hero order for all nine locales.
 
 The nine localized metadata sets and new 1.4.0 release notes were uploaded and independently verified against App Store Connect, including preserved support/privacy URLs. The updated privacy policy was deployed to the existing Cloudflare Worker and checked live. The support-purchase flag remains false. Marketing version is now 1.4.0. The App Store version remains PREPARE_FOR_SUBMISSION, with no new binary uploaded or review submission.
+
+## TestFlight and refreshed assets (2026-10-04)
+
+The release source at `c0625a2` passed normal Xcode CI: Domain, Persistence,
+Sensors, Session, review-request, Sync and Strava tests, plus both app builds.
+The existing delivery workflow archived, exported and uploaded **1.4.0 (200)**
+successfully, tagging `v1.4.0`. App Store Connect independently reported `VALID`
+and `IN_BETA_TESTING`; the build was verified in the existing **Me** internal
+TestFlight group. All nine TestFlight localizations contain the current release
+notes, including the GPS filtering/distance improvements. The App Store release
+notes were also uploaded and independently checked in all nine locales.
+
+All 96 iPhone/iPad source captures and 40 Watch captures were refreshed from the
+current Swift sources. Regular images retain opaque rectangular edges. Both hero
+sets retain the approved layout and matching 18-second dive values, with the native
+Watch clock verified at 5:02. Phone/iPad review clocks represent 18:10, with native
+locale formatting. All sixteen composites passed repeated-output determinism.
+
+Visual review found a dimmed Portuguese Watch image and summary images captured
+during the system launch spinner. Those images were recaptured with longer settling
+time; all forty Watch images passed content checks and contact-sheet review.
+`validate-watch-screenshot.swift` now rejects loading/dimmed captures during both
+capture and staging. The guard was checked against valid content, the captured
+dimmed frame, and empty input. Shell/Ruby syntax and Swift script checks passed.
+
+All **153** refreshed store images were uploaded to the 1.4.0 draft. A fresh API
+read verified every filename, count, processing state, source checksum, and first
+hero position across nine locales. App Store status remains
+`PREPARE_FOR_SUBMISSION`; no App Store review submission was made.
+
+The production CloudKit schema check/deployment remains unverified. No management
+token is configured, and CloudKit Console requires sign-in. The console is open
+for the user to authenticate; confirm the note-journal type and new marker fields
+before relying on cross-device note-edit sync. Physical-device testing of the new
+speech, intelligence, GPS and offline-sync behaviour remains necessary.

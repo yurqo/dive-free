@@ -57,3 +57,8 @@ including Domain, Persistence, Sensors, Session, Sync, and review-request tests.
 The full iPhone simulator executable compiled and Watch app sources typechecked
 with Swift 6. Normal Xcode/Tuist builds remain blocked by the unaccepted Xcode
 licence; no signed binary or physical-device GPS validation is claimed.
+
+Subsequent release verification: normal Xcode tests and both app builds passed
+in GitHub Actions. The signed **1.4.0 (200)** build was uploaded and independently
+verified as available in the existing internal TestFlight group on 2026-10-04.
+Physical-device GPS validation remains pending.

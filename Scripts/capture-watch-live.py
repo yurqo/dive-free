@@ -65,6 +65,10 @@ try:
             time.sleep(3)
             temporary = args.output.with_suffix('.capturing.png')
             run('io', args.device, 'screenshot', '--type=png', '--mask=black', str(temporary))
+            quality = subprocess.run(['swift', str(clock_reader.with_name('validate-watch-screenshot.swift')), str(temporary)], capture_output=True, text=True)
+            if quality.returncode != 0:
+                temporary.unlink(missing_ok=True)
+                continue
             ocr = subprocess.run(['swift', str(clock_reader), str(temporary)], capture_output=True, text=True)
             if ocr.returncode == 0 and ocr.stdout.strip() in expected:
                 os.replace(temporary, args.output)

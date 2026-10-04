@@ -374,6 +374,10 @@ end
 #      has is a failed/partial capture.
 # Both abort before a single byte is deleted on ASC.
 def assert_complete_screenshot_set
+  watch_captures = Dir.glob(File.join(SOURCE_SCREENSHOTS_DIR, "*", "Apple Watch*", "*.png"))
+  unless watch_captures.empty?
+    UI.user_error!("Watch screenshots contain dimmed or loading screens; recapture them.") unless system("swift", File.expand_path("../Scripts/validate-watch-screenshot.swift", __dir__), *watch_captures)
+  end
   UI.user_error!("Missing or stale iPhone/Watch composites. Run Scripts/screenshots.sh --compose-only.") unless system("swift", File.expand_path("../Scripts/compose-screenshots.swift", __dir__), SOURCE_SCREENSHOTS_DIR, "--verify")
   devices = expected_devices # fails closed if the manifest is missing/empty
 

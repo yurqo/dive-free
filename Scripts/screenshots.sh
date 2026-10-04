@@ -140,8 +140,8 @@ WATCH_DEVICES=(
 # same featured dive at 18 seconds rather than advancing a capture timer.
 WATCH_SCREENS=(
     "01-live:3"
-    "02-summary:3"
-    "03-profile:3"
+    "02-summary:10"
+    "03-profile:10"
     "04-sessions:3"
     "05-start:2"
 )
@@ -739,6 +739,7 @@ capture_watch_screen() {
         echo "       !! simctl io screenshot failed for $screen" >&2
         return 1
     fi
+    swift Scripts/validate-watch-screenshot.swift "$dest/$screen.png" || return 1
     if ! assert_no_alpha "$dest/$screen.png"; then
         echo "       !! $screen.png is not alpha-free — App Store Connect would reject it" >&2
         return 1
