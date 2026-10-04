@@ -108,3 +108,20 @@ preferred regional languages and device region, falls back to UK/US English,
 and remembers explicit picker choices. Recording-removal and note-deletion
 confirmations now anchor to their action buttons. The local marketing-version
 floor and all nine release-note headings have been aligned to **1.4.2**.
+
+### 2026-10-05 — submitted App Review notes corrected
+
+After the user submitted **1.4.2 (205)**, App Store Connect reported
+**WAITING_FOR_REVIEW**. Replaced the stale review notes referencing 1.3.7 with
+version-independent reviewer instructions covering editable notes, local speech
+transcription, optional Apple Intelligence summaries, GPS filtering and the
+note-editor fixes. Removed the inaccurate "no new permissions" assertion and
+described the Speech Recognition permission used by the on-device fallback.
+Clarified local storage/private iCloud sync, user-requested exports, the 6 m
+depth limit, and that purchases are not offered in this submission.
+
+Updated only the review-detail `notes` field through the App Store Connect API.
+A separate read confirmed all **3,831** characters match the local metadata,
+contact/demo-account fields remain unchanged, build **205** remains selected,
+and the version remains **WAITING_FOR_REVIEW**. No withdrawal, new binary or
+resubmission was needed.

@@ -1,15 +1,22 @@
-This is a feature release (session cropping, multi-format data export, GPS track smoothing, a surface-recovery indicator, and full local Backup & Restore). No new permissions, no new entitlements, no account, and all data stays in the user's private iCloud.
+Dive Free is a recreational freediving logbook for Apple Watch, iPhone and iPad. No app account or purchase is required. Core dive recording and logbook features will remain free.
 
-Essentials (unchanged from 1.2.x):
-- Recording sessions requires a paired Apple Watch. Depth readings require Apple Watch Ultra or Series 10/11; other watches record GPS and markers.
-- To demo without water: start a session on the watch, then press the Action + Side buttons together to start/stop a manual dive. The summary, iPhone sync, cropping, export, backup/restore, Live Activity and notification flows all work from a dry manual session.
-- The app requests provisional (silent) notification permission only when a watch session starts while the iPhone app is closed, solely for the "session running on your watch" notice.
-- The aps-environment entitlement is used only for ActivityKit push-to-start tokens (automatic Live Activity). No marketing pushes; the server component is stateless.
+Recording and review:
+- Recording requires a paired Apple Watch. Depth readings require Apple Watch Ultra or Series 10/11 and are limited to approximately 6 m by the shallow-water entitlement. Other supported watches record GPS and markers. This is not a dive computer and does not provide decompression or safety guidance.
+- To demo without water on Apple Watch Ultra: start a session, then press Action + Side together to start/stop a manual dive. Stop the session to view its summary and sync it to the paired iPhone. Cropping, export and backup can be reviewed using this session.
+- To review note editing: record a voice note during a Watch session, stop the session and allow it and the recording to transfer to iPhone. Open the session's note to edit its type, title and description, play the recording or transcribe it. Save commits changes; Cancel discards the draft. Remove Recording keeps the text and removes audio when Save is tapped. Watch note editing also supports removing recordings. Note edits and deletions sync between devices.
 
-New in 1.3.7:
-- Backup & Restore (iPhone/iPad): exports all app data (sessions, dive spots, trips) to a single .zip via the system share sheet, and restores from such a file via the document picker. Purely local file I/O; no upload, no account. Restore is additive and deduplicated — it never overwrites or deletes existing data.
-- Backup media is OPT-IN: three switches (voice notes, photos, videos), all OFF by default, control whether full-size originals are bundled; an estimated size is shown before exporting. When a backup that bundled photos/videos is restored and the original is no longer in the user's library, the app re-imports that file into Photos (using the existing NSPhotoLibraryAddUsageDescription permission) and relinks it. If the original is still present it is simply relinked, so restoring never duplicates library assets.
-- Session cropping (iPhone): trims the surface time before the first dive / after the last dive; it never cuts a dive. Destructive, with an explicit confirmation.
-- Data export (iPhone): shares a session as UDDF, FIT, GPX, CSV or TCX via the system share sheet. Purely local file generation; no upload.
-- Surface-recovery indicator (watch): a colour + gentle haptic once a recommended surface interval elapses. Copy is explicitly "a common rule of thumb, not medical or safety advice."
-- In-App Purchases are NOT part of this submission. The binary contains dormant, unreachable support/tip-jar code, disabled server-side, with no products configured.
+Changes in this submission:
+- Editable notes, on-device voice-note transcription and optional Apple Intelligence summaries. Transcription is user-triggered. On iOS/iPadOS 26, it uses SpeechAnalyzer/SpeechTranscriber with supported system language assets; assets may need a system download. On older supported versions, SFSpeechRecognizer is used only when on-device recognition is available and requires Speech Recognition permission. No recording is sent to a third-party transcription service.
+- Summaries use Apple's on-device Foundation Models only on supported devices when Apple Intelligence and the selected language are available. Users review suggestions before applying them. The original transcript is retained. Unsupported devices still offer playback and manual editing.
+- Improved GPS filtering reduces stationary drift and rejects implausible movement. Session distance and track displays use the filtered track; original GPS samples are retained.
+- Automatic dive detection includes the initial descent before the detection threshold is confirmed. This build also fixes first-open note-editor dismissal, transcription-language defaults and recording-removal confirmation placement.
+
+Existing features retained:
+- Backup & Restore exports sessions, spots and trips to a local ZIP through the system share sheet. Restore is additive and deduplicated. Voice notes, photos and videos are opt-in backup options, off by default. Restoring bundled media may use the existing Photos add permission to re-import missing originals; existing assets are relinked.
+- Session cropping removes surface time before the first dive and after the last dive, never part of a dive, with destructive confirmation. Session export supports UDDF, FIT, GPX, CSV and TCX through the system share sheet. These operations generate local files.
+- The Watch surface-recovery indicator provides a colour and gentle haptic after a suggested interval. It is described as a common rule of thumb, not medical or safety advice.
+
+Data and permissions:
+- Sessions are stored locally and sync between Watch and iPhone via WatchConnectivity, and between iPhone/iPad through the user's private iCloud database. Backups and exports are shared only at the user's request. Transcription and summarisation run on-device.
+- Session notifications and Live Activities indicate that a session is running on the Watch. Push entitlements support CloudKit and Live Activity functionality; there are no marketing pushes.
+- In-app purchases and subscriptions are not offered in this submission. Dormant support/tip-jar code remains hidden.
