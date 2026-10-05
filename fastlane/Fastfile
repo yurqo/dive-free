@@ -374,6 +374,10 @@ end
 #      has is a failed/partial capture.
 # Both abort before a single byte is deleted on ASC.
 def assert_complete_screenshot_set
+  ios_captures = Dir.glob(File.join(SOURCE_SCREENSHOTS_DIR, "*", "i*", "*.png"))
+  unless ios_captures.empty?
+    UI.user_error!("iPhone/iPad screenshots contain blank or loading screens; recapture them.") unless system("swift", File.expand_path("../Scripts/validate-ios-screenshot.swift", __dir__), *ios_captures)
+  end
   watch_captures = Dir.glob(File.join(SOURCE_SCREENSHOTS_DIR, "*", "Apple Watch*", "*.png"))
   unless watch_captures.empty?
     UI.user_error!("Watch screenshots contain dimmed or loading screens; recapture them.") unless system("swift", File.expand_path("../Scripts/validate-watch-screenshot.swift", __dir__), *watch_captures)

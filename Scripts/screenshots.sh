@@ -1373,6 +1373,16 @@ if [ "$captured" -gt 0 ] && [ "${#WATCH_DEVICES[@]}" -gt 0 ]; then
     done
 fi
 
+if [ "$RUN_IOS" -eq 1 ]; then
+    ios_images=()
+    while IFS= read -r -d '' png; do
+        ios_images+=("$png")
+    done < <(/usr/bin/find "$OUTPUT_ROOT" -type f -path '*/i*/*.png' -print0)
+    if [ "${#ios_images[@]}" -eq 0 ] || ! swift Scripts/validate-ios-screenshot.swift "${ios_images[@]}"; then
+        failed=$((failed + 1))
+    fi
+fi
+
 if [ "$failed" -eq 0 ] && [ "$identical" -eq 0 ] && [ "$RUN_IOS" -eq 1 ] && [ "$RUN_WATCH" -eq 1 ]; then
     swift Scripts/compose-screenshots.swift "$OUTPUT_ROOT"
 fi

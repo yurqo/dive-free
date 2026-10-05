@@ -203,6 +203,14 @@ final class ScreenshotTests: XCTestCase {
             XCTFail("The screenshot screen \(screen) did not appear")
             return false
         }
+        if screen == "02-detail" {
+            let summary = app.descendants(matching: .any)
+                .matching(identifier: "screenshot.session.total").firstMatch
+            guard summary.waitForExistence(timeout: 15), summary.isHittable else {
+                XCTFail("Session summary content did not render; refusing a blank capture")
+                return false
+            }
+        }
         return true
     }
 

@@ -132,11 +132,15 @@ struct SessionListView: View {
                         .accessibilityIdentifier("screenshot.02-detail")
                 }
             }
-            .task {
+            .task(id: sessions.first?.id) {
                 let arguments = ProcessInfo.processInfo.arguments
-                guard arguments.contains("--screenshot-demo"),
+                guard !sessions.isEmpty, arguments.contains("--screenshot-demo"),
                       let flag = arguments.firstIndex(of: "--screenshot-screen"),
                       arguments.indices.contains(flag + 1) else { return }
+                // The first SwiftData query may still be empty on launch. Do not
+                // push a destination until its session exists and the stack has
+                // had a chance to mount.
+                await Task.yield()
                 switch arguments[flag + 1] {
                 case "02-dive-profile": screenshotDivePresented = true
                 case "02-detail": screenshotSessionPresented = true

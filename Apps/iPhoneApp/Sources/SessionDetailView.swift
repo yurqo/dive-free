@@ -51,6 +51,7 @@ struct SessionDetailView: View {
                     LabeledContent("Area", value: name)
                 }
                 LabeledContent("Total", value: Duration.seconds(domain.totalDuration).formatted(.time(pattern: .hourMinuteSecond)))
+                    .accessibilityIdentifier("screenshot.session.total")
                 LabeledContent("Dives", value: "\(domain.diveCount)")
                 LabeledContent("Max depth", value: DepthFormat.string(domain.maxDepthMeters))
                 if let average = domain.averageSurfaceInterval {
