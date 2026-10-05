@@ -125,3 +125,45 @@ A separate read confirmed all **3,831** characters match the local metadata,
 contact/demo-account fields remain unchanged, build **205** remains selected,
 and the version remains **WAITING_FOR_REVIEW**. No withdrawal, new binary or
 resubmission was needed.
+
+### 2026-10-05 — blank store screenshot correction
+
+Version **1.4.2 (205)** is now **READY_FOR_DISTRIBUTION**. The session-summary
+capture sometimes photographed the white navigation/launch frame before the
+content appeared. The approved upload contained nine blank localized summaries
+across iPhone/iPad (including the English screenshots on both devices). All
+153 uploaded checksums matched the local files; the earlier integrity checks
+therefore confirmed delivery but did not detect the missing screen content.
+
+Recaptured all sixteen summary sources across eight languages, with settling and
+content checks, and staged the resulting eighteen App Store locale assets.
+All **135 other published images**, including both heroes and all Watch images,
+remain byte-identical. Refreshed composition receipts for the changed manifests
+without changing the hero artwork. Reviewed a contact sheet of all corrected
+summaries and verified dimensions, opacity, completeness and ordering.
+
+The debug navigation waits for its queried session before opening a capture
+destination. XCUITest checks that the summary's Total row is visible before
+capturing. `validate-ios-screenshot.swift` rejects blank/launch frames at the end
+of capture and again before Fastlane staging. It rejects the actual faulty
+captures while accepting the complete corrected set, including sparse iPad
+Trips screens. Swift 6 compilation of the app and screenshot tests passed via
+the local direct compiler; shell/Ruby syntax and staging checks passed.
+
+Prepared a screenshot-only Product Page Optimization correction through Apple's
+public API, keeping the existing app version and binary. Draft experiment:
+`a7ae5400-a91b-4f94-a553-20239ead16b4`; treatment:
+`446db365-1808-4619-afc5-4ba93521f632`. This draft inherits independent copies of
+the current assets; only its session summaries were replaced. Apple processed
+all eighteen replacements, and fresh API reads verified the full **108**
+iPhone/iPad treatment images, exact source checksums, six images per device per
+locale, and first-position heroes.
+
+Submitted **only** this experiment in review submission
+`dafcf1a4-13a0-4692-9ab1-4e4a5acde4b4`; the API confirmed
+**WAITING_FOR_REVIEW**. No app version, new binary or Watch assets were included
+in this submission. After approval, apply treatment
+`446db365-1808-4619-afc5-4ba93521f632` to the original **1.4.2** product page
+using Product Page Optimization (or `POST /v1/appStoreVersionPromotions`).
+Approval and that application are still required: no test has been started,
+and the live screenshots have not yet been replaced.
