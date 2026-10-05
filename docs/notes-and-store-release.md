@@ -91,6 +91,25 @@ for the user to authenticate; confirm the note-journal type and new marker field
 before relying on cross-device note-edit sync. Physical-device testing of the new
 speech, intelligence, GPS and offline-sync behaviour remains necessary.
 
+### 2026-10-05 — Screenshot correction in the new App Store draft
+
+The user-created **1.4.2a** draft inherited the old live screenshots. Replaced all
+18 iPhone/iPad session-summary images with the validated captures. An independent
+API read verified all **153** checksums, processing states, filenames and ordering
+across nine locales, with heroes first. The other 135 images and localized
+metadata were preserved. This draft remains `PREPARE_FOR_SUBMISSION`, with no
+build selected or review submission. The earlier screenshot-only product-page
+correction is still `WAITING_FOR_REVIEW`; it has not changed the live page.
+
+CI for `331b898` passed both app builds, the seven test suites, and the note-editor
+UI regression on iPhone/iPad. CloudKit production-schema deployment is still
+unverified. The reported `CKErrorDomain 2` is a partial-failure wrapper and does
+not identify the cause. New marker fields and `NoteMutationRecord` remain the
+schema changes to check; no synchronization code defect has been confirmed.
+Console inspection is blocked while the Mac is locked, and paired devices are
+unavailable for logs. Keep the new draft's version until diagnosis is complete;
+the user authorized moving to **1.4.3** if a code correction is needed.
+
 ### 2026-10-04 — 1.4.2 note-editor follow-up
 
 Published **1.4.2 (205)** from `9f62052` through the signed TestFlight workflow
@@ -167,3 +186,30 @@ in this submission. After approval, apply treatment
 using Product Page Optimization (or `POST /v1/appStoreVersionPromotions`).
 Approval and that application are still required: no test has been started,
 and the live screenshots have not yet been replaced.
+
+### 2026-10-05 — 1.4.2a screenshot-only metadata aligned
+
+The user confirmed that the CloudKit schema correction resolved iCloud sync.
+No additional app-code fix or 1.4.3 release is needed for that issue.
+
+Copied promotional text and What's New exactly from approved **1.4.2** into
+the user-created **1.4.2a** draft in all nine App Store locales. Replaced its
+review notes with screenshot-only instructions explaining the blank session
+summary captures and their corrected replacements. Retained the basic dry
+Watch demo instructions; the notes describe no new app functionality.
+
+Fresh API reads verified both copied fields in every locale and the complete
+796-character review note. All **153** screenshot IDs, filenames, checksums and
+ordering, other localized metadata, reviewer contact/demo fields and build
+selection were preserved. **1.4.2a** remains **PREPARE_FOR_SUBMISSION** without
+a selected build; it was not submitted for review by this metadata update.
+
+### 2026-10-05 — 1.4.3 screenshot correction build prepared
+
+Apple requires a new eligible uploaded build for a new version submission even
+when only screenshots change. The user authorized **1.4.3** for both the binary
+and App Store draft. Raised `Project.swift`'s marketing-version floor to 1.4.3.
+The localized promotional text and What's New remain exactly as approved in
+1.4.2, per the user's instruction. The screenshot-only reviewer notes are kept.
+No release app functionality or persistence schema has changed since 1.4.2;
+the capture fixes affect debug automation and screenshot validation only.
