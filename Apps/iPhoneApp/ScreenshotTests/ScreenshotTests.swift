@@ -31,20 +31,6 @@ final class ScreenshotTests: XCTestCase {
 
     private var app: XCUIApplication!
 
-    nonisolated override func setUp() async throws {
-        await MainActor.run {
-            // Resilient by design: one missing screen must not abort the rest, so a
-            // failed assertion is recorded but the test keeps navigating.
-            continueAfterFailure = true
-
-            app = XCUIApplication()
-            app.launchArguments += ["--screenshot-demo"]
-            applyLanguageOverridesFromEnvironment()
-            app.launch()
-            assertRequestedLanguageApplied()
-        }
-    }
-
     /// Fails the test unless the app *resolved* the language we requested.
     ///
     /// This is the check that guards the expensive silent failure: `-testLanguage`
@@ -149,11 +135,18 @@ final class ScreenshotTests: XCTestCase {
         app.launchArguments += ["-unitMode", "metric"]
     }
 
-    nonisolated override func tearDown() async throws {
-        await MainActor.run { app = nil }
-    }
-
     func testCaptureScreenshots() throws {
+        // Keep setup in this actor-isolated test. XCTest's nonisolated async
+        // lifecycle cannot safely send its test-case instance to MainActor.
+        continueAfterFailure = true
+        app = XCUIApplication()
+        app.launchArguments += ["--screenshot-demo"]
+        app.launchEnvironment["TZ"] = "Asia/Singapore"
+        applyLanguageOverridesFromEnvironment()
+        app.launch()
+        assertRequestedLanguageApplied()
+        defer { app = nil }
+
         // 01 — Dives list.
         if selectTab(.dives) {
             capture(order: 1, name: "dives")

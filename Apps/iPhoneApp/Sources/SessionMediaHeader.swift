@@ -138,8 +138,14 @@ struct SessionMediaHeader: View {
                             .background(.black.opacity(0.35))
                     }
                 }
+                // Clipping pixels does not constrain SwiftUI hit testing. A
+                // portrait image must not steal taps from the row above it.
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .frame(width: width, height: height)
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .ignore)
         .accessibilityLabel(photo.isVideo ? Text("Video") : Text("Photo"))
         .accessibilityValue(loadedPhotos.contains(photo.id) ? Text("Ready") : Text("Loading…"))
         .accessibilityIdentifier("session.header.photo.\(photo.id)")

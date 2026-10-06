@@ -1403,9 +1403,11 @@ fi
 
 if [ "$RUN_IOS" -eq 1 ]; then
     ios_images=()
-    while IFS= read -r -d '' png; do
-        ios_images+=("$png")
-    done < <(/usr/bin/find "$OUTPUT_ROOT" -type f -path '*/i*/*.png' -print0)
+    for device in "${DEVICES[@]}"; do
+        while IFS= read -r -d '' png; do
+            ios_images+=("$png")
+        done < <(/usr/bin/find "$OUTPUT_ROOT" -type f -path "*/$device/*.png" -print0)
+    done
     if [ "${#ios_images[@]}" -eq 0 ] || ! swift Scripts/validate-ios-screenshot.swift "${ios_images[@]}"; then
         failed=$((failed + 1))
     fi
