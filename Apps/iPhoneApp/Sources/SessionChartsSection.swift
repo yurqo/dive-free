@@ -63,46 +63,7 @@ struct SessionChartsSection: View {
         if hasCharts {
             Section {
                 GeometryReader { geometry in
-                    VStack(spacing: 4) {
-                        if hasDepth {
-                            SessionDepthProfileChart(dives: session.dives, range: chartRange)
-                                .frame(height: chartHeight)
-                        }
-                        if hasHeartRate {
-                            SessionMetricChart(
-                                points: session.heartRateSamples.enumerated().map {
-                                    SessionMetricPoint(id: $0.offset, timestamp: $0.element.timestamp, value: $0.element.bpm)
-                                },
-                                title: "Heart rate",
-                                axisLabel: "bpm",
-                                tint: .red,
-                                range: chartRange,
-                                showsTimeLabels: !hasTemperature
-                            )
-                            .frame(height: chartHeight)
-                        }
-                        if hasTemperature {
-                            SessionMetricChart(
-                                points: session.temperatureSamples.enumerated().map {
-                                    SessionMetricPoint(
-                                        id: $0.offset,
-                                        timestamp: $0.element.timestamp,
-                                        value: TemperatureFormat.displayValue($0.element.celsius)
-                                    )
-                                },
-                                title: "Temperature",
-                                axisLabel: TemperatureFormat.unitLabel(),
-                                tint: .green,
-                                range: chartRange,
-                                showsTimeLabels: true
-                            )
-                            .frame(height: chartHeight)
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
-                    .contentShape(Rectangle())
-                    .simultaneousGesture(horizontalPan(in: geometry.size.width))
-                    .accessibilityIdentifier("session.charts.group")
+                    chartGroup(width: geometry.size.width)
                 }
                 .frame(height: CGFloat(chartCount) * chartHeight + CGFloat(max(0, chartCount - 1)) * 4)
 
@@ -133,6 +94,55 @@ struct SessionChartsSection: View {
                     .accessibilityLabel(isZoomed ? Text("Zoom out") : Text("Zoom in"))
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private func chartGroup(width: CGFloat) -> some View {
+        let charts = VStack(spacing: 4) {
+            if hasDepth {
+                SessionDepthProfileChart(dives: session.dives, range: chartRange)
+                    .frame(height: chartHeight)
+            }
+            if hasHeartRate {
+                SessionMetricChart(
+                    points: session.heartRateSamples.enumerated().map {
+                        SessionMetricPoint(id: $0.offset, timestamp: $0.element.timestamp, value: $0.element.bpm)
+                    },
+                    title: "Heart rate",
+                    axisLabel: "bpm",
+                    tint: .red,
+                    range: chartRange,
+                    showsTimeLabels: !hasTemperature
+                )
+                .frame(height: chartHeight)
+            }
+            if hasTemperature {
+                SessionMetricChart(
+                    points: session.temperatureSamples.enumerated().map {
+                        SessionMetricPoint(
+                            id: $0.offset,
+                            timestamp: $0.element.timestamp,
+                            value: TemperatureFormat.displayValue($0.element.celsius)
+                        )
+                    },
+                    title: "Temperature",
+                    axisLabel: TemperatureFormat.unitLabel(),
+                    tint: .green,
+                    range: chartRange,
+                    showsTimeLabels: true
+                )
+                .frame(height: chartHeight)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .contentShape(Rectangle())
+        .accessibilityIdentifier("session.charts.group")
+
+        if isZoomed && canZoom {
+            charts.simultaneousGesture(horizontalPan(in: width))
+        } else {
+            charts
         }
     }
 

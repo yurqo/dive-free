@@ -1,5 +1,6 @@
 Novidades da versão 1.4.5:
 • Reúna suas lembranças de mergulho: veja o mapa, as fotos e o título no topo dos detalhes da sessão. Toque em uma foto ou no mapa para explorar.
 • Veja juntos os gráficos de profundidade, frequência cardíaca e temperatura da água de toda a sessão. Aproxime para explorar janelas de cinco minutos e deslize pelos gráficos.
+• Role pelos detalhes da sessão com mais fluidez.
 
 Criado por amor ao mergulho. Todas as funções do app são gratuitas. As funções principais de registro de mergulhos e diário sempre serão gratuitas.

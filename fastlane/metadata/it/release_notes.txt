@@ -1,5 +1,6 @@
 Novità della versione 1.4.5:
 • Tieni insieme i ricordi delle immersioni: mappa, foto e titolo sono in cima ai dettagli della sessione. Tocca una foto o la mappa per esplorare.
 • Visualizza i grafici di profondità, frequenza cardiaca e temperatura dell’acqua per l’intera sessione. Ingrandisci per esplorare intervalli di cinque minuti e scorri i grafici.
+• Scorri più facilmente i dettagli della sessione.
 
 Creata per amore delle immersioni. Tutte le funzioni dell’app sono gratuite. Le funzioni principali di registrazione delle immersioni e diario resteranno sempre gratuite.

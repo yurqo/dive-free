@@ -1,5 +1,6 @@
 Novedades de 1.4.5:
 • Reúne tus recuerdos de buceo: consulta el mapa, las fotos y el título al inicio de los detalles de la sesión. Toca una foto o el mapa para explorar.
 • Consulta los gráficos de profundidad, frecuencia cardiaca y temperatura del agua de toda la sesión. Acerca la vista para explorar intervalos de cinco minutos y desliza para recorrer los gráficos.
+• Desplázate con más fluidez por los detalles de la sesión.
 
 Creada por amor al buceo. Todas las funciones de la app son gratuitas. Las funciones principales de registro de inmersiones y diario siempre serán gratuitas.
