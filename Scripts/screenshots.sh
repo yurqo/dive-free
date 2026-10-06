@@ -14,6 +14,8 @@
 #         then `simctl io … screenshot`.
 #
 # Run both (the default), or just one: `Scripts/screenshots.sh --watch`.
+# A verified, unchanged Watch set can be retained while refreshing with --ios;
+# run --compose-only afterward to rebuild and fingerprint both device heroes.
 #
 # WHY the watch path is different rather than "the same test on watchOS":
 # `XCTest.framework` is not part of the watchOS simulator SDK. There is no
