@@ -447,7 +447,8 @@ private struct PhotoPage: View {
             }
             return
         }
-        if await PhotoLibrary.requestAccess(),
+        if (photo.assetIdentifier != nil || photo.assetCloudIdentifier != nil),
+           await PhotoLibrary.requestAccess(),
            let full = await PhotoLibrary.fullImage(forIdentifier: photo.assetIdentifier, orCloudIdentifier: photo.assetCloudIdentifier) {
             image = full
             return

@@ -8,6 +8,7 @@ import Strava
 struct SessionDetailView: View {
     let session: SessionRecord
     @Environment(StravaAuthManager.self) private var strava
+    @Environment(PhotoPagerPresenter.self) private var photoPager
 
     private enum ExportStatus: Equatable {
         case idle, uploading, uploaded, failed(String)
@@ -107,7 +108,7 @@ struct SessionDetailView: View {
         .task { reconcileVoiceNotes() }
         .tenDiveReviewMilestone(
             completedSession: domain.endTime != nil,
-            presentingModal: activeSheet != nil || showFullMap || exportError != nil || exportStatus == .uploading
+            presentingModal: activeSheet != nil || showFullMap || photoPager.request != nil || exportError != nil || exportStatus == .uploading
         )
         .fullScreenCover(isPresented: $showFullMap) { fullMap(domain) }
         .sheet(item: $activeSheet) { sheet in
