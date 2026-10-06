@@ -8,6 +8,10 @@ on:
   # get the full build/test (and we don't burn a full macOS build on doc edits).
   pull_request:
 
+permissions:
+  contents: read
+  actions: read
+
 jobs:
   note-editor:
     name: Note and media UI regression
