@@ -321,11 +321,11 @@ sys.exit(1)
     echo "$udid $booted"
 }
 
-# Apply the canonical marketing status bar (9:41, full battery/signal).
+# Phone/iPad review happens after the featured 17:02 dive, at 18:10.
 apply_status_bar() {
     local udid="$1"
     xcrun simctl status_bar "$udid" override \
-        --time "9:41" \
+        --time "${IOS_SCREENSHOT_TIME:-18:10}" \
         --batteryState charged \
         --batteryLevel 100 \
         --cellularBars 4 \

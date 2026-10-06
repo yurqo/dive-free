@@ -88,7 +88,11 @@ jobs:
         run: tuist generate --no-open
       - name: Capture all languages and devices
         if: steps.changes.outputs.capture == 'true'
-        run: Scripts/screenshots.sh
+        run: |
+          # Shared fixture timestamps are UTC; render the approved 17:02 dive
+          # start consistently with the native Watch clock, on every runner.
+          sudo systemsetup -settimezone Asia/Singapore
+          Scripts/screenshots.sh
       - uses: actions/upload-artifact@v4
         if: steps.changes.outputs.capture == 'true'
         with:
