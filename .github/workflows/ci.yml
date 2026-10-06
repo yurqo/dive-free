@@ -8,15 +8,13 @@ on:
   # get the full build/test (and we don't burn a full macOS build on doc edits).
   pull_request:
 
-# Cancel any in-progress run for the same branch when a new commit arrives.
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   note-editor:
     name: Note and media UI regression
     runs-on: macos-26
+    concurrency:
+      group: ci-ui-${{ github.ref }}
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
         with:
@@ -64,6 +62,10 @@ jobs:
   screenshot-assets:
     name: Capture marketing assets
     runs-on: macos-26
+    # A test-only follow-up must not discard an expensive capture already running.
+    concurrency:
+      group: ci-assets-${{ github.ref }}
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
         with:
@@ -71,8 +73,13 @@ jobs:
       - name: Detect changes to session screenshots
         id: changes
         run: |
-          files=$(git diff --name-only '${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}')
-          if printf '%s\n' "$files" | grep -qE '^(Apps/iPhoneApp/(Sources/(SessionMediaHeader|ScreenshotMedia|SessionDetailView)|ScreenshotFixtures/)|Packages/Persistence/Sources/DemoData)'; then
+          base='${{ github.event.pull_request.base.sha }}'
+          previous='${{ github.event.before }}'
+          if [ '${{ github.event.action }}' = 'synchronize' ] && git cat-file -e "$previous^{commit}" 2>/dev/null; then
+            base="$previous"
+          fi
+          files=$(git diff --name-only "$base...${{ github.event.pull_request.head.sha }}")
+          if printf '%s\n' "$files" | grep -qE '^(Apps/iPhoneApp/(Sources/(SessionMediaHeader|ScreenshotMedia|SessionDetailView|PhotoGalleryView)|ScreenshotFixtures/|ScreenshotTests/)|Packages/Persistence/Sources/DemoData|Apps/WatchApp/Sources/WatchScreenshotMode|Scripts/(screenshots\.sh|compose-screenshots\.swift))'; then
             echo 'capture=true' >> "$GITHUB_OUTPUT"
           else
             echo 'capture=false' >> "$GITHUB_OUTPUT"
@@ -104,6 +111,9 @@ jobs:
   build-test:
     name: Build & Test
     runs-on: macos-26
+    concurrency:
+      group: ci-build-${{ github.ref }}
+      cancel-in-progress: true
 
     steps:
       - name: Checkout

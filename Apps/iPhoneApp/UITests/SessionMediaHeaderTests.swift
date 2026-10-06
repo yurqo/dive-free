@@ -55,8 +55,7 @@ final class SessionMediaHeaderTests: XCTestCase {
         app.navigationBars.buttons["Done"].tap()
         XCTAssertTrue(title.waitForExistence(timeout: 10))
 
-        app.navigationBars.buttons["Edit"].tap()
-        app.buttons["Edit Details"].tap()
+        openEditDetails(in: app)
         let editor = app.textFields["session.edit.title"]
         XCTAssertTrue(editor.waitForExistence(timeout: 10))
         editor.tap()
@@ -64,5 +63,27 @@ final class SessionMediaHeaderTests: XCTestCase {
         app.navigationBars.buttons["Done"].tap()
         XCTAssertTrue(title.waitForExistence(timeout: 10))
         XCTAssertEqual(title.label, "Reef encounters with friends")
+    }
+
+    private func openEditDetails(in app: XCUIApplication) {
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        let settings = XCUIApplication(bundleIdentifier: "com.apple.Preferences")
+        // A freshly booted simulator can announce Apple Intelligence while
+        // XCTest waits for animations. Its banner covers the navigation button.
+        if springboard.staticTexts["Ready for Apple Intelligence"].exists {
+            springboard.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.12))
+                .press(forDuration: 0.1, thenDragTo:
+                    springboard.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.01)))
+        }
+        app.navigationBars.buttons["Edit"].tap()
+        let editDetails = app.buttons["Edit Details"]
+        if !editDetails.waitForExistence(timeout: 5), settings.state == .runningForeground {
+            // Recover only from that external system interruption; an absent
+            // menu in Dive Free still fails the assertion below.
+            app.activate()
+            app.navigationBars.buttons["Edit"].tap()
+        }
+        XCTAssertTrue(editDetails.waitForExistence(timeout: 10))
+        editDetails.tap()
     }
 }
