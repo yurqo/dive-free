@@ -41,47 +41,50 @@ struct WatchDiveProfileView: View {
 
     var body: some View {
         let points = dive.depthProfile
-        ScrollView {
-            VStack(spacing: 10) {
-                // Headline stats up top, as a table matching the session summary.
-                VStack(spacing: 4) {
-                    statRow("Max depth", DepthFormat.string(dive.maxDepthMeters))
-                    statRow("Dive time", Duration.seconds(dive.duration).formatted(.time(pattern: .minuteSecond)))
-                }
+        GeometryReader { geometry in
+            ScrollView {
+                VStack(spacing: 10) {
+                    // Headline stats up top, as a table matching the session summary.
+                    VStack(spacing: 4) {
+                        statRow("Max depth", DepthFormat.string(dive.maxDepthMeters))
+                        statRow("Dive time", Duration.seconds(dive.duration).formatted(.time(pattern: .minuteSecond)))
+                    }
 
-                if points.isEmpty {
-                    ContentUnavailableView("No profile", systemImage: "chart.xyaxis.line")
-                } else {
-                    Chart {
-                        ForEach(points) { point in
-                            LineMark(
-                                x: .value("Elapsed", point.secondsFromStart),
-                                y: .value("Depth", point.depthMeters)
-                            )
-                            .interpolationMethod(.monotone)
-                            .foregroundStyle(.teal)
-                        }
-                        ForEach(placed) { marker in
-                            PointMark(
-                                x: .value("Elapsed", marker.secondsFromStart),
-                                y: .value("Depth", marker.depthMeters)
-                            )
-                            .symbolSize(0)
-                            .annotation(position: .overlay, spacing: 0) {
-                                chartMarkerGlyph(marker.emoji)
+                    if points.isEmpty {
+                        ContentUnavailableView("No profile", systemImage: "chart.xyaxis.line")
+                    } else {
+                        Chart {
+                            ForEach(points) { point in
+                                LineMark(
+                                    x: .value("Elapsed", point.secondsFromStart),
+                                    y: .value("Depth", point.depthMeters)
+                                )
+                                .interpolationMethod(.monotone)
+                                .foregroundStyle(.teal)
+                            }
+                            ForEach(placed) { marker in
+                                PointMark(
+                                    x: .value("Elapsed", marker.secondsFromStart),
+                                    y: .value("Depth", marker.depthMeters)
+                                )
+                                .symbolSize(0)
+                                .annotation(position: .overlay, spacing: 0) {
+                                    chartMarkerGlyph(marker.emoji)
+                                }
                             }
                         }
+                        // Depth increases downward: reverse Y and keep the surface in view.
+                        .chartYScale(domain: .automatic(includesZero: true, reversed: true))
+                        .frame(height: 130)
                     }
-                    // Depth increases downward: reverse Y and keep the surface in view.
-                    .chartYScale(domain: .automatic(includesZero: true, reversed: true))
-                    .frame(height: 130)
+
+                    watchMetricCharts(heartRate: heartRateSamples, temperature: temperatureSamples, in: dive.startTime...dive.endTime)
+
+                    WatchMarkerList(markers: diveMarkers)
                 }
-
-                watchMetricCharts(heartRate: heartRateSamples, temperature: temperatureSamples, in: dive.startTime...dive.endTime)
-
-                WatchMarkerList(markers: diveMarkers)
+                .padding(.horizontal, 6)
+                .frame(width: geometry.size.width)
             }
-            .padding(.horizontal, 6)
         }
         .navigationTitle(number.map { "Dive #\($0)" } ?? "Dive")
     }
@@ -107,46 +110,49 @@ struct WatchSurfaceDetailView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 10) {
-                if hasPath {
-                    // Static (non-zoomable) preview, sized like the dive profile;
-                    // tap pushes the full interactive map for this leg.
-                    NavigationLink {
-                        WatchSessionMapView(session: session, interactive: true, range: range)
-                            .ignoresSafeArea()
-                            .navigationTitle("Surface")
-                    } label: {
-                        WatchSessionMapView(session: session, interactive: false, range: range)
-                            .frame(height: 130)
-                            .clipShape(RoundedRectangle(cornerRadius: 10))
-                            .allowsHitTesting(false)
-                            .overlay(alignment: .topTrailing) {
-                                Image(systemName: "arrow.up.left.and.arrow.down.right")
-                                    .font(.caption2)
-                                    .padding(5)
-                                    .background(.ultraThinMaterial, in: Circle())
-                                    .padding(5)
-                            }
+        GeometryReader { geometry in
+            ScrollView {
+                VStack(spacing: 10) {
+                    if hasPath {
+                        // Static (non-zoomable) preview, sized like the dive profile;
+                        // tap pushes the full interactive map for this leg.
+                        NavigationLink {
+                            WatchSessionMapView(session: session, interactive: true, range: range)
+                                .ignoresSafeArea()
+                                .navigationTitle("Surface")
+                        } label: {
+                            WatchSessionMapView(session: session, interactive: false, range: range)
+                                .frame(height: 130)
+                                .clipShape(RoundedRectangle(cornerRadius: 10))
+                                .allowsHitTesting(false)
+                                .overlay(alignment: .topTrailing) {
+                                    Image(systemName: "arrow.up.left.and.arrow.down.right")
+                                        .font(.caption2)
+                                        .padding(5)
+                                        .background(.ultraThinMaterial, in: Circle())
+                                        .padding(5)
+                                }
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
+
+                    HStack(spacing: 16) {
+                        segmentMetric("Distance", DistanceFormat.string(segment.distanceMeters))
+                        // "Duration", not "Time": this is an elapsed span, and it
+                        // matches the iPhone surface detail's label. "Time" is also
+                        // the depth/metric charts' x-axis key, translated there as
+                        // clock time (es "Hora", ja "時刻") — sharing it would
+                        // caption this duration with the wrong sense.
+                        segmentMetric("Duration", Duration.seconds(segment.duration).formatted(.time(pattern: .minuteSecond)))
+                    }
+
+                    watchMetricCharts(heartRate: session.heartRateSamples, temperature: session.temperatureSamples, in: range)
+
+                    WatchMarkerList(markers: surfaceMarkers)
                 }
-
-                HStack(spacing: 16) {
-                    segmentMetric("Distance", DistanceFormat.string(segment.distanceMeters))
-                    // "Duration", not "Time": this is an elapsed span, and it
-                    // matches the iPhone surface detail's label. "Time" is also
-                    // the depth/metric charts' x-axis key, translated there as
-                    // clock time (es "Hora", ja "時刻") — sharing it would
-                    // caption this duration with the wrong sense.
-                    segmentMetric("Duration", Duration.seconds(segment.duration).formatted(.time(pattern: .minuteSecond)))
-                }
-
-                watchMetricCharts(heartRate: session.heartRateSamples, temperature: session.temperatureSamples, in: range)
-
-                WatchMarkerList(markers: surfaceMarkers)
+                .padding(.horizontal, 6)
+                .frame(width: geometry.size.width)
             }
-            .padding(.horizontal, 6)
         }
         .navigationTitle("Surface")
     }

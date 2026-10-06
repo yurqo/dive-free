@@ -111,7 +111,7 @@ WATCH_BUNDLE_ID="org.yurko.divefree.watchkitapp"
 # the helpers below. NOTE: this is the OUTPUT-folder key (what ASC expects), not
 # necessarily the -testLanguage code — see `lang_for_locale` for the Portuguese
 # case where the folder stays `pt-BR` but the app localizes to `pt`.
-LOCALES=(en es fr it de pt-BR ja uk)
+LOCALES=(en en-GB es fr it de pt-BR ja uk)
 
 # Devices to capture on. Names must match `xcrun simctl list devicetypes`
 # (and a matching simulator must exist — `xcrun simctl list devices`). Edit
@@ -183,11 +183,12 @@ BOOTED_UDIDS=()
 
 usage() {
     cat <<'USAGE'
-Usage: Scripts/screenshots.sh [--ios] [--watch] [--compose-only]
+Usage: Scripts/screenshots.sh [--ios] [--watch] [--locale LOCALE] [--compose-only]
 
   (no flags)  capture both the iOS (iPhone + iPad) and the Apple Watch sets
   --ios       capture only the iOS set (XCUITest-driven)
   --watch     capture only the Apple Watch set (simctl-driven)
+  --locale    capture one configured locale (e.g. en-GB)
   --compose-only  regenerate iPhone/Watch composites from existing captures
                   add --locale en to iterate on English heroes only
 
@@ -199,14 +200,37 @@ USAGE
 if [ "$#" -gt 0 ]; then
     RUN_IOS=0
     RUN_WATCH=0
-    for argument in "$@"; do
-        case "$argument" in
+    while [ "$#" -gt 0 ]; do
+        case "$1" in
             --ios)          RUN_IOS=1 ;;
             --watch)        RUN_WATCH=1 ;;
+            --locale)
+                if [ "$#" -lt 2 ]; then
+                    echo "--locale requires a locale key" >&2
+                    usage >&2
+                    exit 2
+                fi
+                LOCALE_FILTER="$2"
+                shift
+                ;;
             -h|--help)      usage; exit 0 ;;
-            *)              echo "Unknown argument: $argument" >&2; usage >&2; exit 2 ;;
+            *)              echo "Unknown argument: $1" >&2; usage >&2; exit 2 ;;
         esac
+        shift
     done
+fi
+
+if [ -n "${LOCALE_FILTER:-}" ]; then
+    configured=0
+    for locale in "${LOCALES[@]}"; do
+        [ "$locale" = "$LOCALE_FILTER" ] && configured=1
+    done
+    if [ "$configured" -eq 0 ]; then
+        echo "Unknown locale: $LOCALE_FILTER" >&2
+        echo "Configured locales: ${LOCALES[*]}" >&2
+        exit 2
+    fi
+    LOCALES=("$LOCALE_FILTER")
 fi
 
 # ---------------------------------------------------------------------------
@@ -243,6 +267,7 @@ trap cleanup EXIT
 #                 request `pt` while keeping the `pt-BR` output folder for ASC.
 lang_for_locale() {
     case "$1" in
+        en-GB) echo "en" ;;
         pt-BR) echo "pt" ;;
         *)     echo "$1" ;;
     esac
@@ -252,6 +277,7 @@ lang_for_locale() {
 region_for_locale() {
     case "$1" in
         en)    echo "US" ;;
+        en-GB) echo "GB" ;;
         es)    echo "ES" ;;
         fr)    echo "FR" ;;
         it)    echo "IT" ;;
@@ -432,7 +458,7 @@ prune_stale_device_dirs() {
 # capture loop only protects locales the loop reaches. All three DEVICE-level
 # bailouts (`udid_for_device` failing, `build-for-testing` failing, no `.xctestrun`
 # produced) `continue` before that loop runs even once, so without this the device
-# keeps the PREVIOUS run's PNGs for all 8 locales. Those are the dangerous ones:
+# keeps the PREVIOUS run's PNGs for all configured locales. Those are dangerous:
 # `prune_stale_device_dirs` won't touch them (the device IS configured), the
 # sanity check hashes them as if fresh, and `fastlane ios metadata` reads the
 # folder rather than our exit code — so a later lane run happily uploads
@@ -470,7 +496,7 @@ find_xctestrun() {
 #     `TestRegion: ""`, and the file's empty values win over the command line.
 #     Setting them here is what localizes system-rendered chrome (keyboard,
 #     system alerts, share sheet, date pickers) — without it, that furniture
-#     stayed in the simulator's own language in all 8 sets.
+#     stayed in the simulator's own language in every locale set.
 #   - EnvironmentVariables (the runner's env) — SCREENSHOT_LANGUAGE /
 #     SCREENSHOT_LOCALE. `ScreenshotTests.setUpWithError()` reads them, appends
 #     `-AppleLanguages`/`-AppleLocale` to the app's launch arguments, and — the
@@ -803,9 +829,9 @@ capture_watch_screen() {
 #     say, so the captures are already named `01-live.png` and carry no manifest.
 #
 # THE RULE: flag ANY single slug that is byte-identical across two locales, unless
-# that slug is in LOCALE_INVARIANT (currently empty — every screen we capture
-# shows a localized tab bar and nav title, so none of them may legitimately match
-# across languages).
+# it is globally locale-invariant or listed for that exact locale pair in
+# INTENTIONAL_IDENTICAL. The latter covers shared app languages such as en/en-GB
+# on screens without region-formatted content.
 #
 # WHY not the previous rule: it flagged a pair only when EVERY shared slug
 # matched. That is unanimity, so a single noisy image acquits the whole pair — and
@@ -834,10 +860,17 @@ rest = sys.argv[2:]
 separator = rest.index("--")
 locales, devices = rest[:separator], rest[separator + 1:]
 
-# Slugs that may legitimately be byte-identical across languages (a screen with
-# no localized text anywhere). Empty on purpose — see the rule above. Add with a
-# comment naming the screen and why it carries no localized pixels.
+# Slugs that may legitimately be byte-identical across every locale (a screen
+# with no localized text anywhere). Empty on purpose — see the rule above. Add
+# with a comment naming the screen and why it carries no localized pixels.
 LOCALE_INVARIANT = set()
+
+# English (U.S.) and English (U.K.) use the same app localization. These two
+# screens have no region-formatted content, so identical captures are expected;
+# keep comparing every other screen and every other locale pair normally.
+INTENTIONAL_IDENTICAL = {
+    frozenset(("en", "en-GB")): {"04-spots", "05-passport"},
+}
 
 class Unusable(Exception):
     """A device dir we cannot draw a conclusion from — always fatal."""
@@ -978,6 +1011,7 @@ for device in devices:
             identical = sorted(
                 slug for slug in shared
                 if slug not in LOCALE_INVARIANT
+                and slug not in INTENTIONAL_IDENTICAL.get(frozenset((left, right)), set())
                 and per_locale[left][slug] == per_locale[right][slug]
             )
             if identical:
@@ -1386,7 +1420,7 @@ done
 identical=0
 
 # iOS whole-image check, over the iOS devices only.
-if [ "$captured" -gt 0 ] && [ "${#DEVICES[@]}" -gt 0 ]; then
+if [ "$captured" -gt 0 ] && [ "${#DEVICES[@]}" -gt 0 ] && [ -z "${LOCALE_FILTER:-}" ]; then
     # Only meaningful once at least one iOS device dir exists (a `--watch`-only run
     # leaves none). Guard so that run does not fail on "no output directory".
     if /usr/bin/find "$OUTPUT_ROOT" -type d -path "*/${DEVICES[0]}" -print -quit 2>/dev/null | grep -q .; then
@@ -1395,7 +1429,7 @@ if [ "$captured" -gt 0 ] && [ "${#DEVICES[@]}" -gt 0 ]; then
 fi
 
 # Watch cropped check, per watch device, over the byte-checkable (static) screens.
-if [ "$captured" -gt 0 ] && [ "${#WATCH_DEVICES[@]}" -gt 0 ]; then
+if [ "$captured" -gt 0 ] && [ "${#WATCH_DEVICES[@]}" -gt 0 ] && [ -z "${LOCALE_FILTER:-}" ]; then
     # Static slugs = WATCH_SCREENS minus WATCH_BYTE_EXCLUDE.
     watch_static_slugs=()
     for entry in "${WATCH_SCREENS[@]}"; do
@@ -1428,7 +1462,11 @@ if [ "$RUN_IOS" -eq 1 ]; then
 fi
 
 if [ "$failed" -eq 0 ] && [ "$identical" -eq 0 ] && [ "$RUN_IOS" -eq 1 ] && [ "$RUN_WATCH" -eq 1 ]; then
-    swift Scripts/compose-screenshots.swift "$OUTPUT_ROOT"
+    if [ -n "${LOCALE_FILTER:-}" ]; then
+        swift Scripts/compose-screenshots.swift "$OUTPUT_ROOT" --locale "$LOCALE_FILTER"
+    else
+        swift Scripts/compose-screenshots.swift "$OUTPUT_ROOT"
+    fi
 fi
 
 echo "==> Done"

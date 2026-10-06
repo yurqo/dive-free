@@ -1,1 +1,1 @@
-freediving,apnea,spearfishing,snorkel,depth,logbook,spots,ocean,freedive,underwater
+freediving,snorkeling,snorkelling,apnea,apnoea,depth,tracker,spearfishing

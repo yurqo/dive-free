@@ -11,7 +11,9 @@ final class NoteEditorTests: XCTestCase {
         XCTAssertTrue(app.navigationBars.buttons["Edit"].waitForExistence(timeout: 20))
         let row = app.descendants(matching: .any)
             .matching(NSPredicate(format: "identifier BEGINSWITH %@", "note.row.")).firstMatch
-        for _ in 0..<12 {
+        // The detail page now includes session-wide charts before the marker
+        // section, so allow enough scrolling to reach the row on smaller screens.
+        for _ in 0..<30 {
             if row.exists && row.isHittable { break }
             app.swipeUp()
         }

@@ -49,6 +49,7 @@ EXPECTED_DEVICES_FILENAME = "expected-devices.txt".freeze
 # unfinished). Values are ALWAYS arrays so every call site iterates uniformly.
 LOCALE_MAP = {
   "en"    => ["en-US"],
+  "en-GB" => ["en-GB"],
   "es"    => ["es-ES", "es-MX"],
   "fr"    => ["fr-FR"],
   "it"    => ["it"],
@@ -366,7 +367,7 @@ end
 #   1. Device coverage — every device in the run's manifest must have screenshots in
 #      at least one locale. This is the ONLY check that catches a whole device class
 #      absent everywhere (an `--ios`-only run, or a watch capture that failed for all
-#      8 locales): the per-locale union below can't, because a class missing from
+#      locales): the per-locale union below can't, because a class missing from
 #      every locale simply never enters the union.
 #   2. Per-locale completeness — every locale that has ANY screenshots must match the
 #      richest locale's complement (device × screen). Since all locales capture
@@ -576,11 +577,10 @@ platform :ios do
     state = version.app_version_state || version.app_store_state
     UI.message("Purging screenshots from version #{version.version_string} (#{state})")
 
-    # Only the locales `metadata` can repopulate. Any other localization (an
-    # `en-GB` added through the ASC web UI, a leftover from an old release) is left
-    # alone: we hold no local screenshots for it, so purging it would strip the
-    # version with nothing able to put the images back. deliver scopes its own
-    # deletion the same way.
+    # Only the locales `metadata` can repopulate. Any localization not in
+    # LOCALE_MAP (such as one added directly through the ASC web UI) is left alone:
+    # we hold no local screenshots for it, so purging it would strip the version
+    # with nothing able to put the images back. deliver scopes its deletion alike.
     localizations = version.get_app_store_version_localizations(limit: ASC_PAGE_LIMIT)
     purgeable_locales = LOCALE_MAP.values.flatten
     targets, skipped = localizations.partition { |localization| purgeable_locales.include?(localization.locale) }

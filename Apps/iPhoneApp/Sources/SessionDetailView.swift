@@ -36,6 +36,19 @@ struct SessionDetailView: View {
     }
     @State private var activeSheet: ActiveSheet?
 
+    /// Chart-focused captures use the same session data and chart views while
+    /// omitting surrounding sections that otherwise push the graph footer
+    /// underneath the pinned tab bar. This launch flag is only honoured by the
+    /// DEBUG screenshot harness.
+    private var screenshotChartsOnly: Bool {
+        #if DEBUG
+        let arguments = ProcessInfo.processInfo.arguments
+        return arguments.contains("--screenshot-demo") && arguments.contains("--screenshot-chart-focus")
+        #else
+        return false
+        #endif
+    }
+
     /// Set when an export can't be produced (FIT without location/time data) or a
     /// temp-file write fails.
     @State private var exportError: LocalizedStringKey?
@@ -46,61 +59,65 @@ struct SessionDetailView: View {
     var body: some View {
         let domain = session.toDomain()
         List {
-            SessionMediaHeader(session: session, domain: domain) { showFullMap = true }
+            if screenshotChartsOnly {
+                SessionChartsSection(session: domain)
+            } else {
+                SessionMediaHeader(session: session, domain: domain) { showFullMap = true }
 
-            Section {
-                LabeledContent("Date", value: domain.startTime.formatted(date: .abbreviated, time: .shortened))
-                if let name = domain.locationName, !name.isEmpty {
-                    LabeledContent("Area", value: name)
+                Section {
+                    LabeledContent("Date", value: domain.startTime.formatted(date: .abbreviated, time: .shortened))
+                    if let name = domain.locationName, !name.isEmpty {
+                        LabeledContent("Area", value: name)
+                    }
+                    LabeledContent("Total", value: Duration.seconds(domain.totalDuration).formatted(.time(pattern: .hourMinuteSecond)))
+                        .accessibilityIdentifier("screenshot.session.total")
+                    LabeledContent("Dives", value: "\(domain.diveCount)")
+                    LabeledContent("Max depth", value: DepthFormat.string(domain.maxDepthMeters))
+                    if let average = domain.averageSurfaceInterval {
+                        LabeledContent(
+                            "Avg surface",
+                            value: Duration.seconds(average).formatted(.time(pattern: .minuteSecond))
+                        )
+                    }
+                    if domain.track.count >= 2 {
+                        LabeledContent(LocalizedStringKey(domain.smoothTrack ? "Distance" : "Raw GPS distance"), value: DistanceFormat.string(domain.surfaceDistanceMeters))
+                    }
+                    if let rating = domain.rating {
+                        LabeledContent("Rating") { StarRating(rating: rating) }
+                    }
                 }
-                LabeledContent("Total", value: Duration.seconds(domain.totalDuration).formatted(.time(pattern: .hourMinuteSecond)))
-                    .accessibilityIdentifier("screenshot.session.total")
-                LabeledContent("Dives", value: "\(domain.diveCount)")
-                LabeledContent("Max depth", value: DepthFormat.string(domain.maxDepthMeters))
-                if let average = domain.averageSurfaceInterval {
-                    LabeledContent(
-                        "Avg surface",
-                        value: Duration.seconds(average).formatted(.time(pattern: .minuteSecond))
-                    )
+
+                if let notes = domain.notes, !notes.isEmpty {
+                    Section("Notes") {
+                        Text(notes)
+                    }
                 }
-                if domain.track.count >= 2 {
-                    LabeledContent(LocalizedStringKey(domain.smoothTrack ? "Distance" : "Raw GPS distance"), value: DistanceFormat.string(domain.surfaceDistanceMeters))
+
+                conditionsSection(domain)
+
+                weatherSection(domain)
+
+                SessionPhotosSection(session: session)
+
+                SessionChartsSection(session: domain)
+
+                segmentsSection(domain)
+
+                MarkerListSection(markers: domain.markers, session: session) { marker in
+                    activeSheet = .note(marker)
                 }
-                if let rating = domain.rating {
-                    LabeledContent("Rating") { StarRating(rating: rating) }
+
+                // Full session map.
+                locationSection(domain)
+
+                // Export lives at the very bottom, under the map.
+                exportSection(domain)
+
+                // iCloud sync status — surfaces the actual CloudKit error if a
+                // cross-device sync (e.g. this session's photos) is failing.
+                Section("iCloud Sync") {
+                    CloudKitSyncStatusRows()
                 }
-            }
-
-            if let notes = domain.notes, !notes.isEmpty {
-                Section("Notes") {
-                    Text(notes)
-                }
-            }
-
-            conditionsSection(domain)
-
-            weatherSection(domain)
-
-            SessionPhotosSection(session: session)
-
-            chartsSection(domain)
-
-            segmentsSection(domain)
-
-            MarkerListSection(markers: domain.markers, session: session) { marker in
-                activeSheet = .note(marker)
-            }
-
-            // Full session map.
-            locationSection(domain)
-
-            // Export lives at the very bottom, under the map.
-            exportSection(domain)
-
-            // iCloud sync status — surfaces the actual CloudKit error if a
-            // cross-device sync (e.g. this session's photos) is failing.
-            Section("iCloud Sync") {
-                CloudKitSyncStatusRows()
             }
         }
         .navigationTitle(domain.startTime.formatted(date: .abbreviated, time: .omitted))
@@ -364,22 +381,6 @@ struct SessionDetailView: View {
             }
         }
         if changed { try? session.modelContext?.save() }
-    }
-
-    /// Whole-session heart-rate and water-temperature charts (each shown only when
-    /// that series has data — e.g. no temperature on a non-Ultra watch).
-    @ViewBuilder
-    private func chartsSection(_ domain: DiveSession) -> some View {
-        if !domain.heartRateSamples.isEmpty {
-            Section("Heart rate") {
-                MetricChartView(heartRate: domain.heartRateSamples)
-            }
-        }
-        if !domain.temperatureSamples.isEmpty {
-            Section("Temperature") {
-                MetricChartView(temperature: domain.temperatureSamples)
-            }
-        }
     }
 
     @ViewBuilder

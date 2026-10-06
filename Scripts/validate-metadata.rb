@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 # Local validation. No credentials or App Store Connect access.
-locales = %w[en-US es-ES es-MX fr-FR it de-DE pt-BR ja uk]
+locales = %w[en-US en-GB es-ES es-MX fr-FR it de-DE pt-BR ja uk]
 limits = { "name" => 30, "subtitle" => 30, "promotional_text" => 170, "description" => 4000 }
 root = File.expand_path("../fastlane/metadata", __dir__)
 locales.each do |locale|

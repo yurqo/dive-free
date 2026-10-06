@@ -10,14 +10,15 @@ let selectedLocale = args.firstIndex(of: "--locale").map { index -> String in
     return args[index + 1]
 }
 let captions: [String: [String]] = [
-    "en": ["Dive with your Watch.", "Relive every dive on your iPhone and iPad."],
-    "es": ["Bucea con tu Watch.", "Revive cada inmersión en tu iPhone y iPad."],
-    "fr": ["Plongez avec votre Watch.", "Revivez chaque plongée sur votre iPhone et iPad."],
-    "it": ["Immergiti con il tuo Watch.", "Rivivi ogni immersione sul tuo iPhone e iPad."],
-    "de": ["Tauche mit deiner Watch.", "Erlebe jeden Tauchgang auf deinem iPhone und iPad neu."],
-    "pt-BR": ["Mergulhe com seu Watch.", "Reviva cada mergulho no seu iPhone e iPad."],
-    "ja": ["Watchと一緒にダイビング。", "すべてのダイビングをiPhoneとiPadでもう一度。"],
-    "uk": ["Пірнайте з Watch.", "Переживіть кожне занурення знову на вашому iPhone та iPad."]
+    "en": ["Record freedives on Apple Watch.", "Relive every dive on your iPhone and iPad."],
+    "en-GB": ["Record freedives on Apple Watch.", "Relive every dive on your iPhone and iPad."],
+    "es": ["Registra apneas con Apple Watch.", "Revive cada inmersión en tu iPhone y iPad."],
+    "fr": ["Plongées en apnée sur Apple Watch.", "Revivez chaque plongée sur votre iPhone et iPad."],
+    "it": ["Registra apnee con Apple Watch.", "Rivivi ogni immersione sul tuo iPhone e iPad."],
+    "de": ["Freitauchgänge auf der Apple Watch.", "Erlebe jeden Tauchgang auf deinem iPhone und iPad neu."],
+    "pt-BR": ["Registre apneias com Apple Watch.", "Reviva cada mergulho no seu iPhone e iPad."],
+    "ja": ["Apple Watchでフリーダイブを記録。", "すべてのダイビングをiPhoneとiPadでもう一度。"],
+    "uk": ["Записуйте занурення на Apple Watch.", "Переживіть кожне занурення знову на вашому iPhone та iPad."]
 ]
 func hash(_ url: URL) throws -> String {
     SHA256.hash(data: try Data(contentsOf: url)).map { String(format: "%02x", $0) }.joined()

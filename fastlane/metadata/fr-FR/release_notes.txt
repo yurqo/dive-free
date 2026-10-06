@@ -1,4 +1,5 @@
-Nouveautés de la version 1.4.4 :
-• Vos souvenirs de plongée au premier plan : retrouvez la carte, les photos et le titre en haut des détails de la session. Touchez une photo ou la carte pour explorer.
+Nouveautés de la version 1.4.5 :
+• Retrouvez vos souvenirs de plongée : la carte, les photos et le titre apparaissent en haut des détails de la session. Touchez une photo ou la carte pour explorer.
+• Consultez ensemble les graphiques de profondeur, de fréquence cardiaque et de température de l’eau sur toute la session. Zoomez pour explorer des fenêtres de cinq minutes et balayez les graphiques.
 
 Créée par amour de la plongée. Toutes les fonctions de l’app sont gratuites. Les fonctions essentielles d’enregistrement des plongées et de carnet resteront toujours gratuites.

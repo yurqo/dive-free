@@ -146,16 +146,39 @@ final class ScreenshotTests: XCTestCase {
         if launchScreenshotScreen("02-dive-profile") {
             capture(order: 90, name: "hero-dive-profile")
         }
+
+        // Store additional captures of the session charts in both states. The
+        // chart-focused view uses the same seeded session and production chart
+        // components, with less surrounding content so the full graph and footer
+        // are visible together. The usual session-detail screenshot is unchanged.
+        if launchScreenshotScreen("02-detail", additionalArguments: ["--screenshot-chart-focus"]) {
+            let charts = app.descendants(matching: .any)
+                .matching(identifier: "session.charts.group").firstMatch
+            XCTAssertTrue(charts.waitForExistence(timeout: 10), "Session charts did not appear")
+            capture(order: 6, name: "session-charts-zoomed-out")
+        }
+        if launchScreenshotScreen("02-detail", additionalArguments: [
+            "--screenshot-chart-focus", "--screenshot-chart-zoomed-in",
+        ]) {
+            let hint = app.descendants(matching: .any)
+                .matching(identifier: "session.charts.zoom.hint").firstMatch
+            let window = app.staticTexts["session.charts.window"]
+            XCTAssertTrue(hint.waitForExistence(timeout: 10), "Five-minute chart footer did not appear")
+            XCTAssertTrue(window.exists, "Five-minute chart window label did not appear")
+            capture(order: 7, name: "session-charts-zoomed-in")
+        }
     }
 
     // MARK: - Navigation
 
-    private func launchScreenshotScreen(_ screen: String) -> Bool {
+    private func launchScreenshotScreen(_ screen: String, additionalArguments: [String] = []) -> Bool {
         app.terminate()
         if let flag = app.launchArguments.firstIndex(of: "--screenshot-screen") {
             app.launchArguments.removeSubrange(flag...flag + 1)
         }
+        app.launchArguments.removeAll { $0 == "--screenshot-chart-focus" || $0 == "--screenshot-chart-zoomed-in" }
         app.launchArguments += ["--screenshot-screen", screen]
+        app.launchArguments += additionalArguments
         app.launch()
         assertRequestedLanguageApplied()
         let tabs = ["01-dives": "tab.dives", "03-trips": "tab.trips",
@@ -167,7 +190,7 @@ final class ScreenshotTests: XCTestCase {
             XCTFail("The screenshot screen \(screen) did not appear")
             return false
         }
-        if screen == "02-detail" {
+        if screen == "02-detail" && !additionalArguments.contains("--screenshot-chart-focus") {
             let summary = app.descendants(matching: .any)
                 .matching(identifier: "screenshot.session.total").firstMatch
             guard summary.waitForExistence(timeout: 15), summary.isHittable else {
