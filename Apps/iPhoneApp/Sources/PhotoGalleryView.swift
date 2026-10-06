@@ -326,6 +326,7 @@ struct PhotoThumbnailImage: View {
     private func load() async {
         // A fixed grid cell can be reused for a different record after deletion.
         // Report each completed load, even when the previous cell had an image.
+        guard !Task.isCancelled else { return }
         image = nil
         defer {
             if image != nil && !Task.isCancelled { onLoad?() }
