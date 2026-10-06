@@ -1,3 +1,9 @@
+New in 1.4.4:
+• Your dive memories, front and centre: see the session map, photos and title together at the top of your dive details. Tap a photo or map to explore.
+
+New in 1.4.3:
+• Refreshed App Store screenshots.
+
 New in 1.4.2:
 • Fixed notes closing when first opened, improved transcription language defaults using your language and region, and positioned recording-removal confirmations beside the action button.
 • Make your dive notes your own: edit titles, descriptions and icons on iPhone or iPad. Edit titles and icons on Watch, and remove recordings or delete notes on either device.

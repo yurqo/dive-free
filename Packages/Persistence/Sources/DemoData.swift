@@ -56,7 +56,7 @@ public enum DemoData {
 
     // Real freediving spots. Names are proper nouns → safe across locales.
     private static let amed = SpotFixture(
-        name: "Amed", latitude: -8.3402, longitude: 115.6870,
+        name: "Jemeluk Beach, Amed", latitude: -8.3381438, longitude: 115.660296,
         country: "Indonesia", countryCode: "ID"
     )
     private static let blueHole = SpotFixture(
@@ -113,10 +113,10 @@ public enum DemoData {
             markerKinds: [.wildlife, .photo]
         )
 
-        // Session 2: Amed, day 1. Single dive, part of the same trip.
+        // Session 2: Faial, day 1. Single dive.
         let session2 = makeSession(
             dayOffset: 1,
-            fixture: amed,
+            fixture: faial,
             diveDepths: [6.0],
             rating: 4,
             conditions: DiveConditions(
@@ -157,23 +157,23 @@ public enum DemoData {
             markerKinds: [.wildlife]
         )
 
-        // Session 4: Azores / Faial, day 9. Cooler, single dive.
+        // Session 4: featured Jemeluk session, day 9. Warm, single dive.
         let session4 = makeSession(
             dayOffset: 9,
-            fixture: faial,
+            fixture: amed,
             diveDepths: [4.5],
             rating: 4,
             conditions: DiveConditions(
                 visibility: .good,
                 current: .light,
-                surface: .choppy,
-                tide: .outgoing,
-                waterTemperatureCelsius: 19.0,
-                airTemperatureCelsius: 21.0
+                surface: .calm,
+                tide: .high,
+                waterTemperatureCelsius: 28.0,
+                airTemperatureCelsius: 30.0
             ),
             weather: DiveWeather(
-                weatherCode: 2, windSpeedKmh: 18.0,
-                windDirectionDegrees: 270, waveHeightMeters: 0.8
+                weatherCode: 0, windSpeedKmh: 8.0,
+                windDirectionDegrees: 120, waveHeightMeters: 0.3
             ),
             markerKinds: [.note]
         )
@@ -184,10 +184,8 @@ public enum DemoData {
 
         // --- Spot assignment ----------------------------------------------
         session1.spot = amedSpot
-        session2.spot = amedSpot
         session3.spot = dahabSpot
-        // session4 (Faial) intentionally left without a pre-created Spot object
-        // beyond its own coordinates; assign a fresh spot so the map/name render.
+        session4.spot = amedSpot
         let faialSpot = Spot(
             name: faial.name,
             centerLatitude: faial.latitude,
@@ -197,19 +195,19 @@ public enum DemoData {
             countryCode: faial.countryCode
         )
         context.insert(faialSpot)
-        session4.spot = faialSpot
+        session2.spot = faialSpot
 
-        // --- Trip (groups the two Amed sessions) --------------------------
+        // --- Trip (groups the two Jemeluk sessions) -----------------------
         let trip = Trip(
             // Proper-noun place name → locale-safe.
-            name: amed.name,
+            name: "Amed",
             startDate: session1.startTime,
-            endDate: session2.endTime ?? session2.startTime,
+            endDate: session4.endTime ?? session4.startTime,
             createdAt: baseDate
         )
         context.insert(trip)
         session1.trip = trip
-        session2.trip = trip
+        session4.trip = trip
 
         try? context.save()
     }

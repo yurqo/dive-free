@@ -213,3 +213,84 @@ The localized promotional text and What's New remain exactly as approved in
 1.4.2, per the user's instruction. The screenshot-only reviewer notes are kept.
 No release app functionality or persistence schema has changed since 1.4.2;
 the capture fixes affect debug automation and screenshot validation only.
+
+### 2026-10-05 — 1.4.3 (210) delivered and selected
+
+Published **1.4.3 (210)** from `5241cd0` through the signed TestFlight workflow
+(run `37296315213`). Archive, IPA export and upload succeeded; Apple reports
+**VALID** and **IN_BETA_TESTING**. The workflow tagged the delivered source
+**v1.4.3**. Renamed the existing App Store draft (ID
+`77ba5469-cce2-45fb-b119-0c3eaad7e5a7`) from **1.4.2a** to **1.4.3** and selected
+build **210**. API reads during both operations confirmed preservation of all
+**153** screenshot identities, filenames, checksums and ordering, localized
+metadata, reviewer notes and contact/demo fields. The draft remains
+**PREPARE_FOR_SUBMISSION**; no App Review submission was made by these steps.
+
+Independent verification confirmed TestFlight release notes in all nine locales
+and access in the existing **Me** internal group. Fresh reads confirmed selected
+build **210**, the corrected screenshot source hashes and ordering, exact copied
+1.4.2 promotional text/What's New, and screenshot-only reviewer notes. CI run
+`37296311651` passed all seven package suites, both app builds, and first-open
+note-editor UI tests on both iPhone and iPad for the delivered source.
+
+### 2026-10-05 — combined 1.4.3 and 1.4.2 release notes
+
+Prepended a short localized **1.4.3** entry (English: "Refreshed App Store
+screenshots.") to all nine release-note files, preserving each entire **1.4.2**
+section exactly. Updated App Store Connect's What's New and the reviewer sentence
+that previously said the whole field was unchanged. Fresh reads verified every
+localized text, unchanged promotional text and other metadata, preserved reviewer
+contact/demo fields, and **1.4.3 (210)** still in **PREPARE_FOR_SUBMISSION**.
+TestFlight's What's New for build **210** was also updated and independently
+verified in all nine locales. No binary rebuild or review submission was needed.
+
+### 2026-10-06 — 1.4.3 withdrawn; approved 1.4.2 screenshot correction
+
+The user withdrew the 1.4.3 submission after the screenshot-only correction was
+approved. Fresh App Store Connect reads show **1.4.2 (205)** remains
+**READY_FOR_DISTRIBUTION**, while **1.4.3 (210)** is **DEVELOPER_REJECTED**.
+The original Product Page Optimization review is **COMPLETE**, its experiment
+**APPROVED** and started, with 50% test traffic. The corrected treatment had no
+promotion timestamp, so approval alone had not made its images the default.
+Verified all **108** approved iPhone/iPad images against the corrected local
+source checksums across nine locales, with six images per device in order, then
+requested promotion of that treatment to the live **1.4.2** product page.
+
+Apple returned HTTP 500 for the promotion request, but fresh reads confirmed
+that it had taken effect: treatment `promotedDate` is
+`2026-10-05T19:40:39-07:00` (2026-10-06 10:40:39 Singapore time), and the experiment
+is **STOPPED**. No duplicate promotion request was made. Independently verified
+all **153 live screenshot source hashes and ordering**, unchanged localized
+metadata and Watch screenshot identities, live **1.4.2 (205)**, and withdrawn
+**1.4.3 (210)**. The corrected images are now applied to the original product
+page rather than limited to test traffic.
+
+The user reported a supported-devices row showing only iPhone/iPad. Fresh public
+App Store pages for US, Singapore, UK and Ukraine all show **iPhone, iPad, Apple
+Watch**. The public compatibility details include **watchOS 11.0 or later**.
+The user's captured page likely reflects caching or the prior test variant;
+this explanation is an inference, not a confirmed store-rendering cause. No
+Watch configuration changes were made.
+
+### 2026-10-06 — 1.4.4 session media header
+
+Implemented the approved session-detail design: an adaptive map/photo grid above
+summary rows and the optional saved title beneath it. The map reuses the same
+SessionTrackMapView/SessionMapView as Location, including recorded tracks and dive
+markers. Tiles open the existing full map and stable photo pager. One, two, three
+and four photos fill the available space; additional media stays accessible through
+the pager. Missing GPS/photos and empty titles omit their respective elements.
+The existing lower-page photo controls, Location map/smoothing toggle, charts and
+other details remain available. There is no persistence or CloudKit schema change.
+
+Updated the shared deterministic screenshot session to Jemeluk Beach, Amed; its
+Watch snapshot still derives its readings from the same featured dive samples.
+The phone screenshot store adds the four supplied underwater photos and a localized
+"Reef encounters" title without accessing the user's library or real store. These
+JPEG resources are excluded from Release builds. Screenshot tests now wait for all
+header photos to load before recording the session summary.
+
+Prepared version 1.4.4, localized release notes and reviewer instructions. CI covers
+first-open map/photo presentation, title editing and deleting photos through each
+grid size on both iPhone/iPad; captures refresh every language and device. Build,
+capture, upload and App Store draft verification are pending at this point.

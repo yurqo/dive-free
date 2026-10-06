@@ -285,6 +285,19 @@ struct SpotPhotosSection: View {
 /// Photos library, else a placeholder (asset removed / access denied).
 struct PhotoThumbnail: View {
     let photo: PhotoRecord
+
+    var body: some View {
+        PhotoThumbnailImage(photo: photo)
+            .frame(width: 80, height: 80)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+}
+
+/// Shared image loader for the gallery strip and the session's larger media grid.
+/// The owner supplies the frame and clipping; cached/synced thumbnails work offline.
+struct PhotoThumbnailImage: View {
+    let photo: PhotoRecord
+    var onLoad: (() -> Void)? = nil
     @State private var image: UIImage?
 
     var body: some View {
@@ -298,8 +311,6 @@ struct PhotoThumbnail: View {
                 }
             }
         }
-        .frame(width: 80, height: 80)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
         .overlay {
             if photo.isVideo {
                 Image(systemName: "play.circle.fill")
@@ -307,6 +318,10 @@ struct PhotoThumbnail: View {
                     .foregroundStyle(.white)
                     .shadow(radius: 2)
             }
+        }
+        .accessibilityIdentifier(image == nil ? "photo.loading.\(photo.id)" : "photo.ready.\(photo.id)")
+        .onChange(of: image != nil) { _, loaded in
+            if loaded { onLoad?() }
         }
         .task(id: photo.id) { await load() }
     }
@@ -358,6 +373,7 @@ struct PhotoPagerView: View {
                     } label: {
                         Image(systemName: "trash")
                     }
+                    .accessibilityIdentifier("photo.delete")
                 }
             }
         }

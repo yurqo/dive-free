@@ -1,3 +1,9 @@
+Novedades de 1.4.4:
+• Tus recuerdos de buceo, a primera vista: el mapa, las fotos y el título aparecen juntos al inicio de los detalles de la sesión. Toca una foto o el mapa para explorar.
+
+Novedades de la versión 1.4.3:
+• Capturas de pantalla actualizadas en el App Store.
+
 Novedades de la versión 1.4.2:
 • Corregimos el cierre de las notas al abrirlas por primera vez, mejoramos el idioma predeterminado de transcripción según tu idioma y región, y colocamos la confirmación para eliminar grabaciones junto al botón correspondiente.
 • Personaliza tus notas: edita títulos, descripciones e iconos en iPhone o iPad. Edita títulos e iconos en Watch y elimina grabaciones o notas en ambos dispositivos.

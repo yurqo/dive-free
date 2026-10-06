@@ -1,3 +1,9 @@
+Novidades da versão 1.4.4:
+• Suas lembranças de mergulho em destaque: mapa, fotos e título agora aparecem juntos no topo dos detalhes da sessão. Toque em uma foto ou no mapa para explorar.
+
+Novidades da versão 1.4.3:
+• Capturas de tela da App Store atualizadas.
+
 Novidades da versão 1.4.2:
 • Corrigimos as notas que fechavam ao serem abertas pela primeira vez, melhoramos o idioma padrão da transcrição com base no seu idioma e região e posicionamos a confirmação de remoção da gravação junto ao botão correspondente.
 • Personalize suas notas: edite títulos, descrições e ícones no iPhone ou iPad. Edite títulos e ícones no Watch e remova gravações ou exclua notas em ambos os dispositivos.

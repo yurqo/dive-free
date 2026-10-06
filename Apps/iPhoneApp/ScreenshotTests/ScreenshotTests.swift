@@ -210,6 +210,17 @@ final class ScreenshotTests: XCTestCase {
                 XCTFail("Session summary content did not render; refusing a blank capture")
                 return false
             }
+            let photos = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "session.header.photo."))
+            guard photos.count == 4 else {
+                XCTFail("The Jemeluk session header must include all four fixture photos")
+                return false
+            }
+            let ready = app.descendants(matching: .any)
+                .matching(identifier: "session.media.header.ready").firstMatch
+            guard ready.waitForExistence(timeout: 15) else {
+                XCTFail("Session media did not render")
+                return false
+            }
         }
         return true
     }

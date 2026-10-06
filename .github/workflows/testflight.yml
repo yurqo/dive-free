@@ -160,6 +160,13 @@ jobs:
             MARKETING_VERSION="${{ steps.version.outputs.version }}" \
             CURRENT_PROJECT_VERSION="${{ steps.version.outputs.build }}" | xcbeautify
 
+      - name: Verify screenshot fixtures are excluded from Release
+        run: |
+          if find DiveFree.xcarchive/Products -name 'Jemeluk-*.jpg' -print | grep -q .; then
+            echo "Screenshot-only photos must not be bundled in the release."
+            exit 1
+          fi
+
       - name: Export IPA
         run: |
           set -o pipefail

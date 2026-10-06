@@ -79,6 +79,7 @@ struct DiveFreeApp: App {
             do {
                 let store = try DiveStore(inMemory: true)
                 DemoData.seed(into: store.container.mainContext)
+                ScreenshotMedia.seed(into: store.container.mainContext)
                 return store.container
             } catch {
                 fatalError("Failed to create the in-memory demo container: \(error)")

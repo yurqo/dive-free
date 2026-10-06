@@ -45,6 +45,8 @@ struct SessionDetailView: View {
     var body: some View {
         let domain = session.toDomain()
         List {
+            SessionMediaHeader(session: session, domain: domain) { showFullMap = true }
+
             Section {
                 LabeledContent("Date", value: domain.startTime.formatted(date: .abbreviated, time: .shortened))
                 if let name = domain.locationName, !name.isEmpty {
@@ -100,7 +102,7 @@ struct SessionDetailView: View {
                 CloudKitSyncStatusRows()
             }
         }
-        .navigationTitle(domain.title ?? domain.startTime.formatted(date: .abbreviated, time: .omitted))
+        .navigationTitle(domain.startTime.formatted(date: .abbreviated, time: .omitted))
         .navigationBarTitleDisplayMode(.inline)
         .task { reconcileVoiceNotes() }
         .tenDiveReviewMilestone(

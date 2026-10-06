@@ -147,7 +147,7 @@ let iphoneApp = Target.target(
         ],
     ]),
     sources: ["Apps/iPhoneApp/Sources/**", "Apps/Shared/**"],
-    resources: ["Apps/iPhoneApp/Resources/**"],
+    resources: ["Apps/iPhoneApp/Resources/**", "Apps/iPhoneApp/ScreenshotFixtures/**"],
     entitlements: .file(path: "Apps/iPhoneApp/DiveFree.entitlements"),
     dependencies: [
         .target(name: "Domain"),
@@ -160,7 +160,12 @@ let iphoneApp = Target.target(
         .target(name: "DiveFreeWatch"),
         // Embeds the widget extension hosting the in-progress-dive Live Activity (#118).
         .target(name: "DiveFreeWidgets"),
-    ]
+    ],
+    settings: .settings(configurations: [
+        .debug(name: "Debug"),
+        // User-provided marketing photos are only bundled in screenshot/test builds.
+        .release(name: "Release", settings: ["EXCLUDED_SOURCE_FILE_NAMES": ["Jemeluk-*.jpg"]]),
+    ])
 )
 
 // The widget extension: hosts the in-progress-dive Live Activity (#118). Shares
@@ -229,7 +234,7 @@ let project = Project(
         // across minor bumps (a 1.0.x→1.1.0 jump would otherwise reset build=patch
         // backwards and TestFlight would reject it). Both targets bind their
         // Info.plist to these so the values reach the bundle.
-        "MARKETING_VERSION": "1.4.3",
+        "MARKETING_VERSION": "1.4.4",
         "CURRENT_PROJECT_VERSION": "1",
         "DEVELOPMENT_TEAM": SettingValue(stringLiteral: developmentTeam),
         "CODE_SIGN_STYLE": "Automatic",

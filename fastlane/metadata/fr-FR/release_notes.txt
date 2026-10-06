@@ -1,3 +1,9 @@
+Nouveautés de la version 1.4.4 :
+• Vos souvenirs de plongée au premier plan : retrouvez la carte, les photos et le titre en haut des détails de la session. Touchez une photo ou la carte pour explorer.
+
+Nouveautés de la version 1.4.3 :
+• Captures d’écran de l’App Store actualisées.
+
 Nouveautés de la version 1.4.2 :
 • Correction des notes qui se fermaient à la première ouverture, choix amélioré de la langue de transcription selon votre langue et votre région, et confirmation de suppression des enregistrements placée près du bouton correspondant.
 • Personnalisez vos notes : modifiez les titres, descriptions et icônes sur iPhone ou iPad. Modifiez les titres et icônes sur Watch, et supprimez les enregistrements ou les notes sur les deux appareils.

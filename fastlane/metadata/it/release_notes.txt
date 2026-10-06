@@ -1,3 +1,9 @@
+Novità della versione 1.4.4:
+• I tuoi ricordi di immersione in primo piano: mappa, foto e titolo sono ora riuniti in cima ai dettagli della sessione. Tocca una foto o la mappa per esplorare.
+
+Novità della versione 1.4.3:
+• Screenshot dell’App Store aggiornati.
+
 Novità della versione 1.4.2:
 • Risolto il problema delle note che si chiudevano alla prima apertura, migliorata la lingua predefinita della trascrizione in base alla lingua e alla regione, e posizionata la conferma di rimozione delle registrazioni vicino al pulsante corrispondente.
 • Personalizza le note: modifica titoli, descrizioni e icone su iPhone o iPad. Modifica titoli e icone su Watch ed elimina registrazioni o note su entrambi i dispositivi.
