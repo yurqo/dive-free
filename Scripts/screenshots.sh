@@ -1263,7 +1263,11 @@ for device in "${DEVICES[@]}"; do
             fi
         else
             echo "       !! test-without-building failed (see $RESULT_ROOT/${locale}-${device_slug}.log)" >&2
+            tail -60 "$RESULT_ROOT/${locale}-${device_slug}.log" >&2
             failed=$((failed + 1))
+            # CI should expose a broken harness immediately, before repeating
+            # the same failure across every locale. Local runs keep reporting all.
+            [ "${SCREENSHOT_FAIL_FAST:-0}" = "1" ] && exit 1
         fi
     done
     echo

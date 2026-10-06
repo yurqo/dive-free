@@ -87,6 +87,8 @@ struct SessionMediaHeader: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityElement(children: .ignore)
+        .accessibilityAddTraits(.isButton)
         .accessibilityLabel("Map")
         .accessibilityIdentifier("session.header.map")
     }

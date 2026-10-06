@@ -38,7 +38,8 @@ final class SessionMediaHeaderTests: XCTestCase {
         XCTAssertTrue(title.waitForExistence(timeout: 20))
         XCTAssertEqual(title.label, "Reef encounters")
         let map = app.buttons["session.header.map"]
-        XCTAssertTrue(map.isHittable)
+        let mapReady = XCTNSPredicateExpectation(predicate: NSPredicate(format: "hittable == true"), object: map)
+        XCTAssertEqual(XCTWaiter.wait(for: [mapReady], timeout: 15), .completed)
         let photos = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "session.header.photo."))
         XCTAssertEqual(photos.count, 4)
         XCTAssertTrue(photos.element(boundBy: 0).isHittable)

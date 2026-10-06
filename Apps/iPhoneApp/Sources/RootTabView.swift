@@ -38,6 +38,14 @@ struct RootTabView: View {
         }
         .tabViewStyle(.sidebarAdaptable)
         #if DEBUG
+        .overlay(alignment: .topLeading) {
+            if ProcessInfo.processInfo.arguments.contains("--screenshot-demo") {
+                Text(verbatim: "·")
+                    .font(.system(size: 1))
+                    .foregroundStyle(.clear)
+                    .accessibilityIdentifier("screenshot.selected.\(selectedTab)")
+            }
+        }
         .task {
             let arguments = ProcessInfo.processInfo.arguments
             guard arguments.contains("--screenshot-demo"),

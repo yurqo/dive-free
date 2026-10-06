@@ -1,14 +1,4 @@
 New in 1.4.4:
 • Your dive memories, front and centre: see the session map, photos and title together at the top of your dive details. Tap a photo or map to explore.
 
-New in 1.4.3:
-• Refreshed App Store screenshots.
-
-New in 1.4.2:
-• Fixed notes closing when first opened, improved transcription language defaults using your language and region, and positioned recording-removal confirmations beside the action button.
-• Make your dive notes your own: edit titles, descriptions and icons on iPhone or iPad. Edit titles and icons on Watch, and remove recordings or delete notes on either device.
-• Turn voice notes into editable text with on-device transcription where supported. Review the result before saving, and keep the recording unless you choose to remove it. Optional summaries are available with Apple Intelligence on supported devices and languages.
-• Dive profiles now retain the beginning of your descent before automatic detection confirms a dive.
-• Celebrate ten logged dives with a congratulations message and a one-time opportunity to review the app.
-• Improved GPS tracks and distance estimates: less drift while stationary, better filtering of implausible movement, and consistent distance on Watch and in the logbook.
 Made for the love of diving. All app features are free to use. Core dive recording and logbook features will always be free.

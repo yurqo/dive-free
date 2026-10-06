@@ -1,14 +1,4 @@
 Nouveautés de la version 1.4.4 :
 • Vos souvenirs de plongée au premier plan : retrouvez la carte, les photos et le titre en haut des détails de la session. Touchez une photo ou la carte pour explorer.
 
-Nouveautés de la version 1.4.3 :
-• Captures d’écran de l’App Store actualisées.
-
-Nouveautés de la version 1.4.2 :
-• Correction des notes qui se fermaient à la première ouverture, choix amélioré de la langue de transcription selon votre langue et votre région, et confirmation de suppression des enregistrements placée près du bouton correspondant.
-• Personnalisez vos notes : modifiez les titres, descriptions et icônes sur iPhone ou iPad. Modifiez les titres et icônes sur Watch, et supprimez les enregistrements ou les notes sur les deux appareils.
-• Convertissez les notes vocales en texte modifiable avec la transcription sur l’appareil, lorsqu’elle est prise en charge. Vérifiez le résultat avant de l’enregistrer ; l’audio reste conservé sauf si vous le supprimez. Les résumés facultatifs nécessitent Apple Intelligence sur des appareils et dans des langues compatibles.
-• Les profils de plongée conservent désormais le début de la descente avant la confirmation par la détection automatique.
-• Célébrez dix plongées enregistrées avec un message de félicitations et une occasion unique de donner votre avis.
-• Amélioration des traces GPS et des estimations de distance : moins de dérive à l’arrêt, meilleur filtrage des mouvements improbables et distance cohérente sur Watch et dans le carnet.
 Créée par amour de la plongée. Toutes les fonctions de l’app sont gratuites. Les fonctions essentielles d’enregistrement des plongées et de carnet resteront toujours gratuites.

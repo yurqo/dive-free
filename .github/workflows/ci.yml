@@ -131,6 +131,8 @@ jobs:
           fi
       - name: Capture all languages and devices
         if: steps.changes.outputs.capture == 'true'
+        env:
+          SCREENSHOT_FAIL_FAST: '1'
         run: |
           # Shared fixture timestamps are UTC; render the approved 17:02 dive
           # start consistently with the native Watch clock, on every runner.
