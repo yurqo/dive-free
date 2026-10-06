@@ -26,6 +26,9 @@ context.cgContext.draw(image, in: rect)
 let pixels = canvas.bitmapData!, rgb = output.bitmapData!
 for y in 0..<source.pixelsHigh { for x in 0..<source.pixelsWide {
     let offset = y * canvas.bytesPerRow + x * 4
+    guard pixels[offset + 3] == 255 else {
+        fputs("Screenshot contains transparent pixels: \(url.path)\n", stderr); exit(1)
+    }
     let destination = y * output.bytesPerRow + x * 3
     for channel in 0..<3 { rgb[destination + channel] = pixels[offset + channel] }
 } }

@@ -22,7 +22,7 @@ Store copy describes all current functionality as free and commits to keeping co
 
 The five original screenshots remain in each iPhone/iPad set, including `02-detail` (session summary). Additional first-position heroes show iPhone + Watch (`00-watch-and-iphone`) and iPad + iPhone + Watch (`00-ipad-iphone-watch`). Phone and iPad screens inside the heroes come from separate individual-dive attachments, `90-hero-dive-profile`; Fastlane excludes these raw inputs from store staging. Both platforms therefore publish six images each, while the dedicated Watch set retains five.
 
-The live Watch hero freezes the first featured dive at 18 seconds, reading depth, heart rate, temperature, location, marker count, and session elapsed from the same saved fixture used by phone/iPad charts. The Watch system clock is captured at 5:02, matching the featured dive’s 17:02 start; phone/iPad show their later review time. The `capture-watch-live.py` helper uses a temporary simulator Carousel timezone offset, restored afterward, because watchOS rejects `simctl status_bar` overrides. It checks the clock with native Vision OCR and fails rather than exporting a mismatched clock. `WATCH_SCREENSHOT_TIME` defaults to 17:02; adjust it when changing the fixture’s displayed start time. No clock pixels are redrawn. At that instant the depth is 2.88 m (displayed as 2.9 m), heart rate 79 bpm, temperature 19°C, and session elapsed 2:18; the note at 30 seconds has not been added yet. Phone/iPad show the completed 1:30 dive, with max depth 4.5 m. Ordinary Debug and Release recording do not use this snapshot.
+The live Watch hero freezes the first featured dive at 18 seconds, reading depth, heart rate, temperature, location, marker count, and session elapsed from the same saved fixture used by phone/iPad charts. The Watch system clock is captured at 5:02, matching the featured dive’s 17:02 start; phone/iPad show their later review time. The `capture-watch-live.py` helper uses a temporary simulator Carousel timezone offset, restored afterward, because watchOS rejects `simctl status_bar` overrides. It checks the clock with native Vision OCR and fails rather than exporting a mismatched clock. `WATCH_SCREENSHOT_TIME` defaults to 17:02; adjust it when changing the fixture’s displayed start time. No clock pixels are redrawn. At that instant the depth is 2.88 m (displayed as 2.9 m), heart rate 79 bpm, temperature 28°C, and session elapsed 2:18; the note at 30 seconds has not been added yet. Phone/iPad show the completed 1:30 dive, with max depth 4.5 m. Ordinary Debug and Release recording do not use this snapshot.
 
 All screenshot capture uses metric units regardless of saved simulator preferences or region. Simulated demo profiles contain an uneven descent, a brief bottom phase, and a slower ascent. Heart-rate samples every three seconds vary throughout each dive and surface interval. Receipts hash every source, its manifest, the renderer, and output. Staging rejects missing or stale heroes. Generated images stay under the existing ignored `screenshots/` and `fastlane/screenshots/` directories. During design iteration, only English drafts are rendered; regenerate and validate every locale after design approval.
 
@@ -294,3 +294,38 @@ Prepared version 1.4.4, localized release notes and reviewer instructions. CI co
 first-open map/photo presentation, title editing and deleting photos through each
 grid size on both iPhone/iPad; captures refresh every language and device. Build,
 capture, upload and App Store draft verification are pending at this point.
+
+
+#### 1.4.4 release verification
+
+Source `9737e75` passed all seven package test suites and both app builds in
+[CI run 37432433364](https://github.com/yurqo/dive-free/actions/runs/37432433364).
+All six note/media UI tests passed across iPhone 17 Pro Max and iPad Pro 13-inch
+(M5), including first-open presentation, title editing, full map/photo viewing,
+and deleting five photos through every grid layout. Tests exposed and fixed
+portrait images intercepting taps outside their visible cells; map and photo
+tiles also expose explicit button accessibility traits.
+
+[Delivery run 37434524799](https://github.com/yurqo/dive-free/actions/runs/37434524799)
+archived, verified that screenshot JPEGs were excluded from Release, exported
+and uploaded **1.4.4 (223)**. Tag `v1.4.4` identifies the delivered source.
+App Store Connect independently reported `VALID` and `IN_BETA_TESTING`, with
+build 223 available to the existing **Me** internal group and selected in the
+**1.4.4** `PREPARE_FOR_SUBMISSION` draft. All nine App Store and TestFlight
+localizations now contain only the 1.4.4 changes and the free-features message;
+older 1.4.2 and 1.4.3 sections were removed at the user's request.
+
+All **153** updated screenshots across nine App Store locales uploaded
+successfully to the 1.4.4 draft. An independent App Store Connect read verified
+each source hash, filename, ordering, and processing state. The six published
+images on iPhone and iPad start with their new device heroes; the five Watch
+images remain intact. All five existing phone/tablet screens, including the
+session summary, remain after the new hero. Localized capture summaries show the
+four supplied photos, "Reef encounters," and Jemeluk Beach, Amed.
+
+Staging caught alpha channels in XCTest's otherwise opaque RGBA screenshot files.
+The captures were converted losslessly to RGB and their heroes recomposed before
+upload. The live 1.4.2 (205) product page, its nine sets of metadata, and all 153
+live screenshot identities and hashes were verified unchanged. Reviewer notes and
+the 1.4.4 metadata remain in the editable `PREPARE_FOR_SUBMISSION` draft. No App
+Store review submission was made.

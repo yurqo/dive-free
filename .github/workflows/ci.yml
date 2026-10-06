@@ -10,7 +10,6 @@ on:
 
 permissions:
   contents: read
-  actions: read
 
 jobs:
   note-editor:
@@ -107,28 +106,6 @@ jobs:
       - name: Generate workspace
         if: steps.changes.outputs.capture == 'true'
         run: tuist generate --no-open
-      # Recover the valid Watch half of the interrupted 1.4.4 capture. Source
-      # changes, an SDK change or an expired artifact fall back to a full run.
-      - name: Recover unchanged Watch captures
-        if: steps.changes.outputs.capture == 'true'
-        id: watch-captures
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if [ "$(xcodebuild -version | head -n1)" = 'Xcode 26.4.1' ] &&
-             git diff --quiet 25fb911 HEAD -- Apps/WatchApp Packages Project.swift Scripts/capture-watch-live.py Scripts/read-watch-clock.swift Scripts/validate-watch-screenshot.swift &&
-             gh run download 37415539607 --name app-store-screenshots --dir "$RUNNER_TEMP/prior-capture"; then
-            files=()
-            for locale in en es fr it de pt-BR ja uk; do
-              source="$RUNNER_TEMP/prior-capture/$locale/Apple Watch Ultra 3 (49mm)"
-              [ "$(find "$source" -maxdepth 1 -name '*.png' | wc -l | xargs)" = 5 ] || exit 1
-              mkdir -p "screenshots/$locale"
-              cp -R "$source" "screenshots/$locale/"
-              for png in "screenshots/$locale/Apple Watch Ultra 3 (49mm)"/*.png; do files+=("$png"); done
-            done
-            swift Scripts/validate-watch-screenshot.swift "${files[@]}"
-            echo 'reused=true' >> "$GITHUB_OUTPUT"
-          fi
       - name: Capture all languages and devices
         if: steps.changes.outputs.capture == 'true'
         env:
@@ -137,12 +114,7 @@ jobs:
           # Shared fixture timestamps are UTC; render the approved 17:02 dive
           # start consistently with the native Watch clock, on every runner.
           sudo systemsetup -settimezone Asia/Singapore
-          if [ '${{ steps.watch-captures.outputs.reused }}' = 'true' ]; then
-            Scripts/screenshots.sh --ios
-            swift Scripts/compose-screenshots.swift screenshots
-          else
-            Scripts/screenshots.sh
-          fi
+          Scripts/screenshots.sh
       - uses: actions/upload-artifact@v4
         if: always() && steps.changes.outputs.capture == 'true'
         with:

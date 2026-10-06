@@ -369,10 +369,18 @@ apply_status_bar() {
 export_attachments() {
     local xcresult="$1"
     local dest="$2"
+    local screenshot png_count=0
     mkdir -p "$dest"
     if xcrun xcresulttool export attachments \
         --path "$xcresult" \
         --output-path "$dest" >/dev/null 2>&1; then
+        # XCTest exports RGBA even when the app-window screenshot is opaque.
+        # Convert to RGB before composition or App Store Connect rejects it.
+        while IFS= read -r -d '' screenshot; do
+            swift Scripts/opaque-screenshot.swift "$screenshot" || return 1
+            png_count=$((png_count + 1))
+        done < <(/usr/bin/find "$dest" -maxdepth 1 -type f -name '*.png' -print0)
+        [ "$png_count" -gt 0 ] || { echo "  !! No PNG screenshots exported from $xcresult" >&2; return 1; }
         return 0
     fi
     echo "  !! 'xcresulttool export attachments' failed — is Xcode 16+ installed?" >&2
