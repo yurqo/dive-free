@@ -101,7 +101,7 @@ jobs:
           sudo systemsetup -settimezone Asia/Singapore
           Scripts/screenshots.sh
       - uses: actions/upload-artifact@v4
-        if: steps.changes.outputs.capture == 'true'
+        if: always() && steps.changes.outputs.capture == 'true'
         with:
           name: app-store-screenshots
           path: screenshots/

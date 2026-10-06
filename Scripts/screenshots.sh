@@ -7,7 +7,7 @@
 # in fastlane/Fastfile globs):
 #
 #   iOS   (iPhone + iPad, `--ios`)   — runs the standalone `ScreenshotTests`
-#         UI-test target across every locale × device, applies a clean 9:41
+#         UI-test target across every locale × device, applies a clean 18:10
 #         status bar, and exports the captured PNG attachments.
 #   watch (Apple Watch, `--watch`)   — installs the watch app on a watch
 #         simulator and drives it with `simctl` alone: one launch per screen,
@@ -65,7 +65,7 @@
 #      wrong-language run a few jittering map-thumbnail pixels were enough to clear
 #      every `en` pair. It comes in two flavours because the platforms differ:
 #      2a. iOS — a WHOLE-image compare (`check_locales_differ`). The simulator clock
-#          is pinned to 9:41 (`simctl status_bar override`), so the only per-locale
+#          is pinned to 18:10 (`simctl status_bar override`), so the only per-locale
 #          difference is the localized text; identical bytes ⇒ language not applied.
 #      2b. watch — `simctl status_bar override` is REJECTED on watchOS, so the OS
 #          clock is baked into every capture and no two watch PNGs are ever
@@ -214,11 +214,17 @@ fi
 # Shut down simulators we booted and remove the scratch dir. Runs on any exit
 # (success, failure, or Ctrl-C) so we never leak booted sims or temp bundles.
 cleanup() {
+    local status=$?
     local udid
     for udid in "${BOOTED_UDIDS[@]:-}"; do
         [ -n "$udid" ] || continue
         xcrun simctl shutdown "$udid" >/dev/null 2>&1 || true
     done
+    if [ "$status" -ne 0 ] && [ -n "${RESULT_ROOT:-}" ]; then
+        # Keep diagnostic logs outside the scratch directory before cleanup.
+        mkdir -p "$OUTPUT_ROOT/diagnostics"
+        find "$RESULT_ROOT" -maxdepth 1 -name '*.log' -exec cp {} "$OUTPUT_ROOT/diagnostics/" \;
+    fi
     [ -n "${RESULT_ROOT:-}" ] && rm -rf "$RESULT_ROOT"
 }
 trap cleanup EXIT
@@ -269,26 +275,43 @@ region_for_locale() {
 udid_for_device() {
     local device="$1"
     local udid
-    # `xcrun simctl list devices available -j` groups devices by runtime; the
-    # runtime identifiers (…iOS-18-2 etc.) sort so that the newest is last, so we
-    # pick the match under the highest-sorting runtime.
+    local scheme="$SCHEME" platform="iOS Simulator"
+    if [[ "$device" == "Apple Watch"* ]]; then
+        scheme="$WATCH_SCHEME"
+        platform="watchOS Simulator"
+    fi
+    local destinations
+    destinations=$(xcodebuild -workspace "$WORKSPACE" -scheme "$scheme" -showdestinations 2>&1) || {
+        echo "$destinations" >&2
+        return 1
+    }
+    # A CI host can have runtimes installed by newer Xcodes. Only choose devices
+    # this workspace's selected Xcode actually offers as eligible destinations.
     udid=$(xcrun simctl list devices available -j \
         | /usr/bin/python3 -c '
-import json, sys
+import json, re, sys
 name = sys.argv[1]
+platform = sys.argv[2]
+eligible = set()
+for line in sys.argv[3].splitlines():
+    if "platform:" + platform not in line.replace("platform: ", "platform:") or "error:" in line:
+        continue
+    match = re.search(r"\bid:\s*([A-Fa-f0-9-]{36})\b", line)
+    if match:
+        eligible.add(match.group(1))
 data = json.load(sys.stdin)
 best_runtime, best_udid = None, None
 for runtime, devices in data["devices"].items():
     for d in devices:
-        if d.get("name") == name and d.get("isAvailable", True):
-            # Prefer the newest runtime (identifiers sort newest-last).
-            if best_runtime is None or runtime > best_runtime:
-                best_runtime, best_udid = runtime, d["udid"]
+        if d.get("name") == name and d.get("isAvailable", True) and d["udid"] in eligible:
+            version = tuple(map(int, re.findall(r"\d+", runtime)))
+            if best_runtime is None or version > best_runtime:
+                best_runtime, best_udid = version, d["udid"]
 if best_udid:
     print(best_udid)
     sys.exit(0)
 sys.exit(1)
-' "$device") || {
+' "$device" "$platform" "$destinations") || {
         echo "  !! No available simulator named \"$device\"." >&2
         echo "     Create one, e.g.:" >&2
         echo "         xcrun simctl create \"$device\" \"$device\"" >&2
@@ -1163,6 +1186,7 @@ for device in "${DEVICES[@]}"; do
         CODE_SIGNING_ALLOWED=NO \
         > "$build_log" 2>&1; then
         echo "    !! build-for-testing failed (see $build_log)" >&2
+        tail -80 "$build_log" >&2
         failed=$((failed + 1))
         continue
     fi
@@ -1273,6 +1297,7 @@ for device in "${WATCH_DEVICES[@]}"; do
         CODE_SIGNING_ALLOWED=NO \
         > "$build_log" 2>&1; then
         echo "    !! build failed (see $build_log)" >&2
+        tail -80 "$build_log" >&2
         failed=$((failed + 1))
         continue
     fi
