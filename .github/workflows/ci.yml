@@ -34,6 +34,11 @@ jobs:
         if: steps.changes.outputs.code == 'true'
         with:
           xcode-version: "~> 26.4"
+      - name: Initialize selected Xcode simulators
+        if: steps.changes.outputs.code == 'true'
+        run: |
+          xcodebuild -runFirstLaunch
+          xcrun simctl list devices available
       - uses: jdx/mise-action@v2
         if: steps.changes.outputs.code == 'true'
       - name: Generate workspace
@@ -88,6 +93,11 @@ jobs:
         if: steps.changes.outputs.capture == 'true'
         with:
           xcode-version: "~> 26.4"
+      - name: Initialize selected Xcode simulators
+        if: steps.changes.outputs.capture == 'true'
+        run: |
+          xcodebuild -runFirstLaunch
+          xcrun simctl list devices available
       - uses: jdx/mise-action@v2
         if: steps.changes.outputs.capture == 'true'
       - name: Generate workspace

@@ -280,6 +280,9 @@ udid_for_device() {
         scheme="$WATCH_SCHEME"
         platform="watchOS Simulator"
     fi
+    local devices
+    # Warm CoreSimulator before asking Xcode to enumerate its destinations.
+    devices=$(xcrun simctl list devices available -j) || return 1
     local destinations
     destinations=$(xcodebuild -workspace "$WORKSPACE" -scheme "$scheme" -showdestinations 2>&1) || {
         echo "$destinations" >&2
@@ -287,7 +290,7 @@ udid_for_device() {
     }
     # A CI host can have runtimes installed by newer Xcodes. Only choose devices
     # this workspace's selected Xcode actually offers as eligible destinations.
-    udid=$(xcrun simctl list devices available -j \
+    udid=$(printf '%s' "$devices" \
         | /usr/bin/python3 -c '
 import json, re, sys
 name = sys.argv[1]
