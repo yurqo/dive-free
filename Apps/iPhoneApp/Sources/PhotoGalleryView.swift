@@ -320,21 +320,27 @@ struct PhotoThumbnailImage: View {
             }
         }
         .accessibilityIdentifier(image == nil ? "photo.loading.\(photo.id)" : "photo.ready.\(photo.id)")
-        .onChange(of: image != nil) { _, loaded in
-            if loaded { onLoad?() }
-        }
         .task(id: photo.id) { await load() }
     }
 
     private func load() async {
+        // A fixed grid cell can be reused for a different record after deletion.
+        // Report each completed load, even when the previous cell had an image.
+        image = nil
+        defer {
+            if image != nil && !Task.isCancelled { onLoad?() }
+        }
         if let cached = await PhotoStore.thumbnailPrepared(for: photo.thumbnailFileName, fallbackData: photo.thumbnailData) {
+            guard !Task.isCancelled else { return }
             image = cached
             return
         }
         // Cache miss: fall back to a library thumbnail (e.g. cache was purged).
         guard let id = photo.assetIdentifier, await PhotoLibrary.requestAccess(),
               let asset = PhotoLibrary.asset(for: id) else { return }
-        image = await PhotoLibrary.thumbnail(for: asset)
+        let thumbnail = await PhotoLibrary.thumbnail(for: asset)
+        guard !Task.isCancelled else { return }
+        image = thumbnail
     }
 }
 

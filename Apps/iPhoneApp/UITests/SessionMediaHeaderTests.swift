@@ -5,19 +5,24 @@ final class SessionMediaHeaderTests: XCTestCase {
     func testHeaderAdaptsAsPhotosAreDeleted() {
         continueAfterFailure = false
         let app = XCUIApplication()
-        app.launchArguments = ["--screenshot-demo", "--screenshot-screen", "02-detail",
+        app.launchArguments = ["--screenshot-demo", "--screenshot-extra-photo", "--screenshot-screen", "02-detail",
                                "-AppleLanguages", "(en)", "-AppleLocale", "en_GB"]
         app.launch()
         XCTAssertTrue(app.buttons["session.header.map"].waitForExistence(timeout: 20))
         let photos = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "session.header.photo."))
-        for remaining in stride(from: 4, through: 1, by: -1) {
-            XCTAssertEqual(photos.count, remaining)
+        for remaining in stride(from: 5, through: 1, by: -1) {
+            XCTAssertTrue(app.descendants(matching: .any)
+                .matching(identifier: "session.media.header.ready").firstMatch.waitForExistence(timeout: 15))
+            XCTAssertEqual(photos.count, min(remaining, 4))
+            for index in 0..<photos.count {
+                XCTAssertEqual(photos.element(boundBy: index).value as? String, "Ready")
+            }
             photos.element(boundBy: 0).tap()
             let delete = app.buttons["photo.delete"]
             XCTAssertTrue(delete.waitForExistence(timeout: 10))
             delete.tap()
             XCTAssertTrue(app.buttons["session.header.map"].waitForExistence(timeout: 10))
-            XCTAssertEqual(photos.count, remaining - 1)
+            XCTAssertEqual(photos.count, min(remaining - 1, 4))
         }
         XCTAssertTrue(app.buttons["session.header.map"].isHittable)
         XCTAssertTrue(app.staticTexts["session.header.title"].exists)
