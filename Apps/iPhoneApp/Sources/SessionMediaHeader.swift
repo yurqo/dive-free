@@ -146,6 +146,7 @@ struct SessionMediaHeader: View {
         .frame(width: width, height: height)
         .contentShape(Rectangle())
         .accessibilityElement(children: .ignore)
+        .accessibilityAddTraits(.isButton)
         .accessibilityLabel(photo.isVideo ? Text("Video") : Text("Photo"))
         .accessibilityValue(loadedPhotos.contains(photo.id) ? Text("Ready") : Text("Loading…"))
         .accessibilityIdentifier("session.header.photo.\(photo.id)")
