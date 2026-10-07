@@ -59,6 +59,37 @@ LOCALE_MAP = {
   "uk"    => ["uk"]
 }.freeze
 
+# Keep the App Store listing focused on its six intended phone/tablet screens;
+# session-chart zoom captures remain in the local screenshot output for review.
+STORE_SCREENSHOT_NAMES = {
+  "iPhone 17 Pro Max" => %w[
+    00-watch-and-iphone.png
+    01-dives.png
+    02-detail.png
+    03-trips.png
+    04-spots.png
+    05-passport.png
+  ],
+  "iPad Pro 13-inch (M5)" => %w[
+    00-ipad-iphone-watch.png
+    01-dives.png
+    02-detail.png
+    03-trips.png
+    04-spots.png
+    05-passport.png
+  ],
+  "Apple Watch Ultra 3 (49mm)" => %w[
+    01-live.png
+    02-summary.png
+    03-profile.png
+    04-sessions.png
+    05-start.png
+  ]
+}.freeze
+EXPECTED_STORE_SCREENSHOT_COMPLEMENT = STORE_SCREENSHOT_NAMES.flat_map do |device, names|
+  names.map { |name| "#{device}/#{name}" }
+end.to_set.freeze
+
 # Spaceship's `.all` helpers return a single page (`resp.to_models`, no
 # `.all_pages`) and default to the server's page size of 50, so anything that
 # must be exhaustive has to ask for a generous limit explicitly — a silently
@@ -319,8 +350,12 @@ end
 # what would be uploaded.
 # Hero inputs are capture attachments, but not standalone store screenshots.
 def store_screenshot_pngs(device_dir)
+  allowed_names = STORE_SCREENSHOT_NAMES[File.basename(device_dir)]
+  return [] unless allowed_names
+
   Dir.glob(File.join(device_dir, "*.png")).sort.reject do |png|
-    readable_name_for(device_dir, File.basename(png)) == "90-hero-dive-profile.png"
+    readable_name = readable_name_for(device_dir, File.basename(png))
+    !allowed_names.include?(readable_name)
   end
 end
 
@@ -398,6 +433,15 @@ def assert_complete_screenshot_set
   return if per_locale.empty? # "Staged 0" is handled by the caller.
 
   expected = per_locale.values.map(&:to_set).reduce(:|) # union = the full complement
+
+  unless expected == EXPECTED_STORE_SCREENSHOT_COMPLEMENT
+    missing = (EXPECTED_STORE_SCREENSHOT_COMPLEMENT - expected).to_a.sort
+    unexpected = (expected - EXPECTED_STORE_SCREENSHOT_COMPLEMENT).to_a.sort
+    details = []
+    details << "missing: #{missing.join(', ')}" unless missing.empty?
+    details << "unexpected: #{unexpected.join(', ')}" unless unexpected.empty?
+    UI.user_error!("App Store screenshot set must match the approved 6 iPhone + 6 iPad + 5 Watch images (#{details.join('; ')}).")
+  end
 
   # Guard 1: a device class present in the manifest but in NO locale's output.
   present_devices = expected.map { |entry| entry.split("/", 2).first }.to_set
