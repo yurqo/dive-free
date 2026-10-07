@@ -200,10 +200,11 @@ USAGE
 if [ "$#" -gt 0 ]; then
     RUN_IOS=0
     RUN_WATCH=0
+    PIPELINE_SELECTED=0
     while [ "$#" -gt 0 ]; do
         case "$1" in
-            --ios)          RUN_IOS=1 ;;
-            --watch)        RUN_WATCH=1 ;;
+            --ios)          RUN_IOS=1; PIPELINE_SELECTED=1 ;;
+            --watch)        RUN_WATCH=1; PIPELINE_SELECTED=1 ;;
             --locale)
                 if [ "$#" -lt 2 ]; then
                     echo "--locale requires a locale key" >&2
@@ -218,6 +219,10 @@ if [ "$#" -gt 0 ]; then
         esac
         shift
     done
+    if [ "$PIPELINE_SELECTED" -eq 0 ]; then
+        RUN_IOS=1
+        RUN_WATCH=1
+    fi
 fi
 
 if [ -n "${LOCALE_FILTER:-}" ]; then

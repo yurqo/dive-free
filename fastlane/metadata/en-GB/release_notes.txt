@@ -1,6 +1,7 @@
-New in 1.4.5:
-• Keep your dive memories together: see the session map, photos and title at the top of dive details. Tap a photo or map to explore.
-• View depth, heart rate and water temperature across your session. Zoom in to explore five-minute windows and swipe through the charts.
+New in 1.4.6:
+• Keep each dive’s map and photos together at the top of its details, with an optional title.
+• Explore session depth, heart rate and water temperature with linked charts. Zoom to one- or five-minute windows, pinch to zoom, and hide surface intervals.
+• Export one session as a Dive Free Backup file. Choose data only or add voice notes, photos and videos.
 • Scroll through session details more smoothly.
 
 Made for the love of diving. All app features are free to use. Core dive recording and logbook features will always be free.

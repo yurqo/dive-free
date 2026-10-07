@@ -1,6 +1,7 @@
-Novedades de 1.4.5:
-• Reúne tus recuerdos de buceo: consulta el mapa, las fotos y el título al inicio de los detalles de la sesión. Toca una foto o el mapa para explorar.
-• Consulta los gráficos de profundidad, frecuencia cardiaca y temperatura del agua de toda la sesión. Acerca la vista para explorar intervalos de cinco minutos y desliza para recorrer los gráficos.
+Novedades de la versión 1.4.6:
+• Consulta juntos el mapa y las fotos de cada inmersión al inicio de los detalles; también puedes agregar un título.
+• Explora la profundidad, la frecuencia cardiaca y la temperatura del agua con gráficas vinculadas. Acerca la vista a intervalos de uno o cinco minutos, usa el gesto de pellizcar y oculta los intervalos en superficie.
+• Exporta una sesión como archivo Dive Free Backup. Elige solo los datos o agrega notas de voz, fotos y videos.
 • Desplázate con más fluidez por los detalles de la sesión.
 
 Creada por amor al buceo. Todas las funciones de la app son gratuitas. Las funciones principales de registro de inmersiones y diario siempre serán gratuitas.

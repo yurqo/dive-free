@@ -1,6 +1,7 @@
-Neu in 1.4.5:
-• Alle Taucherinnerungen an einem Ort: Karte, Fotos und Titel findest du oben in den Sitzungsdetails. Tippe auf ein Foto oder die Karte, um mehr zu sehen.
-• Sieh Tiefen-, Herzfrequenz- und Wassertemperaturdiagramme für die gesamte Session zusammen. Zoome in Fünf-Minuten-Fenster und wische durch die Diagramme.
+Neu in 1.4.6:
+• Karte und Fotos eines Tauchgangs findest du zusammen oben in den Details; optional kannst du einen Titel hinzufügen.
+• Entdecke Tiefe, Herzfrequenz und Wassertemperatur in miteinander verknüpften Diagrammen. Zoome auf Ein- oder Fünf-Minuten-Fenster, nutze die Pinch-Geste und blende Oberflächenintervalle aus.
+• Exportiere eine einzelne Session als Dive-Free-Backup-Datei. Wähle nur Daten oder füge optional Sprachnotizen, Fotos und Videos hinzu.
 • Scrolle flüssiger durch die Sitzungsdetails.
 
 Aus Liebe zum Tauchen entwickelt. Alle Funktionen der App sind kostenlos nutzbar. Die grundlegenden Funktionen zur Tauchaufzeichnung und zum Logbuch bleiben immer kostenlos.

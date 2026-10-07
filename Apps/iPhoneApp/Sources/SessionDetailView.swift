@@ -15,6 +15,10 @@ struct SessionDetailView: View {
     }
     @State private var exportStatus: ExportStatus = .idle
     @State private var showFullMap = false
+    @State private var isCreatingSessionBackup = false
+    @State private var sessionBackupProgress: BackupProgress?
+    @State private var sessionBackupTask: Task<Void, Never>?
+    @State private var sharedExportDirectory: URL?
 
     /// Drives the single note/edit/crop/share sheet. Multiple `.sheet(item:)` modifiers
     /// on one view can mis-fire in SwiftUI (only one presents reliably), so they all
@@ -125,10 +129,11 @@ struct SessionDetailView: View {
         .task { reconcileVoiceNotes() }
         .tenDiveReviewMilestone(
             completedSession: domain.endTime != nil,
-            presentingModal: activeSheet != nil || showFullMap || photoPager.request != nil || exportError != nil || exportStatus == .uploading
+            presentingModal: activeSheet != nil || showFullMap || photoPager.request != nil
+                || exportError != nil || exportStatus == .uploading || isCreatingSessionBackup
         )
         .fullScreenCover(isPresented: $showFullMap) { fullMap(domain) }
-        .sheet(item: $activeSheet) { sheet in
+        .sheet(item: $activeSheet, onDismiss: discardSharedExport) { sheet in
             switch sheet {
             case .edit: SessionEditView(session: session)
             case .crop: NavigationStack { SessionCropView(session: session) }
@@ -154,6 +159,9 @@ struct SessionDetailView: View {
                 }
             }
         }
+        .onDisappear {
+            if case nil = activeSheet { sessionBackupTask?.cancel() }
+        }
     }
 
     /// Serializes `domain` in `format`, writes a temp file, and presents the share
@@ -168,6 +176,70 @@ struct SessionDetailView: View {
             }
         } catch {
             exportError = "Couldn't write the export file. Please try again."
+        }
+    }
+
+    /// Builds a one-session Dive Free backup. The data-only choice keeps gallery
+    /// metadata and thumbnails; data+media also bundles voice-note and photo/video
+    /// originals. The session's related spot and trip are included by the archive.
+    private func exportSessionBackup(_ domain: DiveSession, includeMedia: Bool) {
+        guard let context = session.modelContext else {
+            exportError = "Couldn't create the backup. Please try again."
+            return
+        }
+        guard !isCreatingSessionBackup else { return }
+
+        let options = BackupExportOptions(
+            includeVoiceNotes: includeMedia,
+            includePhotos: includeMedia,
+            includeVideos: includeMedia
+        )
+        isCreatingSessionBackup = true
+        sessionBackupProgress = BackupProgress(phase: .preparing)
+        sessionBackupTask = Task { @MainActor in
+            defer {
+                isCreatingSessionBackup = false
+                sessionBackupProgress = nil
+                sessionBackupTask = nil
+            }
+            discardSharedExport()
+            do {
+                let url = try await BackupService.exportBackup(
+                    options: options,
+                    context: context,
+                    sessionID: domain.id,
+                    progress: { report in
+                        Task { @MainActor in sessionBackupProgress = report }
+                    }
+                )
+                guard !Task.isCancelled else {
+                    try? FileManager.default.removeItem(at: url.deletingLastPathComponent())
+                    return
+                }
+                sharedExportDirectory = url.deletingLastPathComponent()
+                activeSheet = .share(url)
+            } catch is CancellationError {
+                // The service removes its temporary tree when cancellation is observed.
+            } catch {
+                exportError = "Couldn't create the backup. Please try again."
+            }
+        }
+    }
+
+    private func discardSharedExport() {
+        guard let directory = sharedExportDirectory else { return }
+        sharedExportDirectory = nil
+        try? FileManager.default.removeItem(at: directory)
+    }
+
+    private var sessionBackupProgressLabel: String {
+        guard let progress = sessionBackupProgress else { return String(localized: "Creating backup…") }
+        switch progress.phase {
+        case .preparing: return String(localized: "Preparing backup…")
+        case .voiceNotes: return String(localized: "Copying voice notes…")
+        case .photos: return String(localized: "Copying photos…")
+        case .compressing: return String(localized: "Compressing backup…")
+        case .expanding, .sessions, .finished: return String(localized: "Finishing backup…")
         }
     }
 
@@ -392,8 +464,32 @@ struct SessionDetailView: View {
                 ForEach(ExportFormat.allCases) { format in
                     Button(format.displayName) { export(domain, as: format) }
                 }
+                Divider()
+                Button("Dive Free Backup (data)") {
+                    exportSessionBackup(domain, includeMedia: false)
+                }
+                .accessibilityIdentifier("session.exportBackup.data")
+                Button("Dive Free Backup (data+media)") {
+                    exportSessionBackup(domain, includeMedia: true)
+                }
+                .accessibilityIdentifier("session.exportBackup.dataMedia")
             } label: {
                 Label("Export to File", systemImage: "square.and.arrow.up")
+            }
+            .disabled(isCreatingSessionBackup)
+
+            if isCreatingSessionBackup {
+                VStack(alignment: .leading, spacing: 8) {
+                    if let fraction = sessionBackupProgress?.fraction {
+                        ProgressView(value: fraction) { Text(sessionBackupProgressLabel) }
+                    } else {
+                        ProgressView { Text(sessionBackupProgressLabel) }
+                    }
+                    Button("Cancel Export", role: .destructive) {
+                        sessionBackupTask?.cancel()
+                    }
+                }
+                .accessibilityIdentifier("session.backupExport.progress")
             }
 
             if exportStatus == .uploaded {

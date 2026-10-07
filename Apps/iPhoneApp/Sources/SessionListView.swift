@@ -127,7 +127,11 @@ struct SessionListView: View {
                 }
             }
             .navigationDestination(isPresented: $screenshotSessionPresented) {
-                if let session = sessions.first {
+                let arguments = ProcessInfo.processInfo.arguments
+                let chartTestSession = arguments.contains("--screenshot-chart-with-surface-intervals")
+                    ? sessions.first(where: { ($0.dives ?? []).count > 1 })
+                    : sessions.first
+                if let session = chartTestSession {
                     SessionDetailView(session: session)
                         .accessibilityIdentifier("screenshot.02-detail")
                 }

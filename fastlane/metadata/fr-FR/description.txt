@@ -12,13 +12,13 @@ RETROUVEZ LES DÉTAILS
 • Ajoutez des photos et vidéos et regroupez-les dans un album Dive Free dans Photos
 
 CRÉEZ VOTRE CARNET DE PLONGÉE
-• Consultez ensemble les graphiques de profondeur, de fréquence cardiaque et de température de l’eau sur toute la session. Zoomez pour explorer des fenêtres de cinq minutes
+• Consultez ensemble les graphiques de profondeur, de fréquence cardiaque et de température de l’eau sur toute la session. Zoomez sur des fenêtres d’une ou cinq minutes, utilisez le pincement et masquez les intervalles en surface
 • Explorez vos sites regroupés automatiquement sur une carte
 • Organisez vos sessions en voyages et consultez vos totaux dans votre passeport de plongée
 
 GARDEZ ET PARTAGEZ VOS SOUVENIRS
 • Synchronisez votre carnet en privé entre iPhone et iPad avec votre compte iCloud
-• Exportez des plongées vers Strava et sauvegardez votre carnet
+• Exportez vos plongées vers Strava. Sauvegardez tout votre carnet ou exportez une session dans un fichier Dive Free Backup, avec les données seules ou, en option, les notes vocales, photos et vidéos
 
 La profondeur est actuellement mesurée jusqu’à 6 m sur Apple Watch Ultra, Series 10 et Series 11. Les autres Apple Watch compatibles enregistrent les sessions avec la position et la fréquence cardiaque, sans profondeur. Apple Watch Ultra ajoute les commandes du bouton Action.
 

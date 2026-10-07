@@ -12,13 +12,13 @@ RICORDA I DETTAGLI
 • Aggiungi foto e video e raccoglili in un album Dive Free in Foto
 
 CREA IL TUO DIARIO
-• Visualizza insieme i grafici di profondità, frequenza cardiaca e temperatura dell’acqua per l’intera sessione. Ingrandisci per esplorare intervalli di cinque minuti
+• Visualizza insieme i grafici di profondità, frequenza cardiaca e temperatura dell’acqua per l’intera sessione. Ingrandisci su intervalli di uno o cinque minuti, usa il gesto di pizzicare e nascondi gli intervalli in superficie
 • Esplora su una mappa i luoghi raggruppati automaticamente
 • Organizza le sessioni in viaggi e consulta i totali nel passaporto delle immersioni
 
 CONSERVA E CONDIVIDI I RICORDI
 • Sincronizza privatamente il diario tra iPhone e iPad con il tuo account iCloud
-• Esporta immersioni su Strava e crea un backup del diario
+• Esporta le immersioni su Strava. Crea un backup dell’intero diario oppure esporta una sessione come file Dive Free Backup, con i soli dati o, facoltativamente, con note vocali, foto e video
 
 La profondità viene attualmente misurata fino a 6 m su Apple Watch Ultra, Series 10 e Series 11. Gli altri Apple Watch compatibili registrano sessioni con posizione e frequenza cardiaca, senza profondità. Apple Watch Ultra aggiunge i comandi del tasto Azione.
 

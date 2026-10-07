@@ -13,13 +13,13 @@ REMEMBER THE DETAILS
 • Bring your dive media together in a Dive Free album in Photos
 
 BUILD YOUR DIVE LOGBOOK
-• View session-wide depth, heart rate and water temperature charts together. Zoom in to explore five-minute windows
+• View session-wide depth, heart rate and water temperature charts together. Zoom to one- or five-minute windows, pinch to zoom, and hide surface intervals
 • Explore automatically grouped dive spots on a map
 • Organise sessions into trips and see your totals in your dive passport
 
 KEEP AND SHARE YOUR MEMORIES
 • Sync your logbook privately between iPhone and iPad with your own iCloud account
-• Export selected dives to Strava and back up your logbook
+• Export dives to Strava. Back up your whole logbook or export one session as a Dive Free Backup file, with data only or optional voice notes, photos and videos
 
 Depth recording currently supports up to 6 m on Apple Watch Ultra, Series 10 and Series 11. Other supported Apple Watch models record sessions with location and heart rate, without depth measurements. Apple Watch Ultra adds Action button controls.
 

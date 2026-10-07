@@ -12,13 +12,13 @@ DETAILS FESTHALTEN
 • Fotos und Videos hinzufügen und im Album Dive Free in Fotos sammeln
 
 DEIN LOGBUCH AUFBAUEN
-• Sieh Tiefen-, Herzfrequenz- und Wassertemperaturdiagramme für die gesamte Session zusammen. Zoome in Fünf-Minuten-Fenster
+• Sieh Tiefen-, Herzfrequenz- und Wassertemperaturdiagramme für die gesamte Session zusammen. Zoome auf Ein- oder Fünf-Minuten-Fenster, nutze die Pinch-Geste und blende Oberflächenintervalle aus
 • Automatisch gruppierte Tauchplätze auf einer Karte entdecken
 • Sessions zu Reisen zusammenfassen und Gesamtwerte im Tauchpass ansehen
 
 ERINNERUNGEN BEWAHREN UND TEILEN
 • Das Logbuch über dein eigenes iCloud-Konto privat zwischen iPhone und iPad synchronisieren
-• Tauchgänge nach Strava exportieren und das Logbuch sichern
+• Tauchgänge nach Strava exportieren. Sichere dein ganzes Logbuch oder exportiere eine einzelne Session als Dive-Free-Backup-Datei, nur mit Daten oder optional mit Sprachnotizen, Fotos und Videos
 
 Die Tiefenmessung unterstützt derzeit bis zu 6 m auf Apple Watch Ultra, Series 10 und Series 11. Andere unterstützte Apple Watch Modelle zeichnen Sessions mit Standort und Herzfrequenz ohne Tiefenmessung auf. Apple Watch Ultra bietet zusätzlich die Aktionstaste.
 

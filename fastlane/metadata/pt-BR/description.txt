@@ -12,13 +12,13 @@ LEMBRE DOS DETALHES
 • Adicione fotos e vídeos e reúna-os em um álbum Dive Free no Fotos
 
 CRIE SEU DIÁRIO DE MERGULHO
-• Veja juntos os gráficos de profundidade, frequência cardíaca e temperatura da água de toda a sessão. Aproxime para explorar janelas de cinco minutos
+• Veja juntos os gráficos de profundidade, frequência cardíaca e temperatura da água de toda a sessão. Aproxime para janelas de um ou cinco minutos, use o gesto de pinça e oculte os intervalos na superfície
 • Explore pontos agrupados automaticamente em um mapa
 • Organize sessões em viagens e consulte seus totais no passaporte de mergulho
 
 GUARDE E COMPARTILHE LEMBRANÇAS
 • Sincronize seu diário de forma privada entre iPhone e iPad com sua conta do iCloud
-• Exporte mergulhos para o Strava e faça backup do diário
+• Exporte mergulhos para o Strava. Faça backup do diário inteiro ou exporte uma sessão como arquivo Dive Free Backup, somente com dados ou com notas de voz, fotos e vídeos opcionais
 
 A medição de profundidade suporta atualmente até 6 m no Apple Watch Ultra, Series 10 e Series 11. Outros Apple Watch compatíveis registram sessões com localização e frequência cardíaca, sem profundidade. Apple Watch Ultra oferece também os controles do botão de Ação.
 

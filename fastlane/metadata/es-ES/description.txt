@@ -12,13 +12,13 @@ RECUERDA LOS DETALLES
 • Añade fotos y vídeos y reúne tus recuerdos en un álbum Dive Free en Fotos
 
 CREA TU DIARIO DE BUCEO
-• Consulta juntos los gráficos de profundidad, frecuencia cardiaca y temperatura del agua de toda la sesión. Acerca la vista para explorar intervalos de cinco minutos
+• Consulta juntos los gráficos de profundidad, frecuencia cardiaca y temperatura del agua de toda la sesión. Acerca la vista a intervalos de uno o cinco minutos, usa el gesto de pellizcar y oculta los intervalos en superficie
 • Explora lugares agrupados automáticamente en un mapa
 • Organiza sesiones en viajes y consulta tus totales en el pasaporte de buceo
 
 GUARDA Y COMPARTE TUS RECUERDOS
 • Sincroniza tu diario de forma privada entre iPhone y iPad con tu cuenta de iCloud
-• Exporta inmersiones a Strava y crea copias de seguridad de tu diario
+• Exporta inmersiones a Strava. Crea una copia de seguridad de todo tu diario o exporta una sesión como archivo Dive Free Backup, solo con datos o con notas de voz, fotos y vídeos opcionales
 
 La medición de profundidad admite actualmente hasta 6 m en Apple Watch Ultra, Series 10 y Series 11. Otros Apple Watch compatibles registran sesiones con ubicación y frecuencia cardiaca, sin profundidad. Apple Watch Ultra añade controles con el botón Acción.
 
