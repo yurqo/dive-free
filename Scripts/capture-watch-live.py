@@ -2,7 +2,8 @@
 
 watchOS rejects simctl status_bar overrides. A temporary TZ in the simulator's
 Carousel environment controls its native clock instead. Always restore the old
-value; never modify the host clock or screenshot pixels.
+value; never modify the host clock or visual pixels. Captures use the rectangular
+framebuffer without the Watch display mask and are normalized to RGB for upload.
 """
 import argparse
 import datetime
@@ -64,7 +65,11 @@ try:
                 raise RuntimeError(f'Requested {args.language}, resolved {resolved}')
             time.sleep(3)
             temporary = args.output.with_suffix('.capturing.png')
-            run('io', args.device, 'screenshot', '--type=png', '--mask=black', str(temporary))
+            run('io', args.device, 'screenshot', '--type=png', '--mask=ignored', str(temporary))
+            subprocess.run(
+                ['swift', str(clock_reader.with_name('opaque-screenshot.swift')), str(temporary)],
+                check=True,
+            )
             quality = subprocess.run(['swift', str(clock_reader.with_name('validate-watch-screenshot.swift')), str(temporary)], capture_output=True, text=True)
             if quality.returncode != 0:
                 temporary.unlink(missing_ok=True)

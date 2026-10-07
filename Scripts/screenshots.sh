@@ -659,9 +659,11 @@ wait_watch_ready() {
 # Fail unless a PNG is RGB with no alpha channel. Every screenshot App Store
 # Connect has accepted is RGB; an RGBA image is rejected server-side, and because
 # the upload runs `overwrite_screenshots: true` a rejection can leave the listing
-# with the old set deleted and the new one failed. We capture with `--mask=black`
-# (which flattens the rounded-corner mask to opaque black, yielding RGB), and this
-# asserts that actually happened rather than trusting the flag. No image library —
+# with the old set deleted and the new one failed. Watch captures use
+# `--mask=ignored` to preserve the rectangular framebuffer, then
+# `opaque-screenshot.swift` converts the opaque RGBA capture to RGB without changing
+# its pixels. This asserts that actually happened rather than trusting the flags.
+# No image library —
 # it reads the PNG IHDR colour-type byte (2/0 = alpha-free truecolour/greyscale,
 # 4/6 = alpha) and, for completeness, walks the CHUNK LIST up to IDAT for a tRNS
 # (palette/colour-key transparency). It parses chunks rather than scanning the raw
@@ -801,11 +803,14 @@ capture_watch_screen() {
 
     verify_watch_language "$udid" "$lang" || return 1
 
-    # `--mask=black` yields an RGB (alpha-free) PNG; `assert_no_alpha` proves it.
-    if ! xcrun simctl io "$udid" screenshot --mask=black "$dest/$screen.png" >/dev/null 2>&1; then
+    # Preserve the rectangular framebuffer without the Watch's display mask;
+    # App Store Connect applies its own presentation mask. simctl writes RGBA, so
+    # flatten the fully opaque pixels to RGB for upload.
+    if ! xcrun simctl io "$udid" screenshot --mask=ignored "$dest/$screen.png" >/dev/null 2>&1; then
         echo "       !! simctl io screenshot failed for $screen" >&2
         return 1
     fi
+    swift Scripts/opaque-screenshot.swift "$dest/$screen.png" || return 1
     swift Scripts/validate-watch-screenshot.swift "$dest/$screen.png" || return 1
     if ! assert_no_alpha "$dest/$screen.png"; then
         echo "       !! $screen.png is not alpha-free — App Store Connect would reject it" >&2
