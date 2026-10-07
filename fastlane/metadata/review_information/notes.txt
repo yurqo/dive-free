@@ -1,12 +1,12 @@
-Version 1.4.4 adds a map-and-photo grid at the top of session details on iPhone and iPad, followed by the user's optional session title. Tapping a map opens the existing interactive session map; tapping a photo opens the existing gallery. The original photo controls, GPS smoothing setting and other session details remain available below. App Store screenshots now feature Jemeluk Beach in Amed and user-provided underwater photos, captured from a separate deterministic demo store.
+Version 1.4.7 updates App Store names, subtitles, descriptions, promotional text and translations across all ten localizations. App functionality is unchanged from approved version 1.4.6 (build 229). The description now explains the existing 6 m depth limit and the approval, independent EN13319 certification and ongoing testing required for full-depth access on Apple Watch Ultra. The reference to 40 m describes that separate access process; Dive Free does not offer 40 m depth recording and is not requesting that entitlement in this submission.
 
-This release adds no permissions, entitlements, purchases or storage schema changes. The demo data is confined to screenshot/test builds and never changes the user's logbook or Photos library.
+This release adds no permissions, entitlements, purchases or storage schema changes. The existing approved screenshots are retained. Screenshot demo data is confined to screenshot/test builds and never changes the user’s logbook or Photos library.
 
 Dive Free is a recreational freediving logbook, not a dive computer. All features are free; core dive recording and logbook features will always be free. In-app purchases are not offered.
 
 Recording requires a paired Apple Watch. Depth readings require a compatible Apple Watch Ultra or Series 10/11, with the existing 6 m shallow-depth limit. Other supported watches record GPS and markers.
 
-To demo without water on Apple Watch Ultra: start a session, then press Action + Side together to start/stop a manual dive. Stop the session to review its summary and sync it to the paired iPhone. On iPhone, open that session, use Edit > Edit Details to add a title, and use Photos > Add from Library to attach media. The new header uses those same saved photos and recorded location. A session without photos or GPS adapts to the available content.
+To demo without water on Apple Watch Ultra: start a session, then press Action + Side together to start/stop a manual dive. Stop the session to review its summary and sync it to the paired iPhone. On iPhone, open that session, use Edit > Edit Details to add a title, and use Photos > Add from Library to attach media. The session header uses those same saved photos and recorded location. A session without photos or GPS adapts to the available content.
 
 Sessions are stored locally and, when enabled, synced through the user's private iCloud account. Photo originals remain in the user's Photos library; references and thumbnails are stored with the logbook. User-requested backup/export operations create local files shared through the system share sheet.
 

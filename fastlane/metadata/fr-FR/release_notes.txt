@@ -1,7 +1,1 @@
-Nouveautés de la version 1.4.6 :
-• Retrouvez la carte et les photos de chaque plongée en haut de ses détails, avec un titre facultatif.
-• Explorez la profondeur, la fréquence cardiaque et la température de l’eau grâce à des graphiques liés. Zoomez sur des fenêtres d’une ou cinq minutes, utilisez le pincement et masquez les intervalles en surface.
-• Exportez une session au format de fichier Dive Free Backup. Choisissez les données seules ou ajoutez les notes vocales, photos et vidéos.
-• Faites défiler les détails de session plus facilement.
-
-Créée par amour de la plongée. Toutes les fonctions de l’app sont gratuites. Les fonctions essentielles d’enregistrement des plongées et de carnet resteront toujours gratuites.
+La fiche App Store et les traductions ont été actualisées, avec une explication plus claire de la limite de profondeur actuelle de 6 m.

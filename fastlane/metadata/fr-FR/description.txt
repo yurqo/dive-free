@@ -1,4 +1,4 @@
-Plongez avec votre Apple Watch. Revenez avec plus que des souvenirs. Dive Free réunit vos sessions, profils de profondeur, lieux favoris, photos et notes vocales sur iPhone et iPad.
+Enregistrez vos sessions d’apnée et de snorkeling de loisir avec Apple Watch. Retrouvez vos profils de profondeur, lieux favoris, photos et notes vocales sur iPhone et iPad.
 
 Créée par amour de la plongée. Toutes les fonctions de l’app sont gratuites. Les fonctions essentielles d’enregistrement des plongées et de carnet resteront toujours gratuites.
 
@@ -21,5 +21,7 @@ GARDEZ ET PARTAGEZ VOS SOUVENIRS
 • Exportez vos plongées vers Strava. Sauvegardez tout votre carnet ou exportez une session dans un fichier Dive Free Backup, avec les données seules ou, en option, les notes vocales, photos et vidéos
 
 La profondeur est actuellement mesurée jusqu’à 6 m sur Apple Watch Ultra, Series 10 et Series 11. Les autres Apple Watch compatibles enregistrent les sessions avec la position et la fréquence cardiaque, sans profondeur. Apple Watch Ultra ajoute les commandes du bouton Action.
+
+L’accès aux mesures de profondeur jusqu’à 40 m sur Apple Watch Ultra nécessite l’autorisation d’Apple, une certification EN13319 indépendante et des tests continus. Le coût et le travail nécessaires dépassent les moyens actuels de ce projet gratuit. L’enregistrement à de plus grandes profondeurs n’est donc pas disponible pour le moment.
 
 Dive Free est un carnet d’apnée et de randonnée palmée de loisir, pas un ordinateur de plongée. Il ne fournit aucune information de décompression, de planification ou de sécurité. Ne l’utilisez jamais comme dispositif de sécurité. Respectez votre formation et ne pratiquez jamais l’apnée seul.

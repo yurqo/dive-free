@@ -1,4 +1,4 @@
-Tauche mit deiner Apple Watch. Bring mehr als Erinnerungen mit nach Hause. Dive Free vereint deine Sessions, Tiefenprofile, Lieblingsorte, Fotos und Sprachnotizen auf iPhone und iPad.
+Zeichne deine Apnoe- und Schnorchelausflüge mit der Apple Watch auf. Bewahre Tiefenprofile, Lieblingsorte, Fotos und Sprachnotizen zusammen auf iPhone und iPad auf.
 
 Aus Liebe zum Tauchen entwickelt. Alle Funktionen der App sind kostenlos nutzbar. Die grundlegenden Funktionen zur Tauchaufzeichnung und zum Logbuch bleiben immer kostenlos.
 
@@ -21,5 +21,7 @@ ERINNERUNGEN BEWAHREN UND TEILEN
 • Tauchgänge nach Strava exportieren. Sichere dein ganzes Logbuch oder exportiere eine einzelne Session als Dive-Free-Backup-Datei, nur mit Daten oder optional mit Sprachnotizen, Fotos und Videos
 
 Die Tiefenmessung unterstützt derzeit bis zu 6 m auf Apple Watch Ultra, Series 10 und Series 11. Andere unterstützte Apple Watch Modelle zeichnen Sessions mit Standort und Herzfrequenz ohne Tiefenmessung auf. Apple Watch Ultra bietet zusätzlich die Aktionstaste.
+
+Der Zugriff auf Tiefenmesswerte bis 40 m auf der Apple Watch Ultra erfordert Apples Genehmigung, eine unabhängige EN13319-Zertifizierung und fortlaufende Tests. Die Kosten und der Aufwand übersteigen derzeit die Mittel dieses kostenlosen Projekts. Deshalb ist die Aufzeichnung größerer Tiefen vorerst nicht verfügbar.
 
 Dive Free ist ein Logbuch für Freizeit-Apnoetauchen und Schnorcheln, kein Tauchcomputer. Es bietet keine Dekompressions-, Tauchplanungs- oder Sicherheitsinformationen. Nutze es nie als Sicherheitsgerät. Beachte deine Ausbildung und tauche niemals allein in Apnoe.

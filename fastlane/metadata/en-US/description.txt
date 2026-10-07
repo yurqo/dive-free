@@ -1,4 +1,4 @@
-Record recreational freediving and snorkeling sessions with Apple Watch. Keep your depth profiles, favourite places, photos and voice notes together on iPhone and iPad.
+Record recreational freediving and snorkeling sessions with Apple Watch. Keep your depth profiles, favorite places, photos and voice notes together on iPhone and iPad.
 
 Made for the love of diving. All app features are free to use. Core dive recording and logbook features will always be free.
 
@@ -15,12 +15,14 @@ REMEMBER THE DETAILS
 BUILD YOUR DIVE LOGBOOK
 • View session-wide depth, heart rate and water temperature charts together. Zoom to one- or five-minute windows, pinch to zoom, and hide surface intervals
 • Explore automatically grouped dive spots on a map
-• Organise sessions into trips and see your totals in your dive passport
+• Organize sessions into trips and see your totals in your dive passport
 
 KEEP AND SHARE YOUR MEMORIES
 • Sync your logbook privately between iPhone and iPad with your own iCloud account
 • Export dives to Strava. Back up your whole logbook or export one session as a Dive Free Backup file, with data only or optional voice notes, photos and videos
 
 Depth recording currently supports up to 6 m on Apple Watch Ultra, Series 10 and Series 11. Other supported Apple Watch models record sessions with location and heart rate, without depth measurements. Apple Watch Ultra adds Action button controls.
+
+Access to depth readings down to 40 m on Apple Watch Ultra requires Apple’s approval, independent EN13319 certification and ongoing testing. The cost and work involved are beyond this free project’s current resources, so deeper depth recording isn’t available for now.
 
 Dive Free is a recreational freediving and snorkeling logbook, not a dive computer. It provides no decompression, dive-planning or safety information. Never use it as a safety device. Dive within your training and never freedive alone.

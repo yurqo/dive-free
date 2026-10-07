@@ -1,7 +1,1 @@
-Novità della versione 1.4.6:
-• Mappa e foto di ogni immersione sono raccolte in cima ai dettagli; puoi anche aggiungere un titolo.
-• Esplora profondità, frequenza cardiaca e temperatura dell’acqua con grafici collegati. Ingrandisci su intervalli di uno o cinque minuti, usa il gesto di pizzicare e nascondi gli intervalli in superficie.
-• Esporta una singola sessione come file Dive Free Backup. Scegli solo i dati oppure aggiungi note vocali, foto e video.
-• Scorri più facilmente i dettagli della sessione.
-
-Creata per amore delle immersioni. Tutte le funzioni dell’app sono gratuite. Le funzioni principali di registrazione delle immersioni e diario resteranno sempre gratuite.
+Abbiamo aggiornato la pagina App Store e le traduzioni, spiegando più chiaramente l’attuale limite di profondità di 6 m.

@@ -1,7 +1,1 @@
-Novidades da versão 1.4.6:
-• Veja o mapa e as fotos de cada mergulho juntos no topo dos detalhes, com a opção de adicionar um título.
-• Explore profundidade, frequência cardíaca e temperatura da água em gráficos sincronizados. Aproxime para janelas de um ou cinco minutos, use o gesto de pinça e oculte os intervalos na superfície.
-• Exporte uma sessão como arquivo Dive Free Backup. Escolha somente os dados ou inclua notas de voz, fotos e vídeos.
-• Role pelos detalhes da sessão com mais fluidez.
-
-Criado por amor ao mergulho. Todas as funções do app são gratuitas. As funções principais de registro de mergulhos e diário sempre serão gratuitas.
+Atualizamos a página do App Store e as traduções, com uma explicação mais clara do limite atual de profundidade de 6 m.

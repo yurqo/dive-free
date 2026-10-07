@@ -1,4 +1,4 @@
-Mergulhe com seu Apple Watch. Volte com mais do que lembranças. Dive Free reúne sessões, perfis de profundidade, lugares favoritos, fotos e notas de voz no iPhone e iPad.
+Registre suas sessões recreativas de apneia e snorkel com Apple Watch. Reúna perfis de profundidade, lugares favoritos, fotos e notas de voz no iPhone e iPad.
 
 Criado por amor ao mergulho. Todas as funções do app são gratuitas. As funções principais de registro de mergulhos e diário sempre serão gratuitas.
 
@@ -21,5 +21,7 @@ GUARDE E COMPARTILHE LEMBRANÇAS
 • Exporte mergulhos para o Strava. Faça backup do diário inteiro ou exporte uma sessão como arquivo Dive Free Backup, somente com dados ou com notas de voz, fotos e vídeos opcionais
 
 A medição de profundidade suporta atualmente até 6 m no Apple Watch Ultra, Series 10 e Series 11. Outros Apple Watch compatíveis registram sessões com localização e frequência cardíaca, sem profundidade. Apple Watch Ultra oferece também os controles do botão de Ação.
+
+O acesso a medições de profundidade até 40 m no Apple Watch Ultra exige aprovação da Apple, certificação EN13319 independente e testes contínuos. O custo e o trabalho envolvidos estão além dos recursos atuais deste projeto gratuito, por isso o registro em profundidades maiores ainda não está disponível.
 
 Dive Free é um diário de apneia e snorkel recreativos, não um computador de mergulho. Não fornece informações de descompressão, planejamento ou segurança. Nunca o use como dispositivo de segurança. Respeite seu treinamento e nunca pratique apneia sozinho.

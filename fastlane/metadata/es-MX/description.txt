@@ -1,18 +1,18 @@
-Bucea con tu Apple Watch. Vuelve con algo más que recuerdos. Dive Free reúne tus sesiones, perfiles de profundidad, lugares favoritos, fotos y notas de voz en iPhone y iPad.
+Registra tus sesiones recreativas de apnea y snorkel con Apple Watch. Reúne tus perfiles de profundidad, lugares favoritos, fotos y notas de voz en iPhone y iPad.
 
 Creada por amor al buceo. Todas las funciones de la app son gratuitas. Las funciones principales de registro de inmersiones y diario siempre serán gratuitas.
 
 GRABA DESDE TU MUÑECA
 • Detección automática de inmersiones, perfiles de profundidad e intervalos en superficie
 • Marca momentos bajo el agua con la Digital Crown y, en Apple Watch Ultra, el botón Acción
-• Sigue la sesión en directo en iPhone, también en la pantalla bloqueada y Dynamic Island
+• Sigue la sesión en tiempo real en iPhone, también en la pantalla bloqueada y Dynamic Island
 
 RECUERDA LOS DETALLES
-• Graba notas de voz en superficie y valora tus sesiones
-• Añade fotos y vídeos y reúne tus recuerdos en un álbum Dive Free en Fotos
+• Graba notas de voz en superficie y califica tus sesiones
+• Agrega fotos y videos y reúne tus recuerdos en un álbum Dive Free en Fotos
 
 CREA TU DIARIO DE BUCEO
-• Consulta juntos los gráficos de profundidad, frecuencia cardiaca y temperatura del agua de toda la sesión. Acerca la vista a intervalos de uno o cinco minutos, usa el gesto de pellizcar y oculta los intervalos en superficie
+• Consulta juntos los gráficas de profundidad, frecuencia cardiaca y temperatura del agua de toda la sesión. Acerca la vista a intervalos de uno o cinco minutos, usa el gesto de pellizcar y oculta los intervalos en superficie
 • Explora lugares agrupados automáticamente en un mapa
 • Organiza sesiones en viajes y consulta tus totales en el pasaporte de buceo
 
@@ -20,6 +20,8 @@ GUARDA Y COMPARTE TUS RECUERDOS
 • Sincroniza tu diario de forma privada entre iPhone y iPad con tu cuenta de iCloud
 • Exporta inmersiones a Strava. Crea una copia de seguridad de todo tu diario o exporta una sesión como archivo Dive Free Backup, solo con datos o con notas de voz, fotos y videos opcionales
 
-La medición de profundidad admite actualmente hasta 6 m en Apple Watch Ultra, Series 10 y Series 11. Otros Apple Watch compatibles registran sesiones con ubicación y frecuencia cardiaca, sin profundidad. Apple Watch Ultra añade controles con el botón Acción.
+La medición de profundidad admite actualmente hasta 6 m en Apple Watch Ultra, Series 10 y Series 11. Otros Apple Watch compatibles registran sesiones con ubicación y frecuencia cardiaca, sin profundidad. Apple Watch Ultra agrega controles con el botón Acción.
 
-Dive Free es un diario recreativo de apnea y snorkel, no un ordenador de buceo. No proporciona información de descompresión, planificación ni seguridad. No lo uses como dispositivo de seguridad. Respeta tu formación y nunca practiques apnea a solas.
+El acceso a mediciones de profundidad hasta 40 m en Apple Watch Ultra requiere la aprobación de Apple, una certificación EN13319 independiente y pruebas continuas. El costo y el trabajo necesarios superan los recursos actuales de este proyecto gratuito, por lo que el registro a mayor profundidad no está disponible por ahora.
+
+Dive Free es un diario recreativo de apnea y snorkel, no un computadora de buceo. No proporciona información de descompresión, planificación ni seguridad. No lo uses como dispositivo de seguridad. Respeta tu formación y nunca practiques apnea a solas.

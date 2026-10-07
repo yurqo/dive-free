@@ -23,4 +23,6 @@ KEEP AND SHARE YOUR MEMORIES
 
 Depth recording currently supports up to 6 m on Apple Watch Ultra, Series 10 and Series 11. Other supported Apple Watch models record sessions with location and heart rate, without depth measurements. Apple Watch Ultra adds Action button controls.
 
+Access to depth readings down to 40 m on Apple Watch Ultra requires Apple’s approval, independent EN13319 certification and ongoing testing. The cost and work involved are beyond this free project’s current resources, so deeper depth recording isn’t available for now.
+
 Dive Free is a recreational freediving and snorkelling logbook, not a dive computer. It provides no decompression, dive-planning or safety information. Never use it as a safety device. Dive within your training and never freedive alone.

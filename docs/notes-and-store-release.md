@@ -329,3 +329,27 @@ upload. The live 1.4.2 (205) product page, its nine sets of metadata, and all 15
 live screenshot identities and hashes were verified unchanged. Reviewer notes and
 the 1.4.4 metadata remain in the editable `PREPARE_FOR_SUBMISSION` draft. No App
 Store review submission was made.
+
+
+### 1.4.7 — localized listing alignment
+
+All ten metadata locales now use the same positioning: snorkeling and freediving
+in the localized app name, with a dive-logbook-for-Watch subtitle. Ukrainian uses
+“фрідайвінг”; its full snorkeling term remains in the description and keywords
+because both activities do not fit beside the brand in the 30-character name.
+Descriptions and promotional text consistently preserve the permanent free-core
+commitment. This is a listing update; do not describe earlier app features as new.
+
+The depth explanation distinguishes the existing 6 m capability from conditional
+40 m access on Ultra. Apple’s signed-in [development request](https://developer.apple.com/contact/request/submerged-depth-pressure-api-development/)
+and [distribution requirements](https://developer.apple.com/contact/request/submerged-depth-pressure-api-distribution/)
+were inspected on 2026-10-07. Distribution explicitly requires independent EN13319
+certification, maintaining certification across app versions, and ongoing testing.
+The resource/cost constraint is the developer’s stated constraint for this free
+project, not a published Apple entitlement fee or a lab price estimate. Do not
+promise a release date for deeper-depth support.
+
+Use approved build 229’s source commit 49a0cc9 as the comparison baseline: the
+v1.4.6 tag identifies the earlier build 228. The 1.4.7 release must use normal
+automatic workflow numbering, preserve the approved screenshot sets, and verify
+all uploaded text by reading it back from App Store Connect.
