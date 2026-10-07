@@ -4,4 +4,7 @@ Nouveautés de la version 1.4.6 :
 • Exportez une session au format de fichier Dive Free Backup. Choisissez les données seules ou ajoutez les notes vocales, photos et vidéos.
 • Faites défiler les détails de session plus facilement.
 
+Améliorations de l’interface
+Cette mise à jour de suivi n’ajoute pas de fonctionnalité : l’espacement des graphiques est plus clair, le zoom par pincement descend jusqu’à cinq secondes et le masquage des intervalles en surface inclut désormais le temps avant et après les plongées.
+
 Créée par amour de la plongée. Toutes les fonctions de l’app sont gratuites. Les fonctions essentielles d’enregistrement des plongées et de carnet resteront toujours gratuites.

@@ -5,7 +5,8 @@ import Foundation
 /// panning, and pinch anchoring deterministic and testable.
 struct SessionChartViewport: Equatable {
     static let maximumZoomDuration: TimeInterval = 5 * 60
-    static let minimumZoomDuration: TimeInterval = 60
+    static let standardZoomDuration: TimeInterval = 60
+    static let minimumZoomDuration: TimeInterval = 5
 
     let start: Date
     let end: Date
@@ -13,6 +14,7 @@ struct SessionChartViewport: Equatable {
     var fullRange: ClosedRange<Date> { start...end }
     var duration: TimeInterval { end.timeIntervalSince(start) }
     var canZoom: Bool { duration > Self.minimumZoomDuration }
+    var canUseZoomPresets: Bool { duration > Self.standardZoomDuration }
 
     func visibleRange(zoomed: Bool, startingAt requestedStart: Date?) -> ClosedRange<Date> {
         visibleRange(duration: zoomed ? Self.maximumZoomDuration : nil, startingAt: requestedStart)
@@ -60,13 +62,15 @@ struct SessionChartViewport: Equatable {
     }
 }
 
-/// Maps samples into a continuous chart timeline by removing only the gaps
-/// between dives. Samples during those gaps are omitted, and later samples are
-/// shifted left by the time removed. The original session data is never changed.
+/// Maps samples into a continuous dive timeline by removing surface time before,
+/// between, and after dives. Samples in removed intervals are omitted, and later
+/// samples shift left by the removed duration. The session data is unchanged.
 struct SessionChartTimeline: Equatable {
     private struct Interval: Equatable {
         let start: Date
         let end: Date
+        let removesStartBoundary: Bool
+        let removesEndBoundary: Bool
 
         var duration: TimeInterval { end.timeIntervalSince(start) }
     }
@@ -75,37 +79,77 @@ struct SessionChartTimeline: Equatable {
     let end: Date
     let hidesSurfaceIntervals: Bool
     private let surfaceIntervals: [Interval]
+    private let dives: [ClosedRange<Date>]
 
     init(start: Date, end: Date, diveIntervals: [ClosedRange<Date>], hidesSurfaceIntervals: Bool) {
-        self.start = start
-        self.end = max(end, start.addingTimeInterval(1))
+        let sessionStart = start
+        let sessionEnd = max(end, start.addingTimeInterval(1))
+        self.start = sessionStart
+        self.end = sessionEnd
         self.hidesSurfaceIntervals = hidesSurfaceIntervals
 
-        let dives = diveIntervals.sorted { $0.lowerBound < $1.lowerBound }
+        self.dives = diveIntervals.compactMap { interval in
+            let lowerBound = max(interval.lowerBound, sessionStart)
+            let upperBound = min(interval.upperBound, sessionEnd)
+            guard lowerBound <= upperBound else { return nil }
+            return lowerBound...upperBound
+        }.sorted { $0.lowerBound < $1.lowerBound }
+
         var gaps: [Interval] = []
-        var previousEnd: Date?
-        for dive in dives {
-            if let previousEnd, dive.lowerBound > previousEnd {
-                gaps.append(Interval(start: previousEnd, end: dive.lowerBound))
+        if let firstDive = self.dives.first {
+            if firstDive.lowerBound > self.start {
+                gaps.append(Interval(
+                    start: self.start,
+                    end: firstDive.lowerBound,
+                    removesStartBoundary: true,
+                    removesEndBoundary: false
+                ))
             }
-            previousEnd = max(previousEnd ?? dive.upperBound, dive.upperBound)
+
+            var previousEnd = firstDive.upperBound
+            for dive in self.dives.dropFirst() {
+                if dive.lowerBound > previousEnd {
+                    gaps.append(Interval(
+                        start: previousEnd,
+                        end: dive.lowerBound,
+                        removesStartBoundary: false,
+                        removesEndBoundary: false
+                    ))
+                }
+                previousEnd = max(previousEnd, dive.upperBound)
+            }
+
+            if previousEnd < self.end {
+                gaps.append(Interval(
+                    start: previousEnd,
+                    end: self.end,
+                    removesStartBoundary: false,
+                    removesEndBoundary: true
+                ))
+            }
         }
         self.surfaceIntervals = gaps
     }
 
     var hasSurfaceIntervals: Bool { !surfaceIntervals.isEmpty }
 
-    var chartStart: Date { start }
+    var chartStart: Date {
+        guard hidesSurfaceIntervals, let firstDive = dives.first else { return start }
+        return chartTime(for: firstDive.lowerBound) ?? start
+    }
 
     var chartEnd: Date {
-        chartTime(for: end) ?? end
+        guard hidesSurfaceIntervals, let lastDive = dives.last else { return end }
+        return chartTime(for: lastDive.upperBound) ?? end
     }
 
     func chartTime(for date: Date) -> Date? {
         guard hidesSurfaceIntervals else { return date }
         var removedDuration: TimeInterval = 0
         for interval in surfaceIntervals {
-            if date > interval.start && date < interval.end { return nil }
+            let afterStart = date > interval.start || (interval.removesStartBoundary && date == interval.start)
+            let beforeEnd = date < interval.end || (interval.removesEndBoundary && date == interval.end)
+            if afterStart && beforeEnd { return nil }
             if date >= interval.end { removedDuration += interval.duration }
         }
         return date.addingTimeInterval(-removedDuration)
@@ -115,6 +159,6 @@ struct SessionChartTimeline: Equatable {
     /// across a surface interval that the user chose to hide.
     func seriesIndex(for date: Date) -> Int {
         guard hidesSurfaceIntervals else { return 0 }
-        return surfaceIntervals.filter { date >= $0.end }.count
+        return surfaceIntervals.filter { !$0.removesStartBoundary && date >= $0.end }.count
     }
 }

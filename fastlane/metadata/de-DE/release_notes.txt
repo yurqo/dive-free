@@ -4,4 +4,7 @@ Neu in 1.4.6:
 • Exportiere eine einzelne Session als Dive-Free-Backup-Datei. Wähle nur Daten oder füge optional Sprachnotizen, Fotos und Videos hinzu.
 • Scrolle flüssiger durch die Sitzungsdetails.
 
+UI-Verbesserungen
+Dieser Folge-Build bringt keine neuen Funktionen, sondern nur übersichtlichere Diagramme, Pinch-Zoom bis auf fünf Sekunden und eine vollständigere Option zum Ausblenden der Oberflächenintervalle.
+
 Aus Liebe zum Tauchen entwickelt. Alle Funktionen der App sind kostenlos nutzbar. Die grundlegenden Funktionen zur Tauchaufzeichnung und zum Logbuch bleiben immer kostenlos.

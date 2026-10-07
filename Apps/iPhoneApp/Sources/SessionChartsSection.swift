@@ -2,7 +2,7 @@ import Charts
 import Domain
 import SwiftUI
 
-private let sessionChartAxisColumnWidth: CGFloat = 40
+private let sessionChartAxisColumnWidth: CGFloat = 24
 
 /// The session timeline uses aligned plots because depth, heart rate, and water
 /// temperature have different units and meaningful Y scales. A shared time
@@ -163,7 +163,7 @@ struct SessionChartsSection: View {
                             .font(.body.weight(.semibold))
                     }
                     .buttonStyle(.plain)
-                    .disabled(!canZoom)
+                    .disabled(!viewport.canUseZoomPresets && !isZoomed)
                     .accessibilityIdentifier("session.charts.zoom")
                     .accessibilityLabel(nextZoomAccessibilityLabel)
                 }
@@ -232,7 +232,7 @@ struct SessionChartsSection: View {
                 ? "Zoom to 5 minutes"
                 : "Zoom to 1 minute"))
         }
-        return Text(LocalizedStringKey(zoomDuration > SessionChartViewport.minimumZoomDuration + 1
+        return Text(LocalizedStringKey(zoomDuration > SessionChartViewport.standardZoomDuration + 1
             ? "Zoom to 1 minute"
             : "Zoom to full session"))
     }
@@ -240,12 +240,13 @@ struct SessionChartsSection: View {
     private func toggleZoom() {
         withAnimation(.easeInOut(duration: 0.2)) {
             if !isZoomed {
+                guard viewport.canUseZoomPresets else { return }
                 zoomDuration = viewport.duration > SessionChartViewport.maximumZoomDuration
                     ? SessionChartViewport.maximumZoomDuration
-                    : SessionChartViewport.minimumZoomDuration
+                    : SessionChartViewport.standardZoomDuration
                 zoomWindowStart = firstDiveChartStart ?? viewport.start
-            } else if (zoomDuration ?? 0) > SessionChartViewport.minimumZoomDuration + 1 {
-                zoomDuration = SessionChartViewport.minimumZoomDuration
+            } else if (zoomDuration ?? 0) > SessionChartViewport.standardZoomDuration + 1 {
+                zoomDuration = SessionChartViewport.standardZoomDuration
                 zoomWindowStart = chartRange.lowerBound
             } else {
                 zoomDuration = nil
@@ -263,7 +264,7 @@ struct SessionChartsSection: View {
                 .formatted(.time(pattern: .minuteSecond))
             return "\(start) – \(end)"
         }
-        if chartRange.upperBound.timeIntervalSince(chartRange.lowerBound) <= SessionChartViewport.minimumZoomDuration + 1 {
+        if chartRange.upperBound.timeIntervalSince(chartRange.lowerBound) <= SessionChartViewport.standardZoomDuration + 1 {
             let format = Date.FormatStyle(date: .omitted, time: .shortened).second()
             return "\(chartRange.lowerBound.formatted(format)) – \(chartRange.upperBound.formatted(format))"
         }
@@ -353,7 +354,7 @@ private struct SessionDepthProfileChart: View {
                 timeAxis(
                     showsLabels: false,
                     elapsedTimeOrigin: elapsedTimeOrigin,
-                    showsSeconds: range.upperBound.timeIntervalSince(range.lowerBound) <= SessionChartViewport.minimumZoomDuration + 1
+                    showsSeconds: range.upperBound.timeIntervalSince(range.lowerBound) <= SessionChartViewport.standardZoomDuration + 1
                 )
             }
             .chartPlotStyle { plot in plot.clipped() }
@@ -404,7 +405,7 @@ private struct SessionMetricChart: View {
                 timeAxis(
                     showsLabels: showsTimeLabels,
                     elapsedTimeOrigin: elapsedTimeOrigin,
-                    showsSeconds: range.upperBound.timeIntervalSince(range.lowerBound) <= SessionChartViewport.minimumZoomDuration + 1
+                    showsSeconds: range.upperBound.timeIntervalSince(range.lowerBound) <= SessionChartViewport.standardZoomDuration + 1
                 )
             }
             .chartPlotStyle { plot in plot.clipped() }
