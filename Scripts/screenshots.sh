@@ -7,13 +7,15 @@
 # in fastlane/Fastfile globs):
 #
 #   iOS   (iPhone + iPad, `--ios`)   — runs the standalone `ScreenshotTests`
-#         UI-test target across every locale × device, applies a clean 9:41
+#         UI-test target across every locale × device, applies a clean 18:10
 #         status bar, and exports the captured PNG attachments.
 #   watch (Apple Watch, `--watch`)   — installs the watch app on a watch
 #         simulator and drives it with `simctl` alone: one launch per screen,
 #         then `simctl io … screenshot`.
 #
 # Run both (the default), or just one: `Scripts/screenshots.sh --watch`.
+# A verified, unchanged Watch set can be retained while refreshing with --ios;
+# run --compose-only afterward to rebuild and fingerprint both device heroes.
 #
 # WHY the watch path is different rather than "the same test on watchOS":
 # `XCTest.framework` is not part of the watchOS simulator SDK. There is no
@@ -65,15 +67,15 @@
 #      wrong-language run a few jittering map-thumbnail pixels were enough to clear
 #      every `en` pair. It comes in two flavours because the platforms differ:
 #      2a. iOS — a WHOLE-image compare (`check_locales_differ`). The simulator clock
-#          is pinned to 9:41 (`simctl status_bar override`), so the only per-locale
+#          is pinned to 18:10 (`simctl status_bar override`), so the only per-locale
 #          difference is the localized text; identical bytes ⇒ language not applied.
 #      2b. watch — `simctl status_bar override` is REJECTED on watchOS, so the OS
 #          clock is baked into every capture and no two watch PNGs are ever
 #          byte-identical. A whole-image compare would therefore be vacuous. So the
 #          watch backstop (`check_watch_locales_differ`) compares a status-bar-
-#          CROPPED region instead, and skips `01-live` entirely (its dive clock
-#          ticks every second, so even the crop is never stable) — that screen rests
-#          on net 1 alone.
+#          CROPPED region instead. `01-live` now freezes the shared dive at 18 s
+#          and verifies a native 5:02 clock, but remains excluded: several valid
+#          languages share the same sole action label ("Nota"). It uses net 1.
 #
 # Prerequisites:
 #   - `tuist generate` has been run (DiveFree.xcworkspace + the ScreenshotTests /
@@ -90,6 +92,11 @@
 
 set -euo pipefail
 
+if [ "${1:-}" = "--compose-only" ]; then
+    shift
+    exec swift Scripts/compose-screenshots.swift screenshots "$@"
+fi
+
 # ---------------------------------------------------------------------------
 # Configuration — edit these to taste.
 # ---------------------------------------------------------------------------
@@ -104,7 +111,7 @@ WATCH_BUNDLE_ID="org.yurko.divefree.watchkitapp"
 # the helpers below. NOTE: this is the OUTPUT-folder key (what ASC expects), not
 # necessarily the -testLanguage code — see `lang_for_locale` for the Portuguese
 # case where the folder stays `pt-BR` but the app localizes to `pt`.
-LOCALES=(en es fr it de pt-BR ja uk)
+LOCALES=(en en-GB es fr it de pt-BR ja uk)
 
 # Devices to capture on. Names must match `xcrun simctl list devicetypes`
 # (and a matching simulator must exist — `xcrun simctl list devices`). Edit
@@ -130,26 +137,20 @@ WATCH_DEVICES=(
 # `WatchScreenshotMode.Screen` (an unknown slug is a hard error there, not a
 # fallback). Keep this list in step with that enum.
 #
-# The dwell is a POST-READY settle: capture waits for the app to confirm the screen
-# rendered (see `wait_watch_ready`) and only then sleeps `dwell` before shooting —
-# so this is no longer load-bearing for correctness, only for polish. `01-live`
-# gets the longest one because the dwell is the dive clock advancing on screen: the
-# app places its markers ~6 s in (when the marker becomes ready), then this settle
-# carries the clock to a plausible mid-dive "0:2x" rather than a just-started
-# "0:0x". The static screens only need a moment for charts to finish drawing.
+# Static screens settle after readiness so charts can finish drawing. The live
+# helper handles its own settling and native-clock verification, freezing the
+# same featured dive at 18 seconds rather than advancing a capture timer.
 WATCH_SCREENS=(
-    "01-live:14"
-    "02-summary:3"
-    "03-profile:3"
+    "01-live:3"
+    "02-summary:10"
+    "03-profile:10"
     "04-sessions:3"
     "05-start:2"
 )
 
-# Screens EXCLUDED from the watch cross-locale byte check (see
-# `check_watch_locales_differ`). `01-live` is a running session whose central dive
-# clock ticks every second, so even a status-bar-cropped comparison can never be
-# byte-stable across two captures — its language is covered by
-# `verify_watch_language` alone. The four static screens ARE byte-checked.
+# The live screen's only action label can legitimately match across languages
+# (e.g. Spanish/Italian/Portuguese "Nota"). Verify its resolved language directly;
+# compare the richer static screens across locales as an additional backstop.
 WATCH_BYTE_EXCLUDE=("01-live")
 
 # Pixels cropped off the TOP and BOTTOM of each watch capture before the
@@ -182,11 +183,14 @@ BOOTED_UDIDS=()
 
 usage() {
     cat <<'USAGE'
-Usage: Scripts/screenshots.sh [--ios] [--watch]
+Usage: Scripts/screenshots.sh [--ios] [--watch] [--locale LOCALE] [--compose-only]
 
   (no flags)  capture both the iOS (iPhone + iPad) and the Apple Watch sets
   --ios       capture only the iOS set (XCUITest-driven)
   --watch     capture only the Apple Watch set (simctl-driven)
+  --locale    capture one configured locale (e.g. en-GB)
+  --compose-only  regenerate iPhone/Watch composites from existing captures
+                  add --locale en to iterate on English heroes only
 
 Output: screenshots/<locale>/<device>/NN-slug.png
 USAGE
@@ -196,14 +200,42 @@ USAGE
 if [ "$#" -gt 0 ]; then
     RUN_IOS=0
     RUN_WATCH=0
-    for argument in "$@"; do
-        case "$argument" in
-            --ios)          RUN_IOS=1 ;;
-            --watch)        RUN_WATCH=1 ;;
+    PIPELINE_SELECTED=0
+    while [ "$#" -gt 0 ]; do
+        case "$1" in
+            --ios)          RUN_IOS=1; PIPELINE_SELECTED=1 ;;
+            --watch)        RUN_WATCH=1; PIPELINE_SELECTED=1 ;;
+            --locale)
+                if [ "$#" -lt 2 ]; then
+                    echo "--locale requires a locale key" >&2
+                    usage >&2
+                    exit 2
+                fi
+                LOCALE_FILTER="$2"
+                shift
+                ;;
             -h|--help)      usage; exit 0 ;;
-            *)              echo "Unknown argument: $argument" >&2; usage >&2; exit 2 ;;
+            *)              echo "Unknown argument: $1" >&2; usage >&2; exit 2 ;;
         esac
+        shift
     done
+    if [ "$PIPELINE_SELECTED" -eq 0 ]; then
+        RUN_IOS=1
+        RUN_WATCH=1
+    fi
+fi
+
+if [ -n "${LOCALE_FILTER:-}" ]; then
+    configured=0
+    for locale in "${LOCALES[@]}"; do
+        [ "$locale" = "$LOCALE_FILTER" ] && configured=1
+    done
+    if [ "$configured" -eq 0 ]; then
+        echo "Unknown locale: $LOCALE_FILTER" >&2
+        echo "Configured locales: ${LOCALES[*]}" >&2
+        exit 2
+    fi
+    LOCALES=("$LOCALE_FILTER")
 fi
 
 # ---------------------------------------------------------------------------
@@ -213,11 +245,17 @@ fi
 # Shut down simulators we booted and remove the scratch dir. Runs on any exit
 # (success, failure, or Ctrl-C) so we never leak booted sims or temp bundles.
 cleanup() {
+    local status=$?
     local udid
     for udid in "${BOOTED_UDIDS[@]:-}"; do
         [ -n "$udid" ] || continue
         xcrun simctl shutdown "$udid" >/dev/null 2>&1 || true
     done
+    if [ "$status" -ne 0 ] && [ -n "${RESULT_ROOT:-}" ]; then
+        # Keep diagnostic logs outside the scratch directory before cleanup.
+        mkdir -p "$OUTPUT_ROOT/diagnostics"
+        find "$RESULT_ROOT" -maxdepth 1 -name '*.log' -exec cp {} "$OUTPUT_ROOT/diagnostics/" \;
+    fi
     [ -n "${RESULT_ROOT:-}" ] && rm -rf "$RESULT_ROOT"
 }
 trap cleanup EXIT
@@ -234,6 +272,7 @@ trap cleanup EXIT
 #                 request `pt` while keeping the `pt-BR` output folder for ASC.
 lang_for_locale() {
     case "$1" in
+        en-GB) echo "en" ;;
         pt-BR) echo "pt" ;;
         *)     echo "$1" ;;
     esac
@@ -243,6 +282,7 @@ lang_for_locale() {
 region_for_locale() {
     case "$1" in
         en)    echo "US" ;;
+        en-GB) echo "GB" ;;
         es)    echo "ES" ;;
         fr)    echo "FR" ;;
         it)    echo "IT" ;;
@@ -268,26 +308,46 @@ region_for_locale() {
 udid_for_device() {
     local device="$1"
     local udid
-    # `xcrun simctl list devices available -j` groups devices by runtime; the
-    # runtime identifiers (…iOS-18-2 etc.) sort so that the newest is last, so we
-    # pick the match under the highest-sorting runtime.
-    udid=$(xcrun simctl list devices available -j \
+    local scheme="$SCHEME" platform="iOS Simulator"
+    if [[ "$device" == "Apple Watch"* ]]; then
+        scheme="$WATCH_SCHEME"
+        platform="watchOS Simulator"
+    fi
+    local devices
+    # Warm CoreSimulator before asking Xcode to enumerate its destinations.
+    devices=$(xcrun simctl list devices available -j) || return 1
+    local destinations
+    destinations=$(xcodebuild -workspace "$WORKSPACE" -scheme "$scheme" -showdestinations 2>&1) || {
+        echo "$destinations" >&2
+        return 1
+    }
+    # A CI host can have runtimes installed by newer Xcodes. Only choose devices
+    # this workspace's selected Xcode actually offers as eligible destinations.
+    udid=$(printf '%s' "$devices" \
         | /usr/bin/python3 -c '
-import json, sys
+import json, re, sys
 name = sys.argv[1]
+platform = sys.argv[2]
+eligible = set()
+for line in sys.argv[3].splitlines():
+    if "platform:" + platform not in line.replace("platform: ", "platform:") or "error:" in line:
+        continue
+    match = re.search(r"\bid:\s*([A-Fa-f0-9-]{36})\b", line)
+    if match:
+        eligible.add(match.group(1))
 data = json.load(sys.stdin)
 best_runtime, best_udid = None, None
 for runtime, devices in data["devices"].items():
     for d in devices:
-        if d.get("name") == name and d.get("isAvailable", True):
-            # Prefer the newest runtime (identifiers sort newest-last).
-            if best_runtime is None or runtime > best_runtime:
-                best_runtime, best_udid = runtime, d["udid"]
+        if d.get("name") == name and d.get("isAvailable", True) and d["udid"] in eligible:
+            version = tuple(map(int, re.findall(r"\d+", runtime)))
+            if best_runtime is None or version > best_runtime:
+                best_runtime, best_udid = version, d["udid"]
 if best_udid:
     print(best_udid)
     sys.exit(0)
 sys.exit(1)
-' "$device") || {
+' "$device" "$platform" "$destinations") || {
         echo "  !! No available simulator named \"$device\"." >&2
         echo "     Create one, e.g.:" >&2
         echo "         xcrun simctl create \"$device\" \"$device\"" >&2
@@ -320,11 +380,11 @@ sys.exit(1)
     echo "$udid $booted"
 }
 
-# Apply the canonical marketing status bar (9:41, full battery/signal).
+# Phone/iPad review happens after the featured 17:02 dive, at 18:10.
 apply_status_bar() {
     local udid="$1"
     xcrun simctl status_bar "$udid" override \
-        --time "9:41" \
+        --time "${IOS_SCREENSHOT_TIME:-18:10}" \
         --batteryState charged \
         --batteryLevel 100 \
         --cellularBars 4 \
@@ -340,10 +400,18 @@ apply_status_bar() {
 export_attachments() {
     local xcresult="$1"
     local dest="$2"
+    local screenshot png_count=0
     mkdir -p "$dest"
     if xcrun xcresulttool export attachments \
         --path "$xcresult" \
         --output-path "$dest" >/dev/null 2>&1; then
+        # XCTest exports RGBA even when the app-window screenshot is opaque.
+        # Convert to RGB before composition or App Store Connect rejects it.
+        while IFS= read -r -d '' screenshot; do
+            swift Scripts/opaque-screenshot.swift "$screenshot" || return 1
+            png_count=$((png_count + 1))
+        done < <(/usr/bin/find "$dest" -maxdepth 1 -type f -name '*.png' -print0)
+        [ "$png_count" -gt 0 ] || { echo "  !! No PNG screenshots exported from $xcresult" >&2; return 1; }
         return 0
     fi
     echo "  !! 'xcresulttool export attachments' failed — is Xcode 16+ installed?" >&2
@@ -395,7 +463,7 @@ prune_stale_device_dirs() {
 # capture loop only protects locales the loop reaches. All three DEVICE-level
 # bailouts (`udid_for_device` failing, `build-for-testing` failing, no `.xctestrun`
 # produced) `continue` before that loop runs even once, so without this the device
-# keeps the PREVIOUS run's PNGs for all 8 locales. Those are the dangerous ones:
+# keeps the PREVIOUS run's PNGs for all configured locales. Those are dangerous:
 # `prune_stale_device_dirs` won't touch them (the device IS configured), the
 # sanity check hashes them as if fresh, and `fastlane ios metadata` reads the
 # folder rather than our exit code — so a later lane run happily uploads
@@ -433,7 +501,7 @@ find_xctestrun() {
 #     `TestRegion: ""`, and the file's empty values win over the command line.
 #     Setting them here is what localizes system-rendered chrome (keyboard,
 #     system alerts, share sheet, date pickers) — without it, that furniture
-#     stayed in the simulator's own language in all 8 sets.
+#     stayed in the simulator's own language in every locale set.
 #   - EnvironmentVariables (the runner's env) — SCREENSHOT_LANGUAGE /
 #     SCREENSHOT_LOCALE. `ScreenshotTests.setUpWithError()` reads them, appends
 #     `-AppleLanguages`/`-AppleLocale` to the app's launch arguments, and — the
@@ -456,6 +524,7 @@ patch_xctestrun() {
 import plistlib, sys
 
 src, dest, lang, locale, region = sys.argv[1:6]
+unit_mode = "metric"
 
 with open(src, "rb") as handle:
     plist = plistlib.load(handle)
@@ -497,6 +566,7 @@ for target in test_targets(plist):
     target["UITargetAppCommandLineArguments"] = arguments + [
         "-AppleLanguages", "(%s)" % lang,
         "-AppleLocale", locale,
+        "-unitMode", unit_mode,
     ]
     patched += 1
 
@@ -589,9 +659,11 @@ wait_watch_ready() {
 # Fail unless a PNG is RGB with no alpha channel. Every screenshot App Store
 # Connect has accepted is RGB; an RGBA image is rejected server-side, and because
 # the upload runs `overwrite_screenshots: true` a rejection can leave the listing
-# with the old set deleted and the new one failed. We capture with `--mask=black`
-# (which flattens the rounded-corner mask to opaque black, yielding RGB), and this
-# asserts that actually happened rather than trusting the flag. No image library —
+# with the old set deleted and the new one failed. Watch captures use
+# `--mask=ignored` to preserve the rectangular framebuffer, then
+# `opaque-screenshot.swift` converts the opaque RGBA capture to RGB without changing
+# its pixels. This asserts that actually happened rather than trusting the flags.
+# No image library —
 # it reads the PNG IHDR colour-type byte (2/0 = alpha-free truecolour/greyscale,
 # 4/6 = alpha) and, for completeness, walks the CHUNK LIST up to IDAT for a tRNS
 # (palette/colour-key transparency). It parses chunks rather than scanning the raw
@@ -675,6 +747,19 @@ verify_watch_language() {
 # wrong (the caller counts that as a failed combination, which forces `exit 1`).
 capture_watch_screen() {
     local udid="$1" screen="$2" dwell="$3" lang="$4" app_locale="$5" dest="$6"
+    if [ "$screen" = "01-live" ]; then
+        # The featured dive starts at 17:02. Capture its ongoing moment with
+        # the native Watch clock, rather than the later host capture time.
+        /usr/bin/python3 Scripts/capture-watch-live.py \
+            --device "$udid" --bundle "$WATCH_BUNDLE_ID" \
+            --language "$lang" --locale "$app_locale" \
+            --clock "${WATCH_SCREENSHOT_TIME:-17:02}" --output "$dest/$screen.png" || return 1
+        assert_no_alpha "$dest/$screen.png"
+        return
+    fi
+    # Language/region overrides do not clear a simulator's saved units. Pin the
+    # mode in NSArgumentDomain, above persisted defaults and incoming phone sync.
+    local unit_mode="metric"
 
     # Start from a clean slate: kill any previous instance and give the OS a moment
     # to tear it down. On a first install→terminate→launch, launching too soon
@@ -702,7 +787,7 @@ capture_watch_screen() {
     # if all was well. That is a wrong-language screenshot with a zero exit code, so
     # the single-dash arguments lead and the double-dash ones trail.
     if ! xcrun simctl launch --terminate-running-process "$udid" "$WATCH_BUNDLE_ID" \
-        -AppleLanguages "($lang)" -AppleLocale "$app_locale" \
+        -AppleLanguages "($lang)" -AppleLocale "$app_locale" -unitMode "$unit_mode" \
         --screenshot-demo --screenshot-screen "$screen" >/dev/null 2>&1; then
         echo "       !! simctl launch failed for $screen" >&2
         return 1
@@ -712,17 +797,21 @@ capture_watch_screen() {
     # rather than blindly sleeping and photographing whatever is up.
     wait_watch_ready "$udid" "$screen" || return 1
 
-    # Post-ready settle. For `01-live` this is also the dive clock advancing to a
-    # plausible mid-dive value; for the static screens it lets charts finish drawing.
+    # Post-ready settle lets layout and charts finish drawing. The live view
+    # is frozen at 18 s in the same featured dive as the phone/iPad charts.
     sleep "$dwell"
 
     verify_watch_language "$udid" "$lang" || return 1
 
-    # `--mask=black` yields an RGB (alpha-free) PNG; `assert_no_alpha` proves it.
-    if ! xcrun simctl io "$udid" screenshot --mask=black "$dest/$screen.png" >/dev/null 2>&1; then
+    # Preserve the rectangular framebuffer without the Watch's display mask;
+    # App Store Connect applies its own presentation mask. simctl writes RGBA, so
+    # flatten the fully opaque pixels to RGB for upload.
+    if ! xcrun simctl io "$udid" screenshot --mask=ignored "$dest/$screen.png" >/dev/null 2>&1; then
         echo "       !! simctl io screenshot failed for $screen" >&2
         return 1
     fi
+    swift Scripts/opaque-screenshot.swift "$dest/$screen.png" || return 1
+    swift Scripts/validate-watch-screenshot.swift "$dest/$screen.png" || return 1
     if ! assert_no_alpha "$dest/$screen.png"; then
         echo "       !! $screen.png is not alpha-free — App Store Connect would reject it" >&2
         return 1
@@ -750,9 +839,9 @@ capture_watch_screen() {
 #     say, so the captures are already named `01-live.png` and carry no manifest.
 #
 # THE RULE: flag ANY single slug that is byte-identical across two locales, unless
-# that slug is in LOCALE_INVARIANT (currently empty — every screen we capture
-# shows a localized tab bar and nav title, so none of them may legitimately match
-# across languages).
+# it is globally locale-invariant or listed for that exact locale pair in
+# INTENTIONAL_IDENTICAL. The latter covers shared app languages such as en/en-GB
+# on screens without region-formatted content.
 #
 # WHY not the previous rule: it flagged a pair only when EVERY shared slug
 # matched. That is unanimity, so a single noisy image acquits the whole pair — and
@@ -781,10 +870,17 @@ rest = sys.argv[2:]
 separator = rest.index("--")
 locales, devices = rest[:separator], rest[separator + 1:]
 
-# Slugs that may legitimately be byte-identical across languages (a screen with
-# no localized text anywhere). Empty on purpose — see the rule above. Add with a
-# comment naming the screen and why it carries no localized pixels.
+# Slugs that may legitimately be byte-identical across every locale (a screen
+# with no localized text anywhere). Empty on purpose — see the rule above. Add
+# with a comment naming the screen and why it carries no localized pixels.
 LOCALE_INVARIANT = set()
+
+# English (U.S.) and English (U.K.) use the same app localization. These two
+# screens have no region-formatted content, so identical captures are expected;
+# keep comparing every other screen and every other locale pair normally.
+INTENTIONAL_IDENTICAL = {
+    frozenset(("en", "en-GB")): {"04-spots", "05-passport"},
+}
 
 class Unusable(Exception):
     """A device dir we cannot draw a conclusion from — always fatal."""
@@ -925,6 +1021,7 @@ for device in devices:
             identical = sorted(
                 slug for slug in shared
                 if slug not in LOCALE_INVARIANT
+                and slug not in INTENTIONAL_IDENTICAL.get(frozenset((left, right)), set())
                 and per_locale[left][slug] == per_locale[right][slug]
             )
             if identical:
@@ -976,11 +1073,8 @@ print("==> Cross-locale sanity check passed (%d screen comparisons, none identic
 # leaves a deterministic, localized middle: if two locales rendered the SAME
 # language their crops are byte-identical and this fires.
 #
-# `01-live` is deliberately NOT byte-checked here (it is passed in the exclude
-# list): it is a running session whose central dive clock ticks every second, so
-# even its crop differs between two captures of the same locale. Its language is
-# covered by `verify_watch_language` alone — the primary, fail-closed net that all
-# five screens rely on regardless.
+# `01-live` uses the resolved-language probe: its sparse labels can legitimately
+# be identical across locales, even with the frozen timer and native-clock check.
 #
 # Usage: check_watch_locales_differ <root> <device> <strip_px> <locale>… -- <slug>…
 check_watch_locales_differ() {
@@ -1149,6 +1243,7 @@ for device in "${DEVICES[@]}"; do
         CODE_SIGNING_ALLOWED=NO \
         > "$build_log" 2>&1; then
         echo "    !! build-for-testing failed (see $build_log)" >&2
+        tail -80 "$build_log" >&2
         failed=$((failed + 1))
         continue
     fi
@@ -1220,7 +1315,11 @@ for device in "${DEVICES[@]}"; do
             fi
         else
             echo "       !! test-without-building failed (see $RESULT_ROOT/${locale}-${device_slug}.log)" >&2
+            tail -60 "$RESULT_ROOT/${locale}-${device_slug}.log" >&2
             failed=$((failed + 1))
+            # CI should expose a broken harness immediately, before repeating
+            # the same failure across every locale. Local runs keep reporting all.
+            [ "${SCREENSHOT_FAIL_FAST:-0}" = "1" ] && exit 1
         fi
     done
     echo
@@ -1259,6 +1358,7 @@ for device in "${WATCH_DEVICES[@]}"; do
         CODE_SIGNING_ALLOWED=NO \
         > "$build_log" 2>&1; then
         echo "    !! build failed (see $build_log)" >&2
+        tail -80 "$build_log" >&2
         failed=$((failed + 1))
         continue
     fi
@@ -1330,7 +1430,7 @@ done
 identical=0
 
 # iOS whole-image check, over the iOS devices only.
-if [ "$captured" -gt 0 ] && [ "${#DEVICES[@]}" -gt 0 ]; then
+if [ "$captured" -gt 0 ] && [ "${#DEVICES[@]}" -gt 0 ] && [ -z "${LOCALE_FILTER:-}" ]; then
     # Only meaningful once at least one iOS device dir exists (a `--watch`-only run
     # leaves none). Guard so that run does not fail on "no output directory".
     if /usr/bin/find "$OUTPUT_ROOT" -type d -path "*/${DEVICES[0]}" -print -quit 2>/dev/null | grep -q .; then
@@ -1339,7 +1439,7 @@ if [ "$captured" -gt 0 ] && [ "${#DEVICES[@]}" -gt 0 ]; then
 fi
 
 # Watch cropped check, per watch device, over the byte-checkable (static) screens.
-if [ "$captured" -gt 0 ] && [ "${#WATCH_DEVICES[@]}" -gt 0 ]; then
+if [ "$captured" -gt 0 ] && [ "${#WATCH_DEVICES[@]}" -gt 0 ] && [ -z "${LOCALE_FILTER:-}" ]; then
     # Static slugs = WATCH_SCREENS minus WATCH_BYTE_EXCLUDE.
     watch_static_slugs=()
     for entry in "${WATCH_SCREENS[@]}"; do
@@ -1357,6 +1457,26 @@ if [ "$captured" -gt 0 ] && [ "${#WATCH_DEVICES[@]}" -gt 0 ]; then
                 "${LOCALES[@]}" -- "${watch_static_slugs[@]}" || identical=1
         fi
     done
+fi
+
+if [ "$RUN_IOS" -eq 1 ]; then
+    ios_images=()
+    for device in "${DEVICES[@]}"; do
+        while IFS= read -r -d '' png; do
+            ios_images+=("$png")
+        done < <(/usr/bin/find "$OUTPUT_ROOT" -type f -path "*/$device/*.png" -print0)
+    done
+    if [ "${#ios_images[@]}" -eq 0 ] || ! swift Scripts/validate-ios-screenshot.swift "${ios_images[@]}"; then
+        failed=$((failed + 1))
+    fi
+fi
+
+if [ "$failed" -eq 0 ] && [ "$identical" -eq 0 ] && [ "$RUN_IOS" -eq 1 ] && [ "$RUN_WATCH" -eq 1 ]; then
+    if [ -n "${LOCALE_FILTER:-}" ]; then
+        swift Scripts/compose-screenshots.swift "$OUTPUT_ROOT" --locale "$LOCALE_FILTER"
+    else
+        swift Scripts/compose-screenshots.swift "$OUTPUT_ROOT"
+    fi
 fi
 
 echo "==> Done"

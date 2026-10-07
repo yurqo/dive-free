@@ -56,7 +56,7 @@ public enum DemoData {
 
     // Real freediving spots. Names are proper nouns → safe across locales.
     private static let amed = SpotFixture(
-        name: "Amed", latitude: -8.3402, longitude: 115.6870,
+        name: "Jemeluk Beach, Amed", latitude: -8.3381438, longitude: 115.660296,
         country: "Indonesia", countryCode: "ID"
     )
     private static let blueHole = SpotFixture(
@@ -113,10 +113,10 @@ public enum DemoData {
             markerKinds: [.wildlife, .photo]
         )
 
-        // Session 2: Amed, day 1. Single dive, part of the same trip.
+        // Session 2: Faial, day 1. Single dive.
         let session2 = makeSession(
             dayOffset: 1,
-            fixture: amed,
+            fixture: faial,
             diveDepths: [6.0],
             rating: 4,
             conditions: DiveConditions(
@@ -157,23 +157,23 @@ public enum DemoData {
             markerKinds: [.wildlife]
         )
 
-        // Session 4: Azores / Faial, day 9. Cooler, single dive.
+        // Session 4: featured Jemeluk session, day 9. Warm, single dive.
         let session4 = makeSession(
             dayOffset: 9,
-            fixture: faial,
+            fixture: amed,
             diveDepths: [4.5],
             rating: 4,
             conditions: DiveConditions(
                 visibility: .good,
                 current: .light,
-                surface: .choppy,
-                tide: .outgoing,
-                waterTemperatureCelsius: 19.0,
-                airTemperatureCelsius: 21.0
+                surface: .calm,
+                tide: .high,
+                waterTemperatureCelsius: 28.0,
+                airTemperatureCelsius: 30.0
             ),
             weather: DiveWeather(
-                weatherCode: 2, windSpeedKmh: 18.0,
-                windDirectionDegrees: 270, waveHeightMeters: 0.8
+                weatherCode: 0, windSpeedKmh: 8.0,
+                windDirectionDegrees: 120, waveHeightMeters: 0.3
             ),
             markerKinds: [.note]
         )
@@ -184,10 +184,8 @@ public enum DemoData {
 
         // --- Spot assignment ----------------------------------------------
         session1.spot = amedSpot
-        session2.spot = amedSpot
         session3.spot = dahabSpot
-        // session4 (Faial) intentionally left without a pre-created Spot object
-        // beyond its own coordinates; assign a fresh spot so the map/name render.
+        session4.spot = amedSpot
         let faialSpot = Spot(
             name: faial.name,
             centerLatitude: faial.latitude,
@@ -197,19 +195,19 @@ public enum DemoData {
             countryCode: faial.countryCode
         )
         context.insert(faialSpot)
-        session4.spot = faialSpot
+        session2.spot = faialSpot
 
-        // --- Trip (groups the two Amed sessions) --------------------------
+        // --- Trip (groups the two Jemeluk sessions) -----------------------
         let trip = Trip(
             // Proper-noun place name → locale-safe.
-            name: amed.name,
+            name: "Amed",
             startDate: session1.startTime,
-            endDate: session2.endTime ?? session2.startTime,
+            endDate: session4.endTime ?? session4.startTime,
             createdAt: baseDate
         )
         context.insert(trip)
         session1.trip = trip
-        session2.trip = trip
+        session4.trip = trip
 
         try? context.save()
     }
@@ -262,14 +260,13 @@ public enum DemoData {
             )
             dives.append(dive)
 
-            // One water-temperature sample at the bottom of each dive.
-            let bottom = diveCursor.addingTimeInterval(profile.count > 0 ? Double(profile.count) / 2 : 0)
-            temperatureSamples.append(
-                TemperatureSample(
-                    timestamp: bottom,
+            // A stable temperature series is visible even in a single-dive chart.
+            for (index, sample) in profile.enumerated() where index.isMultiple(of: 5) {
+                temperatureSamples.append(TemperatureSample(
+                    timestamp: sample.timestamp,
                     celsius: conditions.waterTemperatureCelsius ?? 25.0
-                )
-            )
+                ))
+            }
 
             // Attach a marker mid-dive (localized emoji/label via built-in kind).
             if markerCursor < markerKinds.count {
@@ -307,7 +304,7 @@ public enum DemoData {
             latitude: fixture.latitude,
             longitude: fixture.longitude,
             track: surfaceTrack(start: sessionStart, end: sessionEnd, fixture: fixture),
-            heartRateSamples: heartRateSamples(start: sessionStart, end: sessionEnd),
+            heartRateSamples: heartRateSamples(start: sessionStart, end: sessionEnd, dives: dives),
             temperatureSamples: temperatureSamples,
             locationName: fixture.name,
             locationNameEdited: true, // proper-noun name; don't let geocoding clobber
@@ -325,16 +322,19 @@ public enum DemoData {
         return record
     }
 
-    /// A smooth descent/ascent depth profile (1 Hz), triangular with an eased
-    /// bottom, capped at `maxDepth`. Deterministic — depends only on inputs.
+    /// A deterministic simulated dive: uneven descent, a short bottom phase,
+    /// and a slower ascent with small changes in pace. No symmetrical sine bowl.
     private static func depthProfile(start: Date, maxDepth: Double) -> [DepthSample] {
         let totalSeconds = 90
         var samples: [DepthSample] = []
         samples.reserveCapacity(totalSeconds + 1)
         for second in 0...totalSeconds {
-            let t = Double(second) / Double(totalSeconds) // 0…1
-            // Symmetric sine bump: 0 at ends, 1 at the middle → smooth V.
-            let shape = sin(t * .pi)
+            let shape = interpolated(Double(second), anchors: [
+                (0, 0), (3, 0.04), (9, 0.22), (16, 0.56), (24, 0.88),
+                (29, 1), (34, 0.97), (40, 0.99), (45, 0.93),
+                (53, 0.76), (60, 0.65), (65, 0.64), (73, 0.43),
+                (80, 0.24), (86, 0.08), (90, 0)
+            ])
             let depth = (maxDepth * shape * 100).rounded() / 100 // 2-dp, tidy
             samples.append(
                 DepthSample(
@@ -374,24 +374,41 @@ public enum DemoData {
         return points
     }
 
-    /// A handful of heart-rate samples spread across the session, plausible for a
-    /// relaxed freedive (60–110 bpm), deterministic.
-    private static func heartRateSamples(start: Date, end: Date) -> [HeartRateSample] {
-        let count = 8
+    /// Simulated heart rate follows each dive, with modest deterministic variation
+    /// at the surface. Demo data only; not a physiological prediction.
+    private static func heartRateSamples(start: Date, end: Date, dives: [DiveRecord]) -> [HeartRateSample] {
         let span = end.timeIntervalSince(start)
+        let count = max(2, Int(span / 3) + 1)
         var samples: [HeartRateSample] = []
         samples.reserveCapacity(count)
-        let bpms: [Double] = [72, 68, 64, 88, 96, 70, 66, 74]
         for index in 0..<count {
             let fraction = count > 1 ? Double(index) / Double(count - 1) : 0
+            let timestamp = start.addingTimeInterval(span * fraction)
+            let elapsed = timestamp.timeIntervalSince(start)
+            var bpm = 76 + 3 * sin(elapsed / 19) + 1.5 * sin(elapsed / 7)
+            if let dive = dives.first(where: { timestamp >= $0.startTime && timestamp <= $0.endTime }) {
+                bpm = interpolated(timestamp.timeIntervalSince(dive.startTime), anchors: [
+                    (0, 80), (9, 85), (18, 79), (30, 68), (42, 63),
+                    (51, 66), (63, 70), (72, 76), (81, 84), (90, 89)
+                ]) + 1.2 * sin(elapsed / 4)
+            }
             samples.append(
                 HeartRateSample(
-                    timestamp: start.addingTimeInterval(span * fraction),
-                    bpm: bpms[index % bpms.count]
+                    timestamp: timestamp,
+                    bpm: bpm.rounded()
                 )
             )
         }
         return samples
+    }
+
+    private static func interpolated(_ time: Double, anchors: [(Double, Double)]) -> Double {
+        for index in 1..<anchors.count where time <= anchors[index].0 {
+            let left = anchors[index - 1], right = anchors[index]
+            let fraction = max(0, (time - left.0) / (right.0 - left.0))
+            return left.1 + (right.1 - left.1) * fraction
+        }
+        return anchors.last?.1 ?? 0
     }
 }
 #endif

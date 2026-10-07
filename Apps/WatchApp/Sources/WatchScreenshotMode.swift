@@ -167,60 +167,63 @@ enum WatchScreenshotMode {
 
     // MARK: - Scripted live session
 
-    /// A `SessionManager` fed by a scripted depth profile and a fixed GPS point
-    /// instead of the watch's sensors, so `Screen.live` can render a genuine live
-    /// session in a simulator that has neither a submersion sensor nor a location
-    /// fix (and would otherwise put a CoreLocation permission sheet over the shot).
-    ///
-    /// Everything downstream is the real thing: the samples run through the real
-    /// `DiveDetector`, which decides when the dive starts and when it is confirmed,
-    /// and `SessionRootView` renders whatever that produces.
+    /// A frozen moment in the shared, completed dive. All readouts come from
+    /// the same samples the iPhone/iPad charts use, rather than a second profile.
+    struct LiveSnapshot {
+        let diveElapsed: TimeInterval
+        let sessionElapsed: TimeInterval
+        let depthMeters: Double
+        let heartRate: Int
+        let temperatureCelsius: Double
+        let markerCount: Int
+        let location: GeoPoint
+
+        @MainActor
+        init(modelContext: ModelContext) {
+            guard let record = DemoData.featuredSession(in: modelContext)
+            else { fatalError("Screenshot demo store has no featured session") }
+            let session = record.toDomain()
+            guard let dive = session.dives.sorted(by: { $0.startTime < $1.startTime }).first
+            else { fatalError("Screenshot demo store has no featured dive") }
+            diveElapsed = 18
+            let timestamp = dive.startTime.addingTimeInterval(diveElapsed)
+            sessionElapsed = timestamp.timeIntervalSince(session.startTime)
+            guard let depth = dive.samples.first(where: { $0.timestamp == timestamp }),
+                  let heartRateSample = session.heartRateSamples.first(where: { $0.timestamp == timestamp }),
+                  let temperature = session.temperatureSamples.last(where: { $0.timestamp <= timestamp })
+            else { fatalError("The shared dive must contain samples for the live screenshot moment") }
+            depthMeters = depth.depthMeters
+            heartRate = Int(heartRateSample.bpm)
+            temperatureCelsius = temperature.celsius
+            markerCount = session.markers.filter {
+                $0.timestamp >= dive.startTime && $0.timestamp <= timestamp
+            }.count
+            location = GeoPoint(
+                latitude: record.latitude ?? 0,
+                longitude: record.longitude ?? 0,
+                horizontalAccuracy: 4
+            )
+        }
+    }
+
     @MainActor
     static func makeDemoSessionManager(modelContext: ModelContext) -> SessionManager {
-        SessionManager(
-            // A DEBUG-only wrapper supplies a FIXED water temperature so the live
-            // screen's readout is byte-identical across captures (the mock's default
-            // sine would vary pixel-to-pixel). Kept here, behind `#if DEBUG`, rather
-            // than as a parameter on `MockDepthProvider` so no screenshot-only
-            // surface is added to the shipped `Sensors` framework.
+        let snapshot = LiveSnapshot(modelContext: modelContext)
+        return SessionManager(
             sensors: SensorManager(
                 provider: ScreenshotDepthProvider(
-                    base: MockDepthProvider(interval: 0.5, profile: diveProfile),
-                    temperatureCelsius: demoTemperatureCelsius
+                    base: MockDepthProvider(
+                        interval: 0.5,
+                        profile: Array(repeating: snapshot.depthMeters, count: 14_400)
+                    ),
+                    temperatureCelsius: snapshot.temperatureCelsius
                 )
             ),
-            location: FixedLocationProvider(),
+            location: FixedLocationProvider(point: snapshot.location),
             modelContext: modelContext
         )
     }
 
-    /// Markers dropped once the demo session is live, so the live screen's counter
-    /// and the Crown selector show a plausible dive rather than an empty one.
-    static let demoMarkers: [MarkerKind] = [MarkerKind(.wildlife), MarkerKind(.photo)]
-
-    /// Heart rate shown on the live screen. Fixed (not a random walk) so the shot
-    /// is reproducible; ~78 bpm is a plausible working rate for a freediver.
-    static let demoHeartRate = 78
-
-    /// Water temperature shown on the live screen. Fixed for reproducibility; 24 °C
-    /// is a plausible tropical dive temperature and matches the demo spot (Amed).
-    static let demoTemperatureCelsius = 24.0
-
-    /// Descend at ~0.4 m/s to 5.8 m, then hold there indefinitely.
-    ///
-    /// The hold matters: the script photographs the live screen after a fixed
-    /// dwell, and a profile that ascended would put the shot at whatever depth the
-    /// clock happened to land on — including 0 m, i.e. a surfaced screen. Holding
-    /// makes the depth readout deterministic while the dive clock above it keeps
-    /// running. 5.8 m sits just under the 6 m the shallow-depth entitlement can
-    /// measure, so the number shown is one the app can genuinely produce.
-    /// `MockDepthProvider` loops its profile, so the hold is long enough (2 h at
-    /// 0.5 s per sample) that no capture ever sees it wrap.
-    private static let diveProfile: [Double] = {
-        let target = 5.8
-        let descent = Array(stride(from: 0.2, through: target, by: 0.2))
-        return descent + Array(repeating: target, count: 14_400)
-    }()
 }
 
 /// Wraps a `MockDepthProvider` for depth but emits a FIXED water temperature, so
@@ -256,18 +259,17 @@ private struct ScreenshotDepthProvider: DepthProvider {
 /// Used instead of `CoreLocationProvider` for two reasons: the simulator would
 /// raise a location-permission sheet over the screen being captured, and a real
 /// fix drifts — the live screen's "±N m" GPS readout would differ shot to shot.
-/// The coordinate is Amed, Bali — the same spot the seeded demo sessions use.
+/// The coordinate comes from the shared featured session.
 private struct FixedLocationProvider: LocationProviding {
-    /// Matches `DemoData`'s Amed fixture.
-    private static let point = GeoPoint(latitude: -8.3402, longitude: 115.6870, horizontalAccuracy: 4)
+    let point: GeoPoint
 
-    func currentLocation() async -> GeoPoint? { Self.point }
+    func currentLocation() async -> GeoPoint? { point }
 
     func locationUpdates() -> AsyncStream<GeoPoint> {
         AsyncStream { continuation in
             let task = Task {
                 while !Task.isCancelled {
-                    continuation.yield(Self.point)
+                    continuation.yield(point)
                     try? await Task.sleep(for: .seconds(1))
                 }
                 continuation.finish()
@@ -305,14 +307,10 @@ struct WatchScreenshotRootView: View {
             }
             .task {
                 guard screen == .live else { return }
-                // Before the start, because `startScreenshotSession` only returns
-                // once it has placed its markers a few seconds in.
-                session.workout.setScreenshotHeartRate(WatchScreenshotMode.demoHeartRate)
-                // The real start path minus HealthKit (see `startScreenshotSession`).
-                // Announce ready ONLY on success: a thrown startSession() returns
-                // false, no marker is written, and the script fails the capture
-                // rather than photographing the idle Start screen.
-                if await session.startScreenshotSession(markers: WatchScreenshotMode.demoMarkers) {
+                let snapshot = WatchScreenshotMode.LiveSnapshot(modelContext: modelContext)
+                session.screenshotSnapshot = snapshot
+                session.workout.setScreenshotHeartRate(snapshot.heartRate)
+                if await session.startScreenshotSession() {
                     WatchScreenshotMode.publishScreenReady(.live)
                 }
             }

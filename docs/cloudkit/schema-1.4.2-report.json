@@ -1,0 +1,75 @@
+{
+  "added_field_count": 47,
+  "added_fields": {
+    "CD_CustomMarkerRecord": {
+      "CD_emoji_ckAsset": "ASSET",
+      "CD_label_ckAsset": "ASSET"
+    },
+    "CD_DiveRecord": {
+      "CD_samples_ckAsset": "ASSET"
+    },
+    "CD_MarkerRecord": {
+      "CD_audioData_ckAsset": "ASSET",
+      "CD_audioFileName_ckAsset": "ASSET",
+      "CD_emoji_ckAsset": "ASSET",
+      "CD_kind_ckAsset": "ASSET",
+      "CD_label_ckAsset": "ASSET",
+      "CD_summary": "STRING",
+      "CD_summary_ckAsset": "ASSET",
+      "CD_text": "STRING",
+      "CD_text_ckAsset": "ASSET",
+      "CD_title": "STRING",
+      "CD_title_ckAsset": "ASSET",
+      "CD_transcript": "STRING",
+      "CD_transcript_ckAsset": "ASSET"
+    },
+    "CD_NoteMutationRecord": {
+      "CD_entityName": "STRING",
+      "CD_id": "STRING",
+      "CD_payload": "BYTES",
+      "CD_payload_ckAsset": "ASSET"
+    },
+    "CD_PhotoRecord": {
+      "CD_assetCloudIdentifier_ckAsset": "ASSET",
+      "CD_assetIdentifier_ckAsset": "ASSET",
+      "CD_marker": "STRING",
+      "CD_spot": "STRING",
+      "CD_thumbnailData_ckAsset": "ASSET",
+      "CD_thumbnailFileName_ckAsset": "ASSET"
+    },
+    "CD_SessionRecord": {
+      "CD_currentRaw_ckAsset": "ASSET",
+      "CD_heartRateSamples_ckAsset": "ASSET",
+      "CD_locationName_ckAsset": "ASSET",
+      "CD_notes_ckAsset": "ASSET",
+      "CD_photosAlbumIdentifier_ckAsset": "ASSET",
+      "CD_surfaceRaw_ckAsset": "ASSET",
+      "CD_temperatureSamples_ckAsset": "ASSET",
+      "CD_tideRaw": "STRING",
+      "CD_tideRaw_ckAsset": "ASSET",
+      "CD_title_ckAsset": "ASSET",
+      "CD_track_ckAsset": "ASSET",
+      "CD_visibilityRaw_ckAsset": "ASSET"
+    },
+    "CD_Spot": {
+      "CD_countryCode_ckAsset": "ASSET",
+      "CD_country_ckAsset": "ASSET",
+      "CD_name_ckAsset": "ASSET",
+      "CD_notes": "STRING",
+      "CD_notes_ckAsset": "ASSET",
+      "CD_photosFolderIdentifier_ckAsset": "ASSET"
+    },
+    "CD_Trip": {
+      "CD_name_ckAsset": "ASSET",
+      "CD_notes": "STRING",
+      "CD_notes_ckAsset": "ASSET"
+    }
+  },
+  "baseline_sha256": "b53a4a553759d7f9249aae7c36470ed3bba9f8cd6c70af5c56f03f4072b0a804",
+  "corrected_sha256": "1c9fb3b0a11bf0dbd9b1b9be9f35e6a7af9eacdb4131cc804537bff66ce4dd82",
+  "model_source": "9f62052d46cd351adfa9448b96306eacd68c9b50 (v1.4.2); persistence unchanged at current HEAD",
+  "new_record_types": [
+    "CD_NoteMutationRecord"
+  ],
+  "validation": "Local model coverage/type and additive-diff checks passed; CloudKit server import/validation not performed."
+}

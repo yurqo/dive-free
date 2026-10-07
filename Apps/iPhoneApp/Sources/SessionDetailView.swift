@@ -8,18 +8,24 @@ import Strava
 struct SessionDetailView: View {
     let session: SessionRecord
     @Environment(StravaAuthManager.self) private var strava
+    @Environment(PhotoPagerPresenter.self) private var photoPager
 
     private enum ExportStatus: Equatable {
         case idle, uploading, uploaded, failed(String)
     }
     @State private var exportStatus: ExportStatus = .idle
     @State private var showFullMap = false
+    @State private var isCreatingSessionBackup = false
+    @State private var sessionBackupProgress: BackupProgress?
+    @State private var sessionBackupTask: Task<Void, Never>?
+    @State private var sharedExportDirectory: URL?
 
-    /// Drives the single edit/crop/share sheet. Multiple `.sheet(item:)` modifiers
+    /// Drives the single note/edit/crop/share sheet. Multiple `.sheet(item:)` modifiers
     /// on one view can mis-fire in SwiftUI (only one presents reliably), so they all
     /// share one `.sheet(item:)`.
     private enum ActiveSheet: Identifiable {
         case edit, crop
+        case note(MarkerRecord)
         /// An exported file to hand off to the system share sheet.
         case share(URL)
 
@@ -27,11 +33,25 @@ struct SessionDetailView: View {
             switch self {
             case .edit: "edit"
             case .crop: "crop"
+            case .note(let marker): "note:\(marker.id)"
             case .share(let url): "share:\(url.path)"
             }
         }
     }
     @State private var activeSheet: ActiveSheet?
+
+    /// Chart-focused captures use the same session data and chart views while
+    /// omitting surrounding sections that otherwise push the graph footer
+    /// underneath the pinned tab bar. This launch flag is only honoured by the
+    /// DEBUG screenshot harness.
+    private var screenshotChartsOnly: Bool {
+        #if DEBUG
+        let arguments = ProcessInfo.processInfo.arguments
+        return arguments.contains("--screenshot-demo") && arguments.contains("--screenshot-chart-focus")
+        #else
+        return false
+        #endif
+    }
 
     /// Set when an export can't be produced (FIT without location/time data) or a
     /// temp-file write fails.
@@ -43,66 +63,81 @@ struct SessionDetailView: View {
     var body: some View {
         let domain = session.toDomain()
         List {
-            Section {
-                LabeledContent("Date", value: domain.startTime.formatted(date: .abbreviated, time: .shortened))
-                if let name = domain.locationName, !name.isEmpty {
-                    LabeledContent("Area", value: name)
+            if screenshotChartsOnly {
+                SessionChartsSection(session: domain)
+            } else {
+                SessionMediaHeader(session: session, domain: domain) { showFullMap = true }
+
+                Section {
+                    LabeledContent("Date", value: domain.startTime.formatted(date: .abbreviated, time: .shortened))
+                    if let name = domain.locationName, !name.isEmpty {
+                        LabeledContent("Area", value: name)
+                    }
+                    LabeledContent("Total", value: Duration.seconds(domain.totalDuration).formatted(.time(pattern: .hourMinuteSecond)))
+                        .accessibilityIdentifier("screenshot.session.total")
+                    LabeledContent("Dives", value: "\(domain.diveCount)")
+                    LabeledContent("Max depth", value: DepthFormat.string(domain.maxDepthMeters))
+                    if let average = domain.averageSurfaceInterval {
+                        LabeledContent(
+                            "Avg surface",
+                            value: Duration.seconds(average).formatted(.time(pattern: .minuteSecond))
+                        )
+                    }
+                    if domain.track.count >= 2 {
+                        LabeledContent(LocalizedStringKey(domain.smoothTrack ? "Distance" : "Raw GPS distance"), value: DistanceFormat.string(domain.surfaceDistanceMeters))
+                    }
+                    if let rating = domain.rating {
+                        LabeledContent("Rating") { StarRating(rating: rating) }
+                    }
                 }
-                LabeledContent("Total", value: Duration.seconds(domain.totalDuration).formatted(.time(pattern: .hourMinuteSecond)))
-                LabeledContent("Dives", value: "\(domain.diveCount)")
-                LabeledContent("Max depth", value: DepthFormat.string(domain.maxDepthMeters))
-                if let average = domain.averageSurfaceInterval {
-                    LabeledContent(
-                        "Avg surface",
-                        value: Duration.seconds(average).formatted(.time(pattern: .minuteSecond))
-                    )
+
+                if let notes = domain.notes, !notes.isEmpty {
+                    Section("Notes") {
+                        Text(notes)
+                    }
                 }
-                if domain.surfaceDistanceMeters >= 1 {
-                    LabeledContent("Distance", value: DistanceFormat.string(domain.surfaceDistanceMeters))
+
+                conditionsSection(domain)
+
+                weatherSection(domain)
+
+                SessionPhotosSection(session: session)
+
+                SessionChartsSection(session: domain)
+
+                segmentsSection(domain)
+
+                MarkerListSection(markers: domain.markers, session: session) { marker in
+                    activeSheet = .note(marker)
                 }
-                if let rating = domain.rating {
-                    LabeledContent("Rating") { StarRating(rating: rating) }
+
+                // Full session map.
+                locationSection(domain)
+
+                // Export lives at the very bottom, under the map.
+                exportSection(domain)
+
+                // iCloud sync status — surfaces the actual CloudKit error if a
+                // cross-device sync (e.g. this session's photos) is failing.
+                Section("iCloud Sync") {
+                    CloudKitSyncStatusRows()
                 }
-            }
-
-            if let notes = domain.notes, !notes.isEmpty {
-                Section("Notes") {
-                    Text(notes)
-                }
-            }
-
-            conditionsSection(domain)
-
-            weatherSection(domain)
-
-            SessionPhotosSection(session: session)
-
-            chartsSection(domain)
-
-            segmentsSection(domain)
-
-            MarkerListSection(markers: domain.markers, session: session)
-
-            // Full session map.
-            locationSection(domain)
-
-            // Export lives at the very bottom, under the map.
-            exportSection(domain)
-
-            // iCloud sync status — surfaces the actual CloudKit error if a
-            // cross-device sync (e.g. this session's photos) is failing.
-            Section("iCloud Sync") {
-                CloudKitSyncStatusRows()
             }
         }
-        .navigationTitle(domain.title ?? domain.startTime.formatted(date: .abbreviated, time: .omitted))
+        .navigationTitle(domain.startTime.formatted(date: .abbreviated, time: .omitted))
         .navigationBarTitleDisplayMode(.inline)
         .task { reconcileVoiceNotes() }
+        .tenDiveReviewMilestone(
+            completedSession: domain.endTime != nil,
+            presentingModal: activeSheet != nil || showFullMap || photoPager.request != nil
+                || exportError != nil || exportStatus == .uploading || isCreatingSessionBackup
+        )
         .fullScreenCover(isPresented: $showFullMap) { fullMap(domain) }
-        .sheet(item: $activeSheet) { sheet in
+        .sheet(item: $activeSheet, onDismiss: discardSharedExport) { sheet in
             switch sheet {
             case .edit: SessionEditView(session: session)
             case .crop: NavigationStack { SessionCropView(session: session) }
+            case .note(let marker): MarkerEditView(marker: marker, session: session)
             case .share(let url): ActivityView(activityItems: [url])
             }
         }
@@ -124,6 +159,9 @@ struct SessionDetailView: View {
                 }
             }
         }
+        .onDisappear {
+            if case nil = activeSheet { sessionBackupTask?.cancel() }
+        }
     }
 
     /// Serializes `domain` in `format`, writes a temp file, and presents the share
@@ -138,6 +176,70 @@ struct SessionDetailView: View {
             }
         } catch {
             exportError = "Couldn't write the export file. Please try again."
+        }
+    }
+
+    /// Builds a one-session Dive Free backup. The data-only choice keeps gallery
+    /// metadata and thumbnails; data+media also bundles voice-note and photo/video
+    /// originals. The session's related spot and trip are included by the archive.
+    private func exportSessionBackup(_ domain: DiveSession, includeMedia: Bool) {
+        guard let context = session.modelContext else {
+            exportError = "Couldn't create the backup. Please try again."
+            return
+        }
+        guard !isCreatingSessionBackup else { return }
+
+        let options = BackupExportOptions(
+            includeVoiceNotes: includeMedia,
+            includePhotos: includeMedia,
+            includeVideos: includeMedia
+        )
+        isCreatingSessionBackup = true
+        sessionBackupProgress = BackupProgress(phase: .preparing)
+        sessionBackupTask = Task { @MainActor in
+            defer {
+                isCreatingSessionBackup = false
+                sessionBackupProgress = nil
+                sessionBackupTask = nil
+            }
+            discardSharedExport()
+            do {
+                let url = try await BackupService.exportBackup(
+                    options: options,
+                    context: context,
+                    sessionID: domain.id,
+                    progress: { report in
+                        Task { @MainActor in sessionBackupProgress = report }
+                    }
+                )
+                guard !Task.isCancelled else {
+                    try? FileManager.default.removeItem(at: url.deletingLastPathComponent())
+                    return
+                }
+                sharedExportDirectory = url.deletingLastPathComponent()
+                activeSheet = .share(url)
+            } catch is CancellationError {
+                // The service removes its temporary tree when cancellation is observed.
+            } catch {
+                exportError = "Couldn't create the backup. Please try again."
+            }
+        }
+    }
+
+    private func discardSharedExport() {
+        guard let directory = sharedExportDirectory else { return }
+        sharedExportDirectory = nil
+        try? FileManager.default.removeItem(at: directory)
+    }
+
+    private var sessionBackupProgressLabel: String {
+        guard let progress = sessionBackupProgress else { return String(localized: "Creating backup…") }
+        switch progress.phase {
+        case .preparing: return String(localized: "Preparing backup…")
+        case .voiceNotes: return String(localized: "Copying voice notes…")
+        case .photos: return String(localized: "Copying photos…")
+        case .compressing: return String(localized: "Compressing backup…")
+        case .expanding, .sessions, .finished: return String(localized: "Finishing backup…")
         }
     }
 
@@ -353,22 +455,6 @@ struct SessionDetailView: View {
         if changed { try? session.modelContext?.save() }
     }
 
-    /// Whole-session heart-rate and water-temperature charts (each shown only when
-    /// that series has data — e.g. no temperature on a non-Ultra watch).
-    @ViewBuilder
-    private func chartsSection(_ domain: DiveSession) -> some View {
-        if !domain.heartRateSamples.isEmpty {
-            Section("Heart rate") {
-                MetricChartView(heartRate: domain.heartRateSamples)
-            }
-        }
-        if !domain.temperatureSamples.isEmpty {
-            Section("Temperature") {
-                MetricChartView(temperature: domain.temperatureSamples)
-            }
-        }
-    }
-
     @ViewBuilder
     private func exportSection(_ domain: DiveSession) -> some View {
         Section("Export") {
@@ -378,8 +464,32 @@ struct SessionDetailView: View {
                 ForEach(ExportFormat.allCases) { format in
                     Button(format.displayName) { export(domain, as: format) }
                 }
+                Divider()
+                Button("Dive Free Backup (data)") {
+                    exportSessionBackup(domain, includeMedia: false)
+                }
+                .accessibilityIdentifier("session.exportBackup.data")
+                Button("Dive Free Backup (data+media)") {
+                    exportSessionBackup(domain, includeMedia: true)
+                }
+                .accessibilityIdentifier("session.exportBackup.dataMedia")
             } label: {
                 Label("Export to File", systemImage: "square.and.arrow.up")
+            }
+            .disabled(isCreatingSessionBackup)
+
+            if isCreatingSessionBackup {
+                VStack(alignment: .leading, spacing: 8) {
+                    if let fraction = sessionBackupProgress?.fraction {
+                        ProgressView(value: fraction) { Text(sessionBackupProgressLabel) }
+                    } else {
+                        ProgressView { Text(sessionBackupProgressLabel) }
+                    }
+                    Button("Cancel Export", role: .destructive) {
+                        sessionBackupTask?.cancel()
+                    }
+                }
+                .accessibilityIdentifier("session.backupExport.progress")
             }
 
             if exportStatus == .uploaded {
@@ -484,7 +594,9 @@ struct MarkerListSection: View {
     let markers: [EventMarker]
     /// When provided, rows are tappable to edit the matching record (#143).
     var session: SessionRecord? = nil
-    @State private var editing: MarkerRecord?
+    /// The session screen owns presentation so list-section updates cannot
+    /// dismiss the editor, and the review prompt sees that a modal is open.
+    var onEdit: ((MarkerRecord) -> Void)? = nil
 
     var body: some View {
         if !markers.isEmpty {
@@ -492,12 +604,10 @@ struct MarkerListSection: View {
                 ForEach(markers.sorted { $0.timestamp < $1.timestamp }) { marker in
                     let record = session.flatMap { session in (session.markers ?? []).first { $0.id == marker.id } }
                     MarkerRow(marker: marker)
+                        .accessibilityIdentifier("note.row.\(marker.id)")
                         .contentShape(Rectangle())
-                        .onTapGesture { if let record { editing = record } }
+                        .onTapGesture { if let record { onEdit?(record) } }
                 }
-            }
-            .sheet(item: $editing) { record in
-                if let session { MarkerEditView(marker: record, session: session) }
             }
         }
     }
@@ -511,7 +621,7 @@ private struct MarkerRow: View {
             Text(marker.kind.emoji)
                 .font(.title3)
             VStack(alignment: .leading, spacing: 2) {
-                Text(marker.kind.label)
+                Text(marker.displayTitle)
                 if let text = marker.text, !text.isEmpty {
                     Text(text)
                         .font(.caption)

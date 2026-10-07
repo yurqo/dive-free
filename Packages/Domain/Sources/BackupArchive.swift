@@ -186,6 +186,7 @@ public struct BackupArchive: Codable, Sendable, Equatable {
     /// Photo/video attachment metadata. The bytes (thumbnail + optional original) live
     /// as separate files in the zip, referenced by name; see ``PhotoBackup``.
     public var photos: [PhotoBackup]
+    public var noteMutations: [NoteMutation]?
 
     public init(
         formatVersion: Int = BackupArchive.currentFormatVersion,
@@ -194,7 +195,8 @@ public struct BackupArchive: Codable, Sendable, Equatable {
         sessions: [DiveSession] = [],
         spots: [SpotBackup] = [],
         trips: [TripBackup] = [],
-        photos: [PhotoBackup] = []
+        photos: [PhotoBackup] = [],
+        noteMutations: [NoteMutation]? = nil
     ) {
         self.formatVersion = formatVersion
         self.exportedAt = exportedAt
@@ -203,6 +205,7 @@ public struct BackupArchive: Codable, Sendable, Equatable {
         self.spots = spots
         self.trips = trips
         self.photos = photos
+        self.noteMutations = noteMutations
     }
 
     // MARK: Coding

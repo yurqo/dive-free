@@ -99,7 +99,7 @@ const PRIVACY_POLICY_HTML = `<!DOCTYPE html>
 </head>
 <body>
 <h1>DiveFree Privacy Policy</h1>
-<p class="effective">Effective date: June 25, 2026</p>
+<p class="effective">Effective date: October 3, 2026</p>
 
 <p>DiveFree (&ldquo;the app,&rdquo; &ldquo;we,&rdquo; &ldquo;us&rdquo;) is a freediving and snorkeling session logger for Apple Watch and iPhone. The app is designed to keep your data on your own devices and under your control. This policy explains what data the app handles and where it goes.</p>
 
@@ -122,7 +122,8 @@ const PRIVACY_POLICY_HTML = `<!DOCTYPE html>
 <p>With your permission, the app references photos and videos from your photo library to attach them to dive spots and sessions, and can organize them into a &ldquo;Dive Free&rdquo; album. The app references your existing library items &mdash; it does not upload them anywhere, and they remain in your photo library.</p>
 
 <h3>Voice notes</h3>
-<p>Voice notes you record are stored as audio files on your device.</p>
+<p>Voice notes you record are stored as audio files on your device. When you choose Transcribe, speech recognition processes the recording on your device. When available and enabled, Apple Intelligence can create a suggested title and summary on your device. These actions do not send recordings or note text to our servers or to a third-party AI service. Language models may need to be downloaded from Apple before use.</p>
+<p>Recordings, editable descriptions, transcripts, summaries, and note-edit records can sync through your private iCloud account when iCloud Sync is enabled. Removing a recording keeps its text; deleting a note removes its recording and unlinks its photos without deleting the originals from Photos.</p>
 
 <h3>Strava (optional)</h3>
 <p>If you connect Strava, the app exports the dives you choose as Strava activities. Sign-in uses Strava&rsquo;s OAuth; it is brokered by a stateless relay we operate <strong>solely</strong> to keep Strava&rsquo;s client secret off your device &mdash; the relay stores no user data or tokens. Your Strava access tokens are stored on your device. Activity data you export (such as the time, duration, depth, location, and heart rate of the dive) is sent to Strava and is then governed by <a href="https://www.strava.com/legal/privacy">Strava&rsquo;s privacy policy</a>.</p>

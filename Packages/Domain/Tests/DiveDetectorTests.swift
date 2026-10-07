@@ -11,6 +11,31 @@ struct DiveDetectorTests {
         }
     }
 
+    @Test("keeps the first three seconds of descent before the detection threshold")
+    func retainsDescentBeforeDetection() {
+        let profile = samples([0, 0, 0.3, 0.7, 1.3, 2, 3, 2, 0.5, 0])
+        let dive = DiveDetector().detectDives(from: profile).first
+        #expect(dive?.startTime == profile[1].timestamp)
+        #expect(dive?.samples == Array(profile[1...]))
+        #expect(dive?.duration == 8)
+    }
+
+    @Test("descent duration cannot make a short deep spike qualify")
+    func prefixDoesNotCountTowardAcceptance() {
+        #expect(DiveDetector().detectDives(from: samples([0, 0.2, 0.4, 0.7, 0.9, 2.2, 2.2, 0])).isEmpty)
+    }
+
+    @Test("surface waits and abandoned descents stay outside the next dive")
+    func abandonedDescentIsNotBorrowed() {
+        let profile = samples([0, 0.3, 0.8, 0.2, 0.4, 0.7, 1.3, 2, 3, 2, 0])
+        let dive = DiveDetector().detectDives(from: profile).first
+        #expect(dive?.startTime == profile[3].timestamp)
+        #expect(dive?.samples == Array(profile[3...]))
+        let stale = [DepthSample(timestamp: Date(timeIntervalSince1970: -60), depthMeters: 0)]
+        let next = samples([0.3, 0.7, 1.3, 2, 3, 2, 0])
+        #expect(DiveDetector().detectDives(from: stale + next).first?.startTime == next[0].timestamp)
+    }
+
     @Test("detects a single dive from one descent/ascent")
     func detectsSingleDive() {
         let detector = DiveDetector(
@@ -143,7 +168,7 @@ struct DiveDetectorTests {
         #expect(dives.first?.endTime == start.addingTimeInterval(4))
         // Deep run t1–t3 plus the 0 m exit at t4 → 3 s (legacy would have been 2 s,
         // ending at the last deep sample t3).
-        #expect(dives.first?.duration == 3)
+        #expect(dives.first?.duration == 4)
     }
 
     @Test("a shallow hang past the dwell ends the dive at the threshold crossing")
@@ -156,8 +181,8 @@ struct DiveDetectorTests {
         let dives = detector.detectDives(from: s)
         #expect(dives.count == 1)
         #expect(dives.first?.endTime == start.addingTimeInterval(3))
-        #expect(dives.first?.samples.count == 3)
-        #expect(dives.first?.samples.allSatisfy { $0.depthMeters > 1 } == true)
+        #expect(dives.first?.samples.count == 4)
+        #expect(dives.first?.samples.first?.depthMeters == 0)
     }
 
     @Test("dwell = 0 restores legacy immediate end at the crossing")
@@ -206,7 +231,7 @@ struct DiveDetectorTests {
         // ascent tail, so the recorded duration is 4 s.
         let dives = detector.detectDives(from: samples([0, 1.6, 1.6, 1.6, 1.6, 0], start: start))
         #expect(dives.count == 1)
-        #expect(dives.first?.duration == 4)
+        #expect(dives.first?.duration == 5)
         #expect(dives.first?.endTime == start.addingTimeInterval(5))
     }
 
@@ -274,7 +299,7 @@ struct DiveDetectorTests {
         let dives = detector.detectDives(from: s, manualSegments: [DateInterval(start: start, end: start.addingTimeInterval(5))])
         // The manual dive [t0,t5] plus the surviving auto dive [t7,t11].
         #expect(dives.count == 2)
-        #expect(dives.contains { $0.startTime == start.addingTimeInterval(7) && $0.endTime == start.addingTimeInterval(11) })
+        #expect(dives.contains { $0.startTime == start.addingTimeInterval(6) && $0.endTime == start.addingTimeInterval(11) })
     }
 
     @Test("a manual segment that ends after the diver already surfaced keeps the next dive")

@@ -164,23 +164,30 @@ public struct EventMarker: Sendable, Equatable, Codable, Identifiable {
     public var id: UUID
     public var timestamp: Date
     public var kind: MarkerKind
+    public var title: String?
+    public var transcript: String?
+    public var summary: String?
+    public var displayTitle: String { title.flatMap { $0.isEmpty ? nil : $0 } ?? kind.label }
     public var text: String?
     /// Filename of a voice note recorded for this marker, within the app's
     /// voice-notes directory. `nil` when there's no recording. Optional so
     /// payloads from older app versions still decode.
     public var audioFileName: String?
 
-    public init(id: UUID = UUID(), timestamp: Date, kind: MarkerKind, text: String? = nil, audioFileName: String? = nil) {
+    public init(id: UUID = UUID(), timestamp: Date, kind: MarkerKind, text: String? = nil, audioFileName: String? = nil, title: String? = nil, transcript: String? = nil, summary: String? = nil) {
         self.id = id
         self.timestamp = timestamp
         self.kind = kind
+        self.title = title
+        self.transcript = transcript
+        self.summary = summary
         self.text = text
         self.audioFileName = audioFileName
     }
 
     /// Convenience for built-in kinds.
-    public init(id: UUID = UUID(), timestamp: Date, kind: EventKind, text: String? = nil, audioFileName: String? = nil) {
-        self.init(id: id, timestamp: timestamp, kind: MarkerKind(kind), text: text, audioFileName: audioFileName)
+    public init(id: UUID = UUID(), timestamp: Date, kind: EventKind, text: String? = nil, audioFileName: String? = nil, title: String? = nil, transcript: String? = nil, summary: String? = nil) {
+        self.init(id: id, timestamp: timestamp, kind: MarkerKind(kind), text: text, audioFileName: audioFileName, title: title, transcript: transcript, summary: summary)
     }
 
     /// Whether a voice note is attached.

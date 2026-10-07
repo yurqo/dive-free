@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 import WatchKit
 import Domain
 import Persistence
@@ -8,7 +9,15 @@ import Persistence
 /// the Done / Dive-again toolbar and a sync badge, `showSync: true`) and when a
 /// past session is tapped in the list (pushed with a back button).
 struct WatchSessionSummaryView: View {
-    let session: DiveSession
+    private let initialSession: DiveSession
+    @Query private var savedSessions: [SessionRecord]
+    private var session: DiveSession { savedSessions.first?.toDomain() ?? initialSession }
+    init(session: DiveSession, showSync: Bool = false) {
+        initialSession = session
+        self.showSync = showSync
+        let id = session.id
+        _savedSessions = Query(filter: #Predicate<SessionRecord> { $0.id == id })
+    }
     /// Show the watch→iPhone sync badge — only meaningful for the session that
     /// just finished, not historical ones browsed from the list.
     var showSync = false
@@ -22,46 +31,52 @@ struct WatchSessionSummaryView: View {
     private var hasGeo: Bool { !session.track.isEmpty || session.location != nil }
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 10) {
-                stats
+        GeometryReader { geometry in
+            ScrollView {
+                VStack(spacing: 10) {
+                    stats
 
-                // Whole-session charts: depth profile on top (omitted with no
-                // depth samples), then heart rate / temperature (each omitted when
-                // that series is empty — e.g. no temperature on a non-Ultra watch).
-                // Bracket each dive with a surface (0 m) point so the line returns
-                // to the surface between dives instead of drawing straight across.
-                let depthSamples = session.dives
-                    .sorted { $0.startTime < $1.startTime }
-                    .flatMap { [DepthSample(timestamp: $0.startTime, depthMeters: 0)] + $0.samples + [DepthSample(timestamp: $0.endTime, depthMeters: 0)] }
-                let depthChart = WatchMetricChart(depth: depthSamples, markers: session.markers)
-                if !depthChart.isEmpty { depthChart }
-                watchMetricCharts(heartRate: session.heartRateSamples, temperature: session.temperatureSamples, in: nil)
+                    // Whole-session charts: depth profile on top (omitted with no
+                    // depth samples), then heart rate / temperature (each omitted when
+                    // that series is empty — e.g. no temperature on a non-Ultra watch).
+                    // Bracket each dive with a surface (0 m) point so the line returns
+                    // to the surface between dives instead of drawing straight across.
+                    let depthSamples = session.dives
+                        .sorted { $0.startTime < $1.startTime }
+                        .flatMap { [DepthSample(timestamp: $0.startTime, depthMeters: 0)] + $0.samples + [DepthSample(timestamp: $0.endTime, depthMeters: 0)] }
+                    let depthChart = WatchMetricChart(depth: depthSamples, markers: session.markers)
+                    if !depthChart.isEmpty { depthChart }
+                    watchMetricCharts(heartRate: session.heartRateSamples, temperature: session.temperatureSamples, in: nil)
 
-                segmentsSection
+                    segmentsSection
 
-                markerSummary
+                    markerSummary
+                    WatchNotesList(sessionID: session.id)
 
-                if showSync { syncStatus }
+                    if showSync { syncStatus }
 
-                // Full session map at the bottom.
-                if hasGeo { mapSection }
+                    // Full session map at the bottom.
+                    if hasGeo { mapSection }
 
-                // Re-send / delete actions on a browsed past session (not the
-                // live post-dive summary, which shows its own sync badge).
-                if !showSync {
-                    resyncButton
-                    deleteButton
+                    // Re-send / delete actions on a browsed past session (not the
+                    // live post-dive summary, which shows its own sync badge).
+                    if !showSync {
+                        resyncButton
+                        deleteButton
+                    }
+
+                    // On the live post-dive summary, a Discard to throw away an
+                    // accidental session (started by mistake, no real dives). Sync
+                    // already happened on stop(); the discard sends a deletion that
+                    // drops it from the phone too (see `discardSummary`).
+                    if showSync { discardButton }
                 }
-
-                // On the live post-dive summary, a Discard to throw away an
-                // accidental session (started by mistake, no real dives). Sync
-                // already happened on stop(); the discard sends a deletion that
-                // drops it from the phone too (see `discardSummary`).
-                if showSync { discardButton }
+                // A vertical ScrollView proposes an unbounded width to its
+                // content. Pin the summary to the watch viewport so long
+                // localized values cannot push rows and charts past the screen.
+                .padding(.horizontal, 4)
+                .frame(width: geometry.size.width)
             }
-            .frame(maxWidth: .infinity)
-            .padding(.horizontal, 4)
         }
         .confirmationDialog("Delete this session?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
             Button("Delete", role: .destructive) {
@@ -138,7 +153,7 @@ struct WatchSessionSummaryView: View {
             if let average = session.averageSurfaceInterval {
                 summaryRow("Avg surface", Duration.seconds(average).formatted(.time(pattern: .minuteSecond)))
             }
-            summaryRow("Distance", DistanceFormat.string(session.surfaceDistanceMeters))
+            summaryRow(LocalizedStringKey(session.smoothTrack ? "Distance" : "Raw GPS distance"), DistanceFormat.string(session.surfaceDistanceMeters))
             summaryRow("Location", locationText)
         }
     }

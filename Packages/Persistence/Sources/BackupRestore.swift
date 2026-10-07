@@ -2,6 +2,12 @@ import Foundation
 import SwiftData
 import Domain
 
+/// Failures that can occur while assembling a backup archive.
+public enum BackupExportError: Error, Equatable {
+    /// A requested single-session backup could not find the session in the store.
+    case sessionNotFound(UUID)
+}
+
 /// Assembles a DiveFree backup from the SwiftData store (export) and rebuilds the store
 /// from an unzipped backup (restore). This is the *testable core* of backup & restore —
 /// it owns the model ↔ manifest mapping, dedupe, and relationship linking.
@@ -89,6 +95,8 @@ public struct BackupRestore {
     ///     media subtrees into.
     ///   - appVersion: the producing app version (informational, stored in the manifest).
     ///   - options: which heavy media to bundle (voice/photos/videos).
+    ///   - sessionID: when supplied, export only this session and its attached media,
+    ///     plus its related spot/trip metadata. `nil` exports the whole library.
     ///   - audioBytes: resolves a marker's voice-note file name to its raw bytes (the app
     ///     passes VoiceNoteStore); falls back to the marker's own `audioData`. Only
     ///     consulted when `options.includeVoiceNotes`.
@@ -107,6 +115,7 @@ public struct BackupRestore {
         into stagingDir: URL,
         appVersion: String? = nil,
         options: BackupExportOptions,
+        sessionID: UUID? = nil,
         progress: BackupProgressHandler? = nil,
         audioBytes: (String) async -> Data? = { _ in nil },
         thumbnailBytes: (PhotoRef) async -> Data? = { _ in nil },
@@ -118,10 +127,28 @@ public struct BackupRestore {
         progress?(BackupProgress(phase: .preparing))
 
         // --- Sessions / spots / trips metadata ---
-        let sessionRecords = try context.fetch(FetchDescriptor<SessionRecord>())
+        let allSessionRecords = try context.fetch(FetchDescriptor<SessionRecord>())
+        let sessionRecords: [SessionRecord]
+        if let sessionID {
+            guard let requested = allSessionRecords.first(where: { $0.id == sessionID }) else {
+                throw BackupExportError.sessionNotFound(sessionID)
+            }
+            sessionRecords = [requested]
+        } else {
+            sessionRecords = allSessionRecords
+        }
+        let exportedSessionIDs = Set(sessionRecords.map(\.id))
+        let relatedSpotIDs = Set(sessionRecords.compactMap { $0.spot?.id })
+        let relatedTripIDs = Set(sessionRecords.compactMap { $0.trip?.id })
 
-        let spots = try context.fetch(FetchDescriptor<Spot>()).map { spot in
-            SpotBackup(
+        let spots = try context.fetch(FetchDescriptor<Spot>()).compactMap { spot -> SpotBackup? in
+            let allRelatedSessionIDs = (spot.sessions ?? []).map(\.id)
+            let sessionIDs = Set(allRelatedSessionIDs).intersection(exportedSessionIDs)
+            guard sessionID == nil || relatedSpotIDs.contains(spot.id) || !sessionIDs.isEmpty else { return nil }
+            let includedSessionIDs = sessionID == nil
+                ? allRelatedSessionIDs
+                : Array(sessionIDs.union(sessionRecords.filter { $0.spot?.id == spot.id }.map(\.id)))
+            return SpotBackup(
                 id: spot.id,
                 name: spot.name,
                 latitude: spot.centerLatitude,
@@ -130,19 +157,25 @@ public struct BackupRestore {
                 countryCode: spot.countryCode,
                 notes: spot.notes,
                 createdAt: spot.createdAt,
-                sessionIDs: (spot.sessions ?? []).map { $0.id }
+                sessionIDs: includedSessionIDs
             )
         }
 
-        let trips = try context.fetch(FetchDescriptor<Trip>()).map { trip in
-            TripBackup(
+        let trips = try context.fetch(FetchDescriptor<Trip>()).compactMap { trip -> TripBackup? in
+            let allRelatedSessionIDs = (trip.sessions ?? []).map(\.id)
+            let sessionIDs = Set(allRelatedSessionIDs).intersection(exportedSessionIDs)
+            guard sessionID == nil || relatedTripIDs.contains(trip.id) || !sessionIDs.isEmpty else { return nil }
+            let includedSessionIDs = sessionID == nil
+                ? allRelatedSessionIDs
+                : Array(sessionIDs.union(sessionRecords.filter { $0.trip?.id == trip.id }.map(\.id)))
+            return TripBackup(
                 id: trip.id,
                 name: trip.name,
                 startDate: trip.startDate,
                 endDate: trip.endDate,
                 notes: trip.notes,
                 createdAt: trip.createdAt,
-                sessionIDs: (trip.sessions ?? []).map { $0.id }
+                sessionIDs: includedSessionIDs
             )
         }
 
@@ -201,7 +234,11 @@ public struct BackupRestore {
         let videosDir = stagingDir.appendingPathComponent("videos", isDirectory: true)
 
         var photoBackups: [PhotoBackup] = []
-        let photoRecords = try context.fetch(FetchDescriptor<PhotoRecord>())
+        let photoRecords = try context.fetch(FetchDescriptor<PhotoRecord>()).filter { record in
+            guard record.modelContext != nil else { return false }
+            guard let sessionID else { return true }
+            return record.session?.id == sessionID || record.marker?.session?.id == sessionID
+        }
         progress?(BackupProgress(phase: .photos, completed: 0, total: photoRecords.count))
         for (index, record) in photoRecords.enumerated() {
             // Cancellation is checked per photo: this is the long pole (originals may
@@ -255,7 +292,7 @@ public struct BackupRestore {
 
             photoBackups.append(PhotoBackup(
                 id: record.id,
-                sessionID: record.session?.id,
+                sessionID: record.session?.id ?? record.marker?.session?.id,
                 spotID: record.spot?.id,
                 markerID: record.marker?.id,
                 assetCloudIdentifier: record.assetCloudIdentifier,
@@ -272,7 +309,8 @@ public struct BackupRestore {
             sessions: sessions,
             spots: spots,
             trips: trips,
-            photos: photoBackups
+            photos: photoBackups,
+            noteMutations: try NoteMutationStore(context: context).all().filter { edit in sessions.contains { $0.id == edit.sessionID } }
         )
         try archive.encoded().write(to: stagingDir.appendingPathComponent("manifest.json"), options: .atomic)
         return archive
@@ -354,6 +392,7 @@ public struct BackupRestore {
             throw BackupArchiveError.malformed("manifest.json is missing from the backup")
         }
         let archive = try BackupArchive.decode(manifestData)
+        for mutation in archive.noteMutations ?? [] { try NoteMutationStore(context: context).receive(mutation) }
 
         // 1. Load bundled voice notes (small; safe to hold in memory) and materialize
         //    each to disk so on-device playback finds the file. `audioByName` also feeds

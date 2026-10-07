@@ -8,6 +8,7 @@ public enum DiveSchema {
         SessionRecord.self,
         DiveRecord.self,
         MarkerRecord.self,
+        NoteMutationRecord.self,
         CustomMarkerRecord.self,
         Spot.self,
         PhotoRecord.self,

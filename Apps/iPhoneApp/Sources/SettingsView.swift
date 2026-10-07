@@ -5,6 +5,7 @@ import AuthenticationServices
 import Domain
 import Persistence
 import Strava
+import Sync
 
 /// Account settings: units, Strava connection, custom markers.
 struct SettingsView: View {
@@ -12,6 +13,7 @@ struct SettingsView: View {
     @Environment(SupportStore.self) private var support
     @Environment(\.syncManager) private var sync
     @Environment(\.modelContext) private var modelContext
+    @Environment(LogbookActivity.self) private var logbookActivity
     @State private var isConnecting = false
     @State private var errorMessage: String?
 
@@ -43,6 +45,11 @@ struct SettingsView: View {
                 }
             }
             unitsSection
+            Section {
+                Link(destination: URL(string: "https://apps.apple.com/app/id6779426563?action=write-review")!) {
+                    Label("Write a Review", systemImage: "square.and.pencil")
+                }
+            }
             Section {
                 NavigationLink {
                     DiveDetectionSettingsView()
@@ -131,8 +138,9 @@ struct SettingsView: View {
             switch result {
             case .success(let url):
                 isRestoring = true
+                logbookActivity.restoring = true
                 Task {
-                    defer { isRestoring = false }
+                    defer { isRestoring = false; logbookActivity.restoring = false }
                     do {
                         restoreResult = try await BackupService.restoreBackup(from: url, context: modelContext)
                     } catch {

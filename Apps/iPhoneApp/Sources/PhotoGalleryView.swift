@@ -285,6 +285,19 @@ struct SpotPhotosSection: View {
 /// Photos library, else a placeholder (asset removed / access denied).
 struct PhotoThumbnail: View {
     let photo: PhotoRecord
+
+    var body: some View {
+        PhotoThumbnailImage(photo: photo)
+            .frame(width: 80, height: 80)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+}
+
+/// Shared image loader for the gallery strip and the session's larger media grid.
+/// The owner supplies the frame and clipping; cached/synced thumbnails work offline.
+struct PhotoThumbnailImage: View {
+    let photo: PhotoRecord
+    var onLoad: (() -> Void)? = nil
     @State private var image: UIImage?
 
     var body: some View {
@@ -298,8 +311,6 @@ struct PhotoThumbnail: View {
                 }
             }
         }
-        .frame(width: 80, height: 80)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
         .overlay {
             if photo.isVideo {
                 Image(systemName: "play.circle.fill")
@@ -308,18 +319,29 @@ struct PhotoThumbnail: View {
                     .shadow(radius: 2)
             }
         }
+        .accessibilityIdentifier(image == nil ? "photo.loading.\(photo.id)" : "photo.ready.\(photo.id)")
         .task(id: photo.id) { await load() }
     }
 
     private func load() async {
+        // A fixed grid cell can be reused for a different record after deletion.
+        // Report each completed load, even when the previous cell had an image.
+        guard !Task.isCancelled else { return }
+        image = nil
+        defer {
+            if image != nil && !Task.isCancelled { onLoad?() }
+        }
         if let cached = await PhotoStore.thumbnailPrepared(for: photo.thumbnailFileName, fallbackData: photo.thumbnailData) {
+            guard !Task.isCancelled else { return }
             image = cached
             return
         }
         // Cache miss: fall back to a library thumbnail (e.g. cache was purged).
         guard let id = photo.assetIdentifier, await PhotoLibrary.requestAccess(),
               let asset = PhotoLibrary.asset(for: id) else { return }
-        image = await PhotoLibrary.thumbnail(for: asset)
+        let thumbnail = await PhotoLibrary.thumbnail(for: asset)
+        guard !Task.isCancelled else { return }
+        image = thumbnail
     }
 }
 
@@ -358,6 +380,7 @@ struct PhotoPagerView: View {
                     } label: {
                         Image(systemName: "trash")
                     }
+                    .accessibilityIdentifier("photo.delete")
                 }
             }
         }
@@ -431,7 +454,8 @@ private struct PhotoPage: View {
             }
             return
         }
-        if await PhotoLibrary.requestAccess(),
+        if (photo.assetIdentifier != nil || photo.assetCloudIdentifier != nil),
+           await PhotoLibrary.requestAccess(),
            let full = await PhotoLibrary.fullImage(forIdentifier: photo.assetIdentifier, orCloudIdentifier: photo.assetCloudIdentifier) {
             image = full
             return

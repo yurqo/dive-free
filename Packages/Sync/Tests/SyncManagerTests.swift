@@ -193,6 +193,25 @@ struct SyncManagerTests {
         #expect(received.withLock { $0 } == original)
     }
 
+    @Test("note edits and persisted acknowledgements use their own control messages")
+    func decodesNoteMutationAndAck() throws {
+        let manager = SyncManager(performTransfer: { _, _ in })
+        let mutation = NoteMutation(sessionID: UUID(), markerID: UUID(), changes: ["title": "Turtle"])
+        let received = Mutex<NoteMutation?>(nil)
+        let acknowledged = Mutex<UUID?>(nil)
+        let session = Mutex<DiveSession?>(nil)
+        manager.onReceiveNoteMutation = { edit in received.withLock { $0 = edit } }
+        manager.onNoteMutationAcknowledged = { id in acknowledged.withLock { $0 = id } }
+        manager.onReceiveSession = { value, _ in session.withLock { $0 = value } }
+        manager.handleReceived(["noteMutation": try JSONEncoder().encode(mutation)])
+        manager.handleReceived(["noteMutationAck": mutation.id.uuidString])
+        #expect(received.withLock { $0 } == mutation)
+        #expect(acknowledged.withLock { $0 } == mutation.id)
+        #expect(session.withLock { $0 } == nil)
+        manager.handleReceived(["noteMutation": Data([0, 1, 2])])
+        #expect(received.withLock { $0 } == mutation)
+    }
+
     @Test("malformed payloads are ignored")
     func ignoresGarbage() {
         let manager = SyncManager(performTransfer: { _, _ in })

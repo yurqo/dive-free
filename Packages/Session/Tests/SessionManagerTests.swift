@@ -9,6 +9,68 @@ import Persistence
 @Suite("SessionManager")
 @MainActor
 struct SessionManagerTests {
+    @Test("batched GPS preserves measurement times and live distance matches the saved session")
+    func timestampedStationaryTrack() async throws {
+        let store = try DiveStore(inMemory: true)
+        defer { _ = store }
+        let base = Date().addingTimeInterval(-120)
+        let fixes: [TrackPoint] = (0..<25).map { i in
+            let lat = 1.3 + Double((i * 5) % 13 - 6) * 0.3 / 111_320
+            let lon = 103.8 + Double((i * 7) % 11 - 5) * 0.4 / 111_320
+            return TrackPoint(timestamp: base.addingTimeInterval(Double(i) * 5), location: GeoPoint(
+                latitude: lat,
+                longitude: lon,
+                horizontalAccuracy: 10
+            ))
+        }
+        let manager = SessionManager(
+            sensors: SensorManager(provider: MockDepthProvider(interval: 0.01, profile: [0])),
+            location: TimestampedLocationProvider(fixes: fixes + [fixes[0]]),
+            modelContext: store.container.mainContext
+        )
+        try await manager.startSession()
+        defer { if manager.isActive { _ = try? manager.stopSession() } }
+        for _ in 0..<100 {
+            if manager.lastLocationFixAt == fixes.last?.timestamp { break }
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        #expect(manager.lastLocationFixAt == fixes.last?.timestamp)
+        let liveDistance = manager.surfaceDistanceMeters
+        let stopped = try manager.stopSession()
+        let saved = try #require(stopped)
+        #expect(saved.track.map(\.timestamp) == fixes.map(\.timestamp))
+        #expect(saved.track.surfaceDistanceMeters > 50)
+        #expect(liveDistance < 0.01)
+        #expect(saved.surfaceDistanceMeters == liveDistance)
+        #expect(manager.surfaceDistanceMeters == 0)
+    }
+
+    @Test("live clock and saved profile retain descent without advancing confirmation")
+    func descentStartsBeforeDetection() async throws {
+        let provider = ScriptedDepthProvider(profile: [0, 0.3, 0.7, 1.3, 2, 3, 3, 3, 3, 0], interval: 0.04)
+        let (manager, store) = try makeManager(provider: provider, config: DiveDetectionConfig(
+            thresholds: [.init(minimumDepthMeters: 2, minimumDuration: 0.15)]
+        ))
+        defer { _ = store }
+        try await manager.startSession()
+        defer { if manager.isActive { _ = try? manager.stopSession() } }
+        for _ in 0..<100 {
+            if manager.currentDepthMeters >= 2 { break }
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        let descentStart = try #require(manager.currentDiveStart)
+        #expect((manager.currentDiveElapsed ?? 0) >= 0.12)
+        #expect(!manager.currentDiveConfirmed)
+        // Finish the genuine deep span and return to the surface.
+        try await Task.sleep(for: .milliseconds(240))
+        let stopped = try manager.stopSession()
+        let session = try #require(stopped)
+        let dive = try #require(session.dives.first)
+        #expect(dive.startTime == descentStart)
+        #expect(dive.samples.first?.depthMeters == 0)
+        #expect(dive.samples.contains { $0.depthMeters == 0.3 })
+    }
+
     /// Returns a session manager wired to a fast mock sensor and an in-memory store.
     /// The caller must keep the returned `DiveStore` alive for the duration of the
     /// test — `ModelContext` does not retain its container, so releasing the store
@@ -589,6 +651,17 @@ struct SessionManagerTests {
 private struct StubLocationProvider: LocationProviding {
     let point: GeoPoint?
     func currentLocation() async -> GeoPoint? { point }
+}
+
+private struct TimestampedLocationProvider: LocationProviding {
+    let fixes: [TrackPoint]
+    func currentLocation() async -> GeoPoint? { fixes.first?.location }
+    func trackUpdates() -> AsyncStream<TrackPoint> {
+        AsyncStream { continuation in
+            for fix in fixes { continuation.yield(fix) }
+            continuation.finish()
+        }
+    }
 }
 
 /// Emits a depth profile **once** (unlike `MockDepthProvider`, which loops), at a
