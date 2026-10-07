@@ -4,7 +4,4 @@ New in 1.4.6:
 • Export one session as a Dive Free Backup file. Choose data only or add voice notes, photos and videos.
 • Scroll through session details more smoothly.
 
-UI improvements
-This follow-up build adds no new features—just cleaner chart spacing, pinch zoom down to five seconds, and a more complete Hide surface intervals option.
-
 Made for the love of diving. All app features are free to use. Core dive recording and logbook features will always be free.

@@ -4,7 +4,4 @@ Novedades de la versión 1.4.6:
 • Exporta una sesión como archivo Dive Free Backup. Elige solo los datos o agrega notas de voz, fotos y videos.
 • Desplázate con más fluidez por los detalles de la sesión.
 
-Mejoras de la interfaz
-Esta actualización no agrega funciones nuevas: mejora el espaciado de las gráficas, permite ampliar con el gesto de pellizcar hasta cinco segundos y oculta también el tiempo anterior y posterior a las inmersiones al ocultar los intervalos en superficie.
-
 Creada por amor al buceo. Todas las funciones de la app son gratuitas. Las funciones principales de registro de inmersiones y diario siempre serán gratuitas.
