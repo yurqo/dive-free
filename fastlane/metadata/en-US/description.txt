@@ -1,6 +1,6 @@
 Record recreational freediving and snorkeling sessions with Apple Watch. Keep your depth profiles, favorite places, photos and voice notes together on iPhone and iPad.
 
-Made for the love of diving. All app features are free to use. Core dive recording and logbook features will always be free.
+Made for the love of diving. Every feature currently in the app is free. Core dive recording and logbook features will remain free in the future.
 
 RECORD FROM YOUR WRIST
 • Automatic dive detection, depth profiles and surface intervals
