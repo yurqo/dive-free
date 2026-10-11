@@ -65,7 +65,7 @@ final class WorkoutController: NSObject {
 
     // MARK: - Session lifecycle
 
-    func start() async throws {
+    func start(at startDate: Date = Date()) async throws {
         // A new session supersedes any previously-finished workout still held for
         // a possible discard.
         finishedWorkout = nil
@@ -93,10 +93,9 @@ final class WorkoutController: NSObject {
         session = newSession
         builder = newBuilder
 
-        let start = Date()
-        newSession.startActivity(with: start)
+        newSession.startActivity(with: startDate)
         do {
-            try await newBuilder.beginCollection(at: start)
+            try await newBuilder.beginCollection(at: startDate)
         } catch {
             newSession.end()
             session = nil

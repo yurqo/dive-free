@@ -8,6 +8,7 @@ import Testing
 private final class ControlledProvider: DepthProvider, @unchecked Sendable {
     private let stream: AsyncStream<DepthSample>
     let continuation: AsyncStream<DepthSample>.Continuation
+    private var submersionHandler: (@Sendable (SubmersionStateChange) -> Void)?
 
     init() {
         var captured: AsyncStream<DepthSample>.Continuation!
@@ -18,6 +19,27 @@ private final class ControlledProvider: DepthProvider, @unchecked Sendable {
     func start() async throws {}
     func stop() { continuation.finish() }
     func depthStream() -> AsyncStream<DepthSample> { stream }
+    func setSubmersionStateChangeHandler(_ handler: (@Sendable (SubmersionStateChange) -> Void)?) {
+        submersionHandler = handler
+    }
+    func send(_ change: SubmersionStateChange) { submersionHandler?(change) }
+}
+
+private final class SubmersionChangeRecorder: @unchecked Sendable {
+    private let lock = NSLock()
+    private var storedChanges: [SubmersionStateChange] = []
+
+    func append(_ change: SubmersionStateChange) {
+        lock.lock()
+        storedChanges.append(change)
+        lock.unlock()
+    }
+
+    var changes: [SubmersionStateChange] {
+        lock.lock()
+        defer { lock.unlock() }
+        return storedChanges
+    }
 }
 
 @Suite("SensorManager")
@@ -98,5 +120,19 @@ struct SensorManagerTests {
         try await manager.start()
         manager.stop()
         #expect(manager.onSamplesChanged == nil)
+    }
+
+    @Test("forwards submerged events while no recording session is active")
+    func forwardsSubmersionChangesWhileIdle() {
+        let provider = ControlledProvider()
+        let manager = SensorManager(provider: provider)
+        let recorder = SubmersionChangeRecorder()
+        manager.onSubmersionStateChange = { recorder.append($0) }
+        let change = SubmersionStateChange(state: .submerged, timestamp: Date(timeIntervalSince1970: 123))
+
+        provider.send(change)
+
+        #expect(!manager.isRunning)
+        #expect(recorder.changes == [change])
     }
 }

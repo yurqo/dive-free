@@ -31,11 +31,20 @@ public final class WaterSubmersionDepthProvider: NSObject, DepthProvider, CMWate
     private var _stream: AsyncStream<DepthSample>
     private var tempContinuation: AsyncStream<TemperatureSample>.Continuation?
     private var _temperatureStream: AsyncStream<TemperatureSample>
+    private var isCapturing = false
+    private var isSessionActive = false
+    private var lastSubmersionStateChange: SubmersionStateChange?
+    private var submersionStateChangeHandler: (@Sendable (SubmersionStateChange) -> Void)?
 
     override public init() {
         (_stream, continuation) = Self.makeStream()
         (_temperatureStream, tempContinuation) = Self.makeStream()
         super.init()
+        // Keep the state listener alive from app launch. Apple Watch can launch
+        // the app when submerged, and Core Motion immediately reports the current
+        // state when this delegate is assigned. Depth samples are still gated to
+        // an explicitly started recording session.
+        manager.delegate = self
     }
 
     private static func makeStream<Element>() -> (AsyncStream<Element>, AsyncStream<Element>.Continuation) {
@@ -48,16 +57,29 @@ public final class WaterSubmersionDepthProvider: NSObject, DepthProvider, CMWate
         guard CMWaterSubmersionManager.waterSubmersionAvailable else {
             throw DepthProviderError.sensorUnavailable
         }
-        // Re-arm the streams: stop() finished the previous ones, and a finished
-        // AsyncStream can't be restarted — so without this a second session (the
-        // provider is reused for the app's lifetime) would record nothing.
-        (_stream, continuation) = Self.makeStream()
-        (_temperatureStream, tempContinuation) = Self.makeStream()
-        manager.delegate = self
+        // If submersion triggered auto-start, keep the short pre-session buffer
+        // so the first descent samples are retained while HealthKit starts. A
+        // manual start or later session gets fresh streams.
+        if !isCapturing || isSessionActive {
+            resetStreams()
+        }
+        isCapturing = true
+        isSessionActive = true
     }
 
     public func stop() {
-        manager.delegate = nil
+        isCapturing = false
+        isSessionActive = false
+        finishStreams()
+    }
+
+    private func resetStreams() {
+        finishStreams()
+        (_stream, continuation) = Self.makeStream()
+        (_temperatureStream, tempContinuation) = Self.makeStream()
+    }
+
+    private func finishStreams() {
         continuation?.finish()
         continuation = nil
         tempContinuation?.finish()
@@ -67,9 +89,19 @@ public final class WaterSubmersionDepthProvider: NSObject, DepthProvider, CMWate
     public func depthStream() -> AsyncStream<DepthSample> { _stream }
     public func temperatureStream() -> AsyncStream<TemperatureSample> { _temperatureStream }
 
+    public func setSubmersionStateChangeHandler(
+        _ handler: (@Sendable (SubmersionStateChange) -> Void)?
+    ) {
+        submersionStateChangeHandler = handler
+        if let lastSubmersionStateChange {
+            handler?(lastSubmersionStateChange)
+        }
+    }
+
     // MARK: - CMWaterSubmersionManagerDelegate
 
     public func manager(_ manager: CMWaterSubmersionManager, didUpdate measurement: CMWaterSubmersionMeasurement) {
+        guard isCapturing else { return }
         if let depth = measurement.depth {
             continuation?.yield(makeDepthSample(depth: depth, date: measurement.date))
         } else if measurement.submersionState == .pastMaxDepth {
@@ -84,18 +116,43 @@ public final class WaterSubmersionDepthProvider: NSObject, DepthProvider, CMWate
     }
 
     public func manager(_ manager: CMWaterSubmersionManager, didUpdate event: CMWaterSubmersionEvent) {
+        let state: SubmersionStateChange.State
+        switch event.state {
+        case .notSubmerged: state = .notSubmerged
+        case .submerged: state = .submerged
+        default: state = .unknown
+        }
+        let change = SubmersionStateChange(state: state, timestamp: event.date)
+        lastSubmersionStateChange = change
+
+        if !isSessionActive {
+            if state == .submerged {
+                if !isCapturing {
+                    resetStreams()
+                    isCapturing = true
+                }
+            } else if state == .notSubmerged {
+                // A failed or interrupted automatic start must not leave idle
+                // sensor data queued for the next dive.
+                isCapturing = false
+                finishStreams()
+            }
+        }
+        submersionStateChangeHandler?(change)
+
         // The depth-*measurement* stream stops once the diver is out of the water
         // (and a surface measurement carries no depth), so the in-progress dive
         // would never close — leaving the session stuck "submerged". That makes
         // the Action button place markers instead of recording a voice note, and
         // blocks voice notes entirely. Acting on the notSubmerged transition emits
         // a 0 m sample so the detector returns to the surface and ends the dive.
-        if event.state == .notSubmerged {
+        if isCapturing, event.state == .notSubmerged {
             continuation?.yield(DepthSample(timestamp: event.date, depthMeters: 0))
         }
     }
 
     public func manager(_ manager: CMWaterSubmersionManager, didUpdate measurement: CMWaterTemperature) {
+        guard isCapturing else { return }
         tempContinuation?.yield(makeTemperatureSample(temperature: measurement.temperature, date: measurement.date))
     }
 

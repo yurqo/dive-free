@@ -20,6 +20,13 @@ public final class SensorManager {
     @ObservationIgnored
     public var onSamplesChanged: (@MainActor () -> Void)?
 
+    /// Water-state events stay active even while a dive is not being recorded,
+    /// allowing the Watch app to react to the system's submerged auto-launch.
+    @ObservationIgnored
+    public var onSubmersionStateChange: (@Sendable (SubmersionStateChange) -> Void)? {
+        didSet { provider.setSubmersionStateChangeHandler(onSubmersionStateChange) }
+    }
+
     private let provider: DepthProvider
     private var streamTask: Task<Void, Never>?
     private var temperatureTask: Task<Void, Never>?

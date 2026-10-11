@@ -284,6 +284,14 @@ public final class SessionManager {
     }
 
     private let sensors: SensorManager
+
+    /// Relays the provider's always-on water-state listener to the Watch app.
+    /// The callback is intentionally separate from `onSubmerge`, which is a
+    /// detector transition scoped to an active recording.
+    @ObservationIgnored
+    public var onSubmersionStateChange: (@Sendable (SubmersionStateChange) -> Void)? {
+        didSet { sensors.onSubmersionStateChange = onSubmersionStateChange }
+    }
     /// `var` so the app layer can swap in a diver-tuned config (synced from the
     /// phone) via `setDetectionConfig(_:)` before the next `startSession()`.
     private var detector: DiveDetector
@@ -333,7 +341,7 @@ public final class SessionManager {
     }
 
     /// Starts the depth sensor and marks the session as active.
-    public func startSession() async throws {
+    public func startSession(startedAt requestedStartTime: Date? = nil) async throws {
         guard !isActive else { return }
         // Adopt any config synced since the last session (haptics + acceptance both
         // read `detector.config`, rebuilt just below).
@@ -373,7 +381,7 @@ public final class SessionManager {
         }
         sensors.onSamplesChanged = { [weak self] in self?.refreshDetection() }
         try await sensors.start()
-        startTime = Date()
+        startTime = requestedStartTime ?? Date()
         isActive = true
     }
 

@@ -71,6 +71,18 @@ struct SessionManagerTests {
         #expect(dive.samples.contains { $0.depthMeters == 0.3 })
     }
 
+    @Test("automatic starts preserve the timestamp of the first submerged event")
+    func preservesAutomaticStartTime() async throws {
+        let (manager, store) = try makeManager(profile: [0])
+        defer { _ = store }
+        let submergedAt = Date().addingTimeInterval(-1)
+
+        try await manager.startSession(startedAt: submergedAt)
+        defer { if manager.isActive { _ = try? manager.stopSession() } }
+
+        #expect(manager.startTime == submergedAt)
+    }
+
     /// Returns a session manager wired to a fast mock sensor and an in-memory store.
     /// The caller must keep the returned `DiveStore` alive for the duration of the
     /// test — `ModelContext` does not retain its container, so releasing the store

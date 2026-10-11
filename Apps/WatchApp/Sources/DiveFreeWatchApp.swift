@@ -5,6 +5,7 @@ import Session
 
 @main
 struct DiveFreeWatchApp: App {
+    @WKApplicationDelegateAdaptor(DiveFreeWatchApplicationDelegate.self) private var appDelegate
     private let store: ModelContainer
     @State private var session: SessionCoordinator
 
@@ -65,6 +66,7 @@ struct DiveFreeWatchApp: App {
 
     private var normalRootView: some View {
         WatchRootView()
+            .onAppear { appDelegate.configure(coordinator: session) }
             // Auto-clean synced sessions off the watch per the retention caps
             // (no-op unless the diver enabled it). Safe: only prunes sessions
             // already confirmed on the iPhone.
