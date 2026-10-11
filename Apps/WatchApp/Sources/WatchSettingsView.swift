@@ -1,5 +1,6 @@
 import SwiftUI
 import WatchKit
+import CoreMotion
 import Domain
 import Sensors
 
@@ -28,6 +29,7 @@ struct WatchSettingsView: View {
     @AppStorage("timeCuesEnabled") private var timeCuesEnabled = false
     @AppStorage("timeCueMinorSeconds") private var timeCueMinorSeconds = 10
     @AppStorage("timeCueMajorSeconds") private var timeCueMajorSeconds = 60
+    @AppStorage("autoLaunchReminderEnabled") private var autoLaunchReminderEnabled = true
 
     // Units — synced from the iPhone, but also adjustable here. Each dimension is
     // stored independently so the Custom pickers bind directly.
@@ -119,6 +121,16 @@ struct WatchSettingsView: View {
                     Text("GPS")
                 } footer: {
                     Text("More accurate dive-spot location and surface track. Drains the battery faster. Applies to your next session.")
+                }
+
+                if CMWaterSubmersionManager.waterSubmersionAvailable {
+                    Section {
+                        Toggle("Remind me about Auto-Launch", isOn: $autoLaunchReminderEnabled)
+                    } header: {
+                        Text("Auto-Launch")
+                    } footer: {
+                        Text("When enabled, Dive Free checks on startup. Choose it in Settings → General → Auto-Launch → When Submerged → Auto-Launch App.")
+                    }
                 }
 
                 Section {

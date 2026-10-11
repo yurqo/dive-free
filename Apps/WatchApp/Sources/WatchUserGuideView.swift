@@ -11,8 +11,13 @@ struct WatchUserGuideView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     item(
                         "Start",
-                        "Tap Start, or press the Action button if you've assigned Dive Free to it in Settings → Action Button.",
+                        "Tap Start, or press the Action button if you've assigned Dive Free to it in Settings → Action Button. On Apple Watch Ultra, you can also set Dive Free to open automatically when submerged.",
                         systemImage: "play.circle"
+                    )
+                    item(
+                        "Auto-Launch",
+                        "On Apple Watch Ultra, open Settings → General → Auto-Launch → When Submerged → Auto-Launch App, then choose Dive Free. The app can then open when your watch enters the water.",
+                        systemImage: "water.waves"
                     )
                     item(
                         "Underwater",
@@ -51,7 +56,7 @@ struct WatchUserGuideView: View {
                     )
                     item(
                         "Depth",
-                        "Depth needs an Ultra or Series 10/11. Other watches still log the GPS track and your markers.",
+                        "Depth needs an Ultra or Series 10/11 and is currently limited to 6 m. Deeper readings on Ultra require Apple's separate approval, independent EN13319 certification, and ongoing testing; those costs and requirements are beyond this free project for now. Other watches still log GPS and markers.",
                         systemImage: "gauge.with.dots.needle.bottom.50percent"
                     )
                     item(

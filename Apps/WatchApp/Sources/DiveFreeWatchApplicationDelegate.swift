@@ -9,6 +9,7 @@ final class DiveFreeWatchApplicationDelegate: NSObject, WKApplicationDelegate, W
     private weak var coordinator: SessionCoordinator?
     private var pendingAutomaticStart = false
     private var extendedRuntimeSession: WKExtendedRuntimeSession?
+    private(set) var wasAutomaticallyLaunched = false
 
     func configure(coordinator: SessionCoordinator) {
         self.coordinator = coordinator
@@ -20,6 +21,7 @@ final class DiveFreeWatchApplicationDelegate: NSObject, WKApplicationDelegate, W
     func handle(_ session: WKExtendedRuntimeSession) {
         // WatchKit calls this for the runtime session associated with a submerged
         // launch. Its delegate must be set before this method returns.
+        wasAutomaticallyLaunched = true
         session.delegate = self
         extendedRuntimeSession = session
 

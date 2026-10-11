@@ -29371,6 +29371,650 @@
           }
         }
       }
+    },
+    "**Depth** is available on Apple Watch Ultra, Series 10, and Series 11, up to 6 m. Other watches skip depth but still log your GPS track, markers, and heart rate.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Tiefe** ist auf Apple Watch Ultra, Series 10 und Series 11 bis 6 m verfügbar. Andere Watches erfassen keine Tiefe, aber weiterhin GPS-Route, Markierungen und Herzfrequenz."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La **profundidad** está disponible en Apple Watch Ultra, Series 10 y Series 11, hasta 6 m. Los demás relojes no miden profundidad, pero sí registran GPS, marcadores y frecuencia cardiaca."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La **profondeur** est disponible sur Apple Watch Ultra, Series 10 et Series 11, jusqu’à 6 m. Les autres montres ne mesurent pas la profondeur, mais enregistrent le GPS, les repères et la fréquence cardiaque."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La **profondità** è disponibile su Apple Watch Ultra, Series 10 e Series 11, fino a 6 m. Gli altri orologi non misurano la profondità, ma registrano GPS, marcatori e frequenza cardiaca."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**水深**はApple Watch Ultra、Series 10、Series 11で最大6 mまで測定できます。その他の時計は水深を記録しませんが、GPS、マーカー、心拍数は記録します。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A **profundidade** está disponível no Apple Watch Ultra, Series 10 e Series 11, até 6 m. Os outros relógios não medem profundidade, mas registram GPS, marcadores e frequência cardíaca."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Глибина** доступна на Apple Watch Ultra, Series 10 і Series 11 — до 6 м. Інші годинники не вимірюють глибину, але записують GPS-трек, позначки й пульс."
+          }
+        }
+      }
+    },
+    "**Dive Free Backup (data)** or **(data+media)** — a backup of this session alone, with optional voice notes, photos, and videos.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Dive-Free-Backup (Daten)** oder **(Daten + Medien)** — eine Sicherung nur dieser Session, optional mit Sprachnotizen, Fotos und Videos."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Copia de seguridad de Dive Free (datos)** o **(datos y contenido)**: copia solo esta sesión, con notas de voz, fotos y vídeos opcionales."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Sauvegarde Dive Free (données)** ou **(données + médias)** : sauvegarde de cette seule session, avec notes vocales, photos et vidéos en option."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Backup Dive Free (dati)** o **(dati + contenuti multimediali)**: salva solo questa sessione, con note vocali, foto e video facoltativi."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Dive Freeバックアップ（データ）**または**（データ＋メディア）**：このセッションのみをバックアップします。音声メモ、写真、ビデオも任意で含められます。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Backup do Dive Free (dados)** ou **(dados + mídia)** — cópia apenas desta sessão, com notas de voz, fotos e vídeos opcionais."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Резервна копія Dive Free (дані)** або **(дані й медіа)** — копія лише цього сеансу, за бажанням із голосовими нотатками, фото та відео."
+          }
+        }
+      }
+    },
+    "Auto-Launch when submerged": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatischer Start beim Eintauchen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inicio automático al sumergirse"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lancement automatique à l’immersion"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avvio automatico quando ti immergi"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "水中で自動起動"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Início automático ao submergir"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Автозапуск під час занурення"
+          }
+        }
+      }
+    },
+    "Depth recording currently stops at **6 m (20 ft)**. Dive Free uses Apple's shallow-depth entitlement. Access to deeper readings on Apple Watch Ultra requires Apple's separate approval, independent EN13319 certification, and ongoing testing. The costs and work involved are beyond this free project's current resources, so deeper depth recording isn't enabled. Dive Free is a recreational logbook, not a dive computer, and doesn't measure or plan deep dives.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Tiefenmessung endet derzeit bei **6 m (20 ft)**. Dive Free nutzt Apples Berechtigung für geringe Tiefen. Tiefere Messwerte auf der Apple Watch Ultra erfordern eine separate Genehmigung von Apple, eine unabhängige EN13319-Zertifizierung und laufende Tests. Kosten und Aufwand übersteigen die aktuellen Mittel dieses kostenlosen Projekts, deshalb ist die Messung größerer Tiefen nicht aktiviert. Dive Free ist ein Freizeit-Logbuch, kein Tauchcomputer, und misst oder plant keine tiefen Tauchgänge."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La medición de profundidad se detiene actualmente en **6 m (20 ft)**. Dive Free usa la autorización de Apple para aguas poco profundas. Las mediciones más profundas en el Apple Watch Ultra requieren una aprobación específica de Apple, certificación EN13319 independiente y pruebas continuas. El coste y el trabajo superan los recursos actuales de este proyecto gratuito, así que no está activado el registro a mayor profundidad. Dive Free es un diario recreativo, no un ordenador de buceo, y no mide ni planifica inmersiones profundas."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La mesure de profondeur s’arrête actuellement à **6 m (20 ft)**. Dive Free utilise l’autorisation d’Apple pour les faibles profondeurs. Des mesures plus profondes sur l’Apple Watch Ultra nécessitent une approbation distincte d’Apple, une certification EN13319 indépendante et des tests continus. Le coût et le travail dépassent les moyens actuels de ce projet gratuit ; la mesure à plus grande profondeur n’est donc pas activée. Dive Free est un carnet de plongée loisir, pas un ordinateur de plongée, et ne mesure ni ne planifie les plongées profondes."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La registrazione della profondità si ferma attualmente a **6 m (20 ft)**. Dive Free usa l’autorizzazione Apple per le profondità ridotte. Per letture più profonde su Apple Watch Ultra servono un’approvazione separata di Apple, la certificazione EN13319 indipendente e test continui. Costi e lavoro superano le risorse attuali di questo progetto gratuito, quindi la misurazione a profondità maggiori non è attiva. Dive Free è un diario ricreativo, non un computer subacqueo, e non misura né pianifica immersioni profonde."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "深度記録は現在**6 m（20 ft）**までです。Dive FreeはAppleの浅瀬向け水深データの権限を使用しています。Apple Watch Ultraでさらに深い水深を測定するには、Appleの個別承認、独立したEN13319認証、継続的なテストが必要です。その費用と作業は現在の無料プロジェクトで対応できる範囲を超えているため、より深い水深の記録は有効にしていません。Dive Freeはレクリエーション用ログブックであり、ダイブコンピューターではありません。深いダイブの測定や計画は行いません。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A medição de profundidade está atualmente limitada a **6 m (20 ft)**. O Dive Free usa a autorização da Apple para águas rasas. Leituras mais profundas no Apple Watch Ultra exigem aprovação separada da Apple, certificação EN13319 independente e testes contínuos. O custo e o trabalho estão além dos recursos atuais deste projeto gratuito, por isso a medição em maiores profundidades não está ativada. O Dive Free é um diário recreativo, não um computador de mergulho, e não mede nem planeia mergulhos profundos."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Запис глибини наразі обмежено **6 м (20 ft)**. Dive Free використовує дозвіл Apple для мілководних показників. Глибші вимірювання на Apple Watch Ultra потребують окремого схвалення Apple, незалежної сертифікації EN13319 і постійного тестування. Наразі витрати й обсяг робіт перевищують ресурси цього безкоштовного проєкту, тому запис глибше не ввімкнено. Dive Free — це журнал рекреаційних занурень, а не дайв-комп’ютер; він не вимірює та не планує глибокі занурення."
+          }
+        }
+      }
+    },
+    "Keep a complete copy of your log in a single **.zip** file — handy before switching phones, or just for peace of mind. To export only one session, use **Dive Free Backup** in that session's Export section.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bewahre dein gesamtes Logbuch in einer einzigen **.zip**-Datei auf – praktisch vor einem Handywechsel oder einfach zur Sicherheit. Um nur eine Session zu exportieren, wähle im Exportbereich dieser Session **Dive-Free-Backup**."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Guarda una copia completa de tu diario en un único archivo **.zip**, útil antes de cambiar de teléfono o para mayor tranquilidad. Para exportar una sola sesión, usa **Copia de seguridad de Dive Free** en la sección Exportar de esa sesión."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conservez une copie complète de votre carnet dans un seul fichier **.zip**, utile avant de changer de téléphone ou pour votre tranquillité. Pour exporter une seule session, utilisez **Sauvegarde Dive Free** dans sa section Exporter."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conserva una copia completa del registro in un unico file **.zip**, utile prima di cambiare telefono o per stare tranquillo. Per esportare una sola sessione, usa **Backup Dive Free** nella sezione Esporta di quella sessione."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ログ全体を1つの**.zip**ファイルに保存できます。機種変更前や、念のための保管に便利です。1つのセッションだけを出力するには、そのセッションの「エクスポート」から**Dive Freeバックアップ**を選びます。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Guarde uma cópia completa do seu registo num único ficheiro **.zip**, útil antes de trocar de telemóvel ou simplesmente para sua tranquilidade. Para exportar apenas uma sessão, use **Backup do Dive Free** na secção Exportar dessa sessão."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Збережіть повну копію журналу в одному файлі **.zip** — це стане в пригоді перед переходом на інший телефон або просто для спокою. Щоб експортувати лише один сеанс, виберіть **Резервну копію Dive Free** в його розділі «Експорт»."
+          }
+        }
+      }
+    },
+    "Notes and voice recordings": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notizen und Sprachaufnahmen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notas y grabaciones de voz"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notes et enregistrements vocaux"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Note e registrazioni vocali"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "メモと音声録音"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notas e gravações de voz"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Нотатки й голосові записи"
+          }
+        }
+      }
+    },
+    "On Apple Watch Ultra, open **Settings ▸ General ▸ Auto-Launch ▸ When Submerged ▸ Auto-Launch App**, then choose **Dive Free**. The watch can then open Dive Free as you enter the water. The watch app also has an optional startup reminder, which you can turn off or back on in its Settings.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öffne auf der Apple Watch Ultra **Einstellungen ▸ Allgemein ▸ Automatischer Start ▸ Beim Eintauchen ▸ App für automatischen Start** und wähle **Dive Free**. Danach kann sich Dive Free öffnen, sobald du ins Wasser gehst. Die Watch-App hat außerdem eine optionale Erinnerung beim Start, die du in ihren Einstellungen aus- oder wieder einschalten kannst."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En el Apple Watch Ultra, abre **Ajustes ▸ General ▸ Inicio automático ▸ Al sumergirse ▸ App de inicio automático** y elige **Dive Free**. Así, Dive Free podrá abrirse al entrar en el agua. La app del reloj también tiene un recordatorio opcional al iniciar, que puedes activar o desactivar en sus Ajustes."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sur l’Apple Watch Ultra, ouvrez **Réglages ▸ Général ▸ Lancement automatique ▸ Lors de l’immersion ▸ App à lancer automatiquement**, puis choisissez **Dive Free**. L’app pourra alors s’ouvrir lorsque vous entrez dans l’eau. L’app de la montre propose aussi un rappel facultatif au démarrage, activable ou désactivable dans ses réglages."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Su Apple Watch Ultra, apri **Impostazioni ▸ Generali ▸ Avvio automatico ▸ Quando immerso ▸ App da avviare automaticamente** e scegli **Dive Free**. L’app potrà aprirsi quando entri in acqua. L’app Watch offre anche un promemoria facoltativo all’avvio, che puoi riattivare o disattivare nelle impostazioni."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Watch Ultraで**「設定」▸「一般」▸「自動起動」▸「水中に入ったとき」▸「自動起動するアプリ」**を開き、**Dive Free**を選びます。水に入るとDive Freeが開くようになります。Watchアプリには起動時のリマインダーもあり、設定でオン・オフを切り替えられます。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Apple Watch Ultra, abra **Ajustes ▸ Geral ▸ Início automático ▸ Ao submergir ▸ App de início automático** e escolha **Dive Free**. Assim, o app poderá abrir quando entrar na água. O app do relógio também tem um lembrete opcional ao iniciar, que pode ser ativado ou desativado nos Ajustes."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "На Apple Watch Ultra відкрийте **Параметри ▸ Загальні ▸ Автозапуск ▸ Під час занурення ▸ Автозапуск програми** та виберіть **Dive Free**. Тоді програма відкриватиметься, коли ви входите у воду. У програмі для годинника також є нагадування під час запуску, яке можна ввімкнути або вимкнути в її параметрах."
+          }
+        }
+      }
+    },
+    "Session profile and map": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sitzungsprofil und Karte"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Perfil de sesión y mapa"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Profil de session et carte"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Profilo della sessione e mappa"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "セッションプロフィールと地図"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Perfil da sessão e mapa"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Профіль сеансу й мапа"
+          }
+        }
+      }
+    },
+    "Standard-format exports include depth, your GPS track, heart rate, water temperature, and markers where available. They don't include photos or voice recordings; choose **Dive Free Backup (data+media)** to include this session's media.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exporte in Standardformaten enthalten Tiefe, GPS-Route, Herzfrequenz, Wassertemperatur und Markierungen, sofern verfügbar. Fotos und Sprachaufnahmen sind nicht enthalten. Wähle **Dive-Free-Backup (Daten + Medien)**, um die Medien dieser Session einzuschließen."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Las exportaciones en formatos estándar incluyen profundidad, recorrido GPS, frecuencia cardiaca, temperatura del agua y marcadores cuando están disponibles. No incluyen fotos ni grabaciones de voz; elige **Copia de seguridad de Dive Free (datos y contenido)** para incluir los archivos de esta sesión."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les exports aux formats standard incluent la profondeur, le tracé GPS, la fréquence cardiaque, la température de l’eau et les repères lorsqu’ils sont disponibles. Ils n’incluent pas les photos ni les enregistrements vocaux ; choisissez **Sauvegarde Dive Free (données + médias)** pour inclure les médias de cette session."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le esportazioni in formato standard includono, se disponibili, profondità, traccia GPS, frequenza cardiaca, temperatura dell’acqua e marcatori. Non includono foto o registrazioni vocali; scegli **Backup Dive Free (dati + contenuti multimediali)** per includere i media di questa sessione."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "標準形式のエクスポートには、利用可能な場合に深度、GPSトラック、心拍数、水温、マーカーが含まれます。写真や音声録音は含まれません。このセッションのメディアを含めるには**Dive Freeバックアップ（データ＋メディア）**を選びます。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "As exportações em formatos padrão incluem profundidade, percurso GPS, frequência cardíaca, temperatura da água e marcadores quando disponíveis. Não incluem fotos nem gravações de voz; escolha **Backup do Dive Free (dados + mídia)** para incluir os arquivos desta sessão."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Експорт у стандартних форматах містить глибину, GPS-трек, пульс, температуру води й позначки, якщо вони доступні. Фото та голосові записи не входять; виберіть **Резервну копію Dive Free (дані й медіа)**, щоб додати медіафайли цього сеансу."
+          }
+        }
+      }
+    },
+    "Tap a marker and choose **Edit** to change its type, title, description, or attached photos. Play its voice recording, remove the recording while keeping the text, or delete the note. On iPhone and iPad, you can transcribe a recording and review the result before adding it to the description. Where Apple Intelligence is available, **Summarise** suggests a title and short summary from the transcript.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tippe auf eine Markierung und wähle **Bearbeiten**, um Typ, Titel, Beschreibung oder angehängte Fotos zu ändern. Spiele die Sprachaufnahme ab, entferne sie, ohne den Text zu löschen, oder lösche die Notiz. Auf iPhone und iPad kannst du eine Aufnahme transkribieren und das Ergebnis prüfen, bevor du es zur Beschreibung hinzufügst. Wenn Apple Intelligence verfügbar ist, schlägt **Zusammenfassen** einen Titel und eine kurze Zusammenfassung vor."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toca un marcador y elige **Editar** para cambiar el tipo, el título, la descripción o las fotos adjuntas. Reproduce la grabación de voz, elimínala sin borrar el texto o borra la nota. En iPhone y iPad puedes transcribir una grabación y revisar el resultado antes de añadirlo a la descripción. Si Apple Intelligence está disponible, **Resumir** propone un título y un resumen breve."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Touchez un repère puis **Modifier** pour changer son type, son titre, sa description ou les photos jointes. Écoutez l’enregistrement vocal, supprimez-le sans perdre le texte ou supprimez la note. Sur iPhone et iPad, vous pouvez transcrire un enregistrement et relire le résultat avant de l’ajouter à la description. Lorsque Apple Intelligence est disponible, **Résumer** suggère un titre et un court résumé."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tocca un marcatore e scegli **Modifica** per cambiare tipo, titolo, descrizione o foto allegate. Riproduci la registrazione vocale, rimuovila mantenendo il testo oppure elimina la nota. Su iPhone e iPad puoi trascrivere una registrazione e rivedere il risultato prima di aggiungerlo alla descrizione. Quando Apple Intelligence è disponibile, **Riassumi** suggerisce un titolo e un breve riepilogo."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "マーカーをタップして**編集**を選ぶと、種類、タイトル、説明、添付写真を変更できます。音声録音を再生したり、テキストを残したまま録音だけ削除したり、メモ自体を削除したりできます。iPhoneとiPadでは録音を文字起こしし、説明に追加する前に内容を確認できます。Apple Intelligenceが利用できる場合は、**要約**でタイトルと短い要約を提案します。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toque num marcador e escolha **Editar** para alterar o tipo, o título, a descrição ou as fotos anexadas. Reproduza a gravação de voz, remova-a mantendo o texto ou apague a nota. No iPhone e iPad, pode transcrever uma gravação e rever o resultado antes de o adicionar à descrição. Quando o Apple Intelligence estiver disponível, **Resumir** sugere um título e um resumo curto."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Торкніться позначки й виберіть **Редагувати**, щоб змінити її тип, назву, опис або прикріплені фото. Відтворіть голосовий запис, видаліть запис, залишивши текст, або видаліть нотатку. На iPhone та iPad можна транскрибувати запис і переглянути результат перед додаванням до опису. Коли доступний Apple Intelligence, дія **Підсумувати** запропонує назву й короткий підсумок."
+          }
+        }
+      }
+    },
+    "Tap any session to open it: a **session profile** with depth, heart-rate, and temperature charts; a map of where you were; dive segments and markers; photos and videos; and voice notes you can play back. Voice notes sync to your other devices automatically, so a clip recorded on the watch plays back on your iPad too.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tippe auf eine Session, um sie zu öffnen: mit einem **Sitzungsprofil** aus Tiefen-, Herzfrequenz- und Temperaturdiagrammen, einer Karte, Tauchabschnitten und Markierungen, Fotos und Videos sowie abspielbaren Sprachnotizen. Sprachnotizen werden automatisch mit deinen anderen Geräten synchronisiert – eine Aufnahme von der Watch kannst du also auch auf dem iPad anhören."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toca una sesión para abrirla: verás un **perfil de sesión** con gráficos de profundidad, frecuencia cardiaca y temperatura; un mapa; segmentos de buceo y marcadores; fotos, vídeos y notas de voz reproducibles. Las notas de voz se sincronizan con tus otros dispositivos, así que también puedes escuchar en el iPad una grabación del reloj."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Touchez une session pour l’ouvrir : elle contient un **profil de session** avec les graphiques de profondeur, de fréquence cardiaque et de température, une carte, les segments et repères, des photos et vidéos, ainsi que des notes vocales à écouter. Celles-ci se synchronisent automatiquement avec vos appareils ; un enregistrement de la montre est donc aussi disponible sur l’iPad."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tocca una sessione per aprirla: trovi un **profilo della sessione** con grafici di profondità, frequenza cardiaca e temperatura, una mappa, segmenti e marcatori, foto e video e note vocali da riprodurre. Le note vocali si sincronizzano automaticamente con gli altri dispositivi, quindi puoi ascoltare su iPad anche quelle registrate con l’orologio."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "セッションをタップすると、深度・心拍数・水温のグラフをまとめた**セッションプロフィール**、地図、ダイブ区間とマーカー、写真やビデオ、再生できるボイスメモが表示されます。ボイスメモはほかのデバイスにも自動で同期されるため、時計で録音したクリップをiPadでも再生できます。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toque numa sessão para abri-la: verá um **perfil da sessão** com gráficos de profundidade, frequência cardíaca e temperatura, um mapa, segmentos e marcadores, fotos, vídeos e notas de voz para ouvir. As notas de voz sincronizam automaticamente com os outros dispositivos, por isso uma gravação do relógio também pode ser ouvida no iPad."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Торкніться сеансу, щоб відкрити **профіль сеансу** з графіками глибини, пульсу й температури, картою, сегментами занурень і позначками, фото, відео та голосовими нотатками для відтворення. Голосові нотатки автоматично синхронізуються з іншими пристроями, тож запис із годинника можна прослухати й на iPad."
+          }
+        }
+      }
+    },
+    "The stacked charts share one timeline. Use the magnifying-glass button or pinch to zoom from the full session down to 5 seconds, then drag to scroll all charts together. The **Hide surface intervals** switch focuses the profile on your dives. Under **Location**, turn on **Smooth GPS track** to reduce GPS drift; the session distance follows the smoothed track too.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Diagramme verwenden dieselbe Zeitleiste. Zoome mit der Lupentaste oder durch Aufziehen mit zwei Fingern von der ganzen Session bis auf 5 Sekunden und ziehe anschließend, um alle Diagramme gemeinsam zu verschieben. Mit **Oberflächenintervalle ausblenden** konzentrierst du dich auf die Tauchgänge. Aktiviere unter **Standort** die Option **GPS-Route glätten**, um GPS-Abweichungen zu reduzieren; auch die angezeigte Distanz basiert dann auf der geglätteten Route."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Los gráficos comparten una misma línea temporal. Usa la lupa o pellizca para ampliar desde toda la sesión hasta 5 segundos y arrastra para desplazarte por todos los gráficos a la vez. **Ocultar intervalos en superficie** centra el perfil en tus inmersiones. En **Ubicación**, activa **Suavizar recorrido GPS** para reducir los errores del GPS; la distancia de la sesión también usa el recorrido suavizado."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les graphiques partagent la même chronologie. Utilisez la loupe ou le pincement pour zoomer sur toute la session jusqu’à une fenêtre de 5 secondes, puis faites glisser pour déplacer tous les graphiques ensemble. **Masquer les intervalles en surface** recentre le profil sur vos plongées. Dans **Lieu**, activez **Lisser le tracé GPS** pour réduire les erreurs GPS ; la distance de la session utilise aussi le tracé lissé."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I grafici condividono la stessa linea temporale. Usa la lente o pizzica per ingrandire dall’intera sessione fino a 5 secondi, poi trascina per scorrere tutti i grafici insieme. **Nascondi intervalli in superficie** concentra il profilo sulle immersioni. In **Posizione**, attiva **Smussa traccia GPS** per ridurre gli errori GPS; anche la distanza della sessione segue la traccia smussata."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "各グラフは同じ時間軸を共有します。拡大鏡ボタンまたはピンチ操作でセッション全体から最短5秒まで拡大し、ドラッグするとすべてのグラフを一緒にスクロールできます。**水面休息を非表示**にするとプロフィールをダイブに集中できます。**位置情報**で**GPSトラックを平滑化**するとGPSのずれを減らせます。セッション距離にも平滑化したトラックが反映されます。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Os gráficos partilham a mesma linha temporal. Use a lupa ou o gesto de pinça para ampliar desde a sessão completa até 5 segundos e arraste para percorrer todos os gráficos em conjunto. **Ocultar intervalos à superfície** centra o perfil nos mergulhos. Em **Localização**, ative **Suavizar percurso GPS** para reduzir desvios do GPS; a distância da sessão também acompanha o percurso suavizado."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Усі графіки мають спільну часову шкалу. Натискайте кнопку лупи або масштабуйте двома пальцями — від усього сеансу до 5 секунд; перетягуйте, щоб прокручувати графіки разом. Перемикач **Приховати поверхневі інтервали** зосереджує профіль на зануреннях. У розділі **Місце** ввімкніть **Згладжувати GPS-трек**, щоб зменшити GPS-похибки; відстань сеансу також обчислюється за згладженим треком."
+          }
+        }
+      }
+    },
+    "Wear your Apple Watch snug and open **Dive Free** on it. Tap **Start** — or press the **Action button** on Apple Watch Ultra if you've assigned Dive Free to it. On Ultra, you can also enable Auto-Launch so Dive Free opens when submerged.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trage deine Apple Watch eng am Handgelenk und öffne **Dive Free**. Tippe auf **Start** oder drücke die **Aktionstaste** auf der Apple Watch Ultra, wenn du Dive Free dort zugewiesen hast. Auf der Ultra kannst du auch den automatischen Start beim Eintauchen aktivieren."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajusta bien el Apple Watch y abre **Dive Free**. Toca **Iniciar** o pulsa el **botón Acción** del Apple Watch Ultra si has asignado Dive Free. En el Ultra también puedes activar el inicio automático al sumergirte."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Portez l’Apple Watch bien ajustée et ouvrez **Dive Free**. Touchez **Démarrer** ou appuyez sur le **bouton Action** de l’Apple Watch Ultra si vous y avez attribué Dive Free. Sur l’Ultra, vous pouvez aussi activer le lancement automatique à l’immersion."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Indossa l’Apple Watch ben aderente e apri **Dive Free**. Tocca **Avvia** oppure premi il **tasto Azione** su Apple Watch Ultra se hai assegnato Dive Free. Su Ultra puoi anche attivare l’avvio automatico quando ti immergi."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Watchを手首にしっかり装着して**Dive Free**を開きます。**開始**をタップするか、Dive Freeを割り当てている場合はApple Watch Ultraの**アクションボタン**を押します。Ultraでは、水に入ったときの自動起動も設定できます。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use o Apple Watch bem ajustado e abra o **Dive Free**. Toque em **Iniciar** ou pressione o **botão de Ação** no Apple Watch Ultra se tiver atribuído o Dive Free. No Ultra, também pode ativar o início automático ao submergir."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Щільно зафіксуйте Apple Watch і відкрийте на ньому **Dive Free**. Торкніться **Почати** або натисніть **кнопку «Дія»** на Apple Watch Ultra, якщо призначили їй Dive Free. На Ultra також можна ввімкнути автозапуск під час занурення."
+          }
+        }
+      }
+    },
+    "Your dives aren't locked in. Export a session to standard files for other apps, or choose a **Dive Free Backup** to save that session as a .zip file. Exports are free.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deine Tauchgänge sind nicht eingeschlossen. Exportiere eine Session als Standarddatei für andere Apps oder wähle **Dive-Free-Backup**, um nur diese Session als .zip zu sichern. Exporte sind kostenlos."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tus inmersiones no están encerradas en la app. Exporta una sesión en un formato estándar para otras apps o elige **Copia de seguridad de Dive Free** para guardar solo esa sesión en un archivo .zip. Las exportaciones son gratis."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vos plongées ne sont pas enfermées dans l’app. Exportez une session dans un format standard ou choisissez **Sauvegarde Dive Free** pour enregistrer cette session seule dans un fichier .zip. Les exports sont gratuits."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le tue immersioni non restano bloccate nell’app. Esporta una sessione in un formato standard oppure scegli **Backup Dive Free** per salvare solo quella sessione in un file .zip. Le esportazioni sono gratuite."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ダイブ記録をアプリ内に閉じ込めません。ほかのアプリ向けに標準形式でセッションを出力するか、**Dive Freeバックアップ**を選んでそのセッションだけを.zipファイルに保存できます。エクスポートは無料です。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Os seus mergulhos não ficam presos na app. Exporte uma sessão em formatos padrão para outras apps ou escolha **Backup do Dive Free** para guardar apenas essa sessão num ficheiro .zip. As exportações são gratuitas."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ваші занурення не замкнені в програмі. Експортуйте сеанс у стандартному форматі для інших програм або виберіть **Резервну копію Dive Free**, щоб зберегти лише цей сеанс у файлі .zip. Експорт безкоштовний."
+          }
+        }
+      }
     }
   },
   "version": "1.0"
