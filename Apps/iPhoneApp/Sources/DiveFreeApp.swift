@@ -156,6 +156,8 @@ struct DiveFreeApp: App {
                         || (!DeletionTombstones.contains(session.id) && sessionExists(session.id, in: context))
                     if present { sync.sendImportAck(session.id) }
                 } catch {
+                    Logger(subsystem: "org.yurko.divefree", category: "Sync")
+                        .error("Could not save incoming Watch session: \(String(describing: error), privacy: .public)")
                     // Save failed — no ack, so the watch keeps its copy and retries.
                     // Roll back the failed INSERT: `mainContext` is long-lived, so the
                     // pending (unsaved) row survives this closure. On the next

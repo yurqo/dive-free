@@ -285,9 +285,19 @@ final class SessionCoordinator {
         set { interaction.setPendingEnd(newValue) }
     }
 
-    /// Number of sessions handed to sync but not yet confirmed delivered to the
+    /// Number of sessions handed to sync but not yet confirmed saved on the
     /// iPhone. Drives the post-session pending/synced badge.
     private(set) var pendingSyncCount = 0
+    private(set) var pendingSessionIDs: Set<UUID> = []
+    private(set) var syncedSessionIDs: Set<UUID> = []
+    private(set) var syncError: String?
+
+    enum SessionSyncStatus { case pending, syncing, synced }
+
+    func syncStatus(for id: UUID) -> SessionSyncStatus {
+        if pendingSessionIDs.contains(id) { return .syncing }
+        return syncedSessionIDs.contains(id) ? .synced : .pending
+    }
 
     /// Set when a session fails to start (HealthKit/sensor unavailable or
     /// permission denied) so the idle screen can explain it instead of silently
@@ -641,6 +651,7 @@ final class SessionCoordinator {
     init(modelContext: ModelContext, sessionManager injected: SessionManager? = nil) {
         self.modelContext = modelContext
         sessionManager = injected ?? SessionManager(modelContext: modelContext)
+        syncedSessionIDs = Set(deliveredIDs.compactMap(UUID.init(uuidString:)))
         sessionManager.onHapticEvent = { [weak self] event in
             DiveHapticPlayer.play(event)
             DiveTonePlayer.play(for: event)
@@ -681,7 +692,17 @@ final class SessionCoordinator {
         // The hard cap also stops via the coordinator so the file is still attached.
         audioRecorder.onCap = { [weak self] in self?.stopVoiceNote() }
         sync.onPendingCountChange = { [weak self] count in
-            Task { @MainActor in self?.pendingSyncCount = count }
+            Task { @MainActor in
+                guard let self else { return }
+                self.pendingSyncCount = count
+                self.pendingSessionIDs = self.sync.pendingSessionIDs
+            }
+        }
+        sync.onSyncError = { [weak self] error in
+            Task { @MainActor in self?.syncError = error }
+        }
+        sync.onSessionTransportReady = { [weak self] in
+            Task { @MainActor in self?.recoverUnconfirmedSessions() }
         }
         // Retention now gates on the phone's application-level IMPORT ack, not WC's
         // transport delivery: `didFinish` success fires even when the phone's save
@@ -693,8 +714,7 @@ final class SessionCoordinator {
             Task { @MainActor in self?.markDelivered(id) }
         }
         // `onSessionDelivered` (WC transport didFinish) is left UNWIRED for retention on
-        // purpose. The pending/synced BADGE still clears on WC delivery via
-        // `onPendingCountChange` above; retention just no longer trusts it.
+        // purpose. The pending/synced badge also waits for a saved-session ACK.
         // Voice-note clips likewise gate retention on the phone's copy ACK
         // (`onAudioImported`), not the transport `didFinish` — the phone's file
         // receiver can fail its copyItem silently, so only the ack proves the clip
@@ -1011,11 +1031,27 @@ final class SessionCoordinator {
     /// Queues a session and its voice notes for delivery to the iPhone — shared by
     /// session-end (`isResync: false`) and manual re-sync (`isResync: true`).
     private func sendSessionToPhone(_ session: DiveSession, isResync: Bool = false) {
-        try? sync.send(session, isResync: isResync)
-        for fileName in session.markers.compactMap(\.audioFileName) {
+        do { try sync.send(session, isResync: isResync) }
+        catch { syncError = error.localizedDescription }
+        let confirmedAudio = deliveredAudioFileNames
+        for fileName in session.markers.compactMap(\.audioFileName) where isResync || !confirmedAudio.contains(fileName) {
             sync.sendAudioFile(AudioNoteRecorder.url(for: fileName), fileName: fileName)
         }
     }
+
+    /// The Watch database is the recovery source for sessions whose old
+    /// dictionary transfer was rejected before the durable outbox existed.
+    private func recoverUnconfirmedSessions() {
+        do {
+            let confirmed = deliveredIDs
+            let records = try modelContext.fetch(FetchDescriptor<SessionRecord>())
+            for record in records where record.modelContext != nil && !confirmed.contains(record.id.uuidString) {
+                sendSessionToPhone(record.toDomain())
+            }
+        } catch { syncError = error.localizedDescription }
+    }
+
+    func resumeSync() { sync.resumePendingTransfers() }
 
     // MARK: - Retention (auto-clean synced sessions off the watch)
 
@@ -1032,6 +1068,7 @@ final class SessionCoordinator {
         var ids = deliveredIDs
         guard ids.insert(id.uuidString).inserted else { return }
         UserDefaults.standard.set(Array(ids), forKey: Self.deliveredKey)
+        syncedSessionIDs.insert(id)
         scheduleRetentionPrune()
     }
 
@@ -1094,6 +1131,7 @@ final class SessionCoordinator {
         let trimmed = ids.intersection(keeping)
         guard trimmed.count != ids.count else { return }
         UserDefaults.standard.set(Array(trimmed), forKey: Self.deliveredKey)
+        syncedSessionIDs = Set(trimmed.compactMap(UUID.init(uuidString:)))
     }
 
     /// Auto-clean entry point: prunes synced sessions per the diver's caps (a no-op

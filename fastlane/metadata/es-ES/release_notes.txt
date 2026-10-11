@@ -1,1 +1,6 @@
-Actualizamos la ficha del App Store y las traducciones, con una explicación más clara del límite actual de profundidad de 6 m.
+Sincronización de sesiones más fiable
+
+• Mejorada la sincronización de sesiones largas del Watch al iPhone, con reintentos automáticos de las grabaciones pendientes.
+• Los detalles de cada sesión muestran su estado de sincronización encima del botón para reenviarla al iPhone.
+• En relojes compatibles, Dive Free puede abrirse automáticamente bajo el agua. Activa esta opción en los ajustes del reloj; la app ofrece recordatorios opcionales para configurarla.
+• La guía incluye ahora instrucciones de inicio automático y una explicación del límite de profundidad de 6 m.

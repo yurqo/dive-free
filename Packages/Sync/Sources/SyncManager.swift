@@ -1,5 +1,6 @@
 import Foundation
 import Domain
+import OSLog
 
 #if canImport(WatchConnectivity)
 import WatchConnectivity
@@ -7,16 +8,13 @@ import WatchConnectivity
 
 /// Transfers completed sessions between the Watch and iPhone over WatchConnectivity.
 ///
-/// The watch enqueues finished `DiveSession`s via `transferUserInfo`, which is
-/// background-safe: the OS delivers them even if the phone is unreachable or the
-/// watch app is suspended. On top of that this manager tracks each payload until
-/// the system confirms delivery (`didFinish`), retries failed transfers, and
-/// re-sends anything still outstanding when reachability returns — and exposes a
-/// `pendingCount` so the UI can show a pending/synced badge.
+/// Every completed session uses the background-safe `transferFile` transport.
+/// A durable outbox keeps the original payload until
+/// the phone confirms it saved the session, including across failed transfers,
+/// app restarts, and a successful transport followed by a failed phone save.
 ///
-/// All WatchConnectivity access goes through the injectable `performTransfer`
-/// seam, keeping the queue/retry/status logic unit-testable without a real
-/// `WCSession`.
+/// An injectable file transport keeps the queue, recovery, and receipt
+/// handling testable without a paired `WCSession`.
 public final class SyncManager: NSObject, @unchecked Sendable {
     /// Called on the phone when a session arrives from the watch. `isResync` is
     /// `true` when the watch marked this an *explicit* re-send ("Re-send to
@@ -57,10 +55,13 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     /// Fires on an arbitrary thread; hop to the main actor before touching UI.
     public var onPendingCountChange: (@Sendable (Int) -> Void)?
 
+    public var onSyncError: (@Sendable (String?) -> Void)?
+    /// Lets the Watch recover unconfirmed sessions saved by an older app build.
+    public var onSessionTransportReady: (@Sendable () -> Void)?
+
     /// Notified with a session's id once its transfer is **confirmed delivered**
-    /// to the counterpart device — the safe signal watch-side retention uses to
-    /// know a session is on the phone and may be pruned locally. Fires on an
-    /// arbitrary thread.
+    /// to the counterpart device. Informational only: the phone's saved-session
+    /// acknowledgement, `onSessionImported`, is what makes retention safe.
     public var onSessionDelivered: (@Sendable (UUID) -> Void)?
 
     /// Notified with a voice-note file name once its transfer is **confirmed
@@ -71,8 +72,8 @@ public final class SyncManager: NSObject, @unchecked Sendable {
 
     /// Called on the watch when the phone acknowledges that a session was actually
     /// **imported** (SAVED) — an application-level ACK, distinct from WC's transport
-    /// `didFinish` (which fires even if the phone's save then throws). This is the
-    /// signal watch-side retention must gate on: WC delivery only clears the badge.
+    /// `didFinish` (which fires even if the phone's save then throws). Both the
+    /// pending badge and watch-side retention gate on this acknowledgement.
     /// Fires on an arbitrary thread. An OLDER phone never sends these, so a watch on
     /// this version paired with one never marks anything delivered → retention never
     /// prunes (the safe direction — no data loss).
@@ -129,9 +130,14 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     /// receiver clears its deletion tombstone before importing. Absent → a normal
     /// send (keeps older watches, which never set it, compatible).
     static let resyncKey = "isResync"
+    static let sessionFileKey = "sessionPayloadFile"
+    static let sessionIDKey = "sessionID"
+
+    private let outbox: SessionOutbox
+    private let log = Logger(subsystem: "org.yurko.divefree", category: "Sync")
 
     private let lock = NSLock()
-    /// A payload sent but not yet confirmed delivered. Carries the session id so
+    /// A payload not yet confirmed saved. Carries the session id so
     /// `sendDeletion`/`completeTransfer` need not JSON-decode `data` to identify it.
     private struct Pending {
         let sessionID: UUID
@@ -141,12 +147,12 @@ public final class SyncManager: NSObject, @unchecked Sendable {
         /// the Codable payload), and the fresh encode must win over the stale one.
         var data: Data
         /// True while the OS still owns this transfer's queue slot — set on entries
-        /// re-adopted from `outstandingUserInfoTransfers` at activation. Such entries
-        /// must not be re-`performTransfer`ed (that would enqueue a duplicate); they
+        /// re-adopted from either WC transport queue at activation. Such entries
+        /// must not be re-enqueued (that would enqueue a duplicate); they
         /// become ours (`false`) once their `didFinish` arrives.
         var isSystemOwned: Bool
-        /// Whether this payload is an *explicit* resync — carried so a RETRY re-picks
-        /// the resync transport (with the `resyncKey` envelope flag) rather than
+        /// Whether this payload is an *explicit* resync — carried so a RETRY keeps
+        /// the `resyncKey` metadata flag rather than
         /// silently downgrading to a plain send. Without it, a tombstone-clearing
         /// resync that failed its first hop would retry flag-free, be tombstone-rejected
         /// on the phone, yet a later `didFinish` success would still mark it delivered —
@@ -154,7 +160,7 @@ public final class SyncManager: NSObject, @unchecked Sendable {
         /// also guards against). See `send`/`completeTransfer`/`retryPending`.
         var isResync: Bool
     }
-    /// Payloads sent but not yet confirmed delivered, keyed by transfer id.
+    /// Payloads not yet confirmed saved, keyed by transfer id.
     private var pending: [String: Pending] = [:]
     /// Immediate re-send attempts per payload, to bound retry storms.
     private var attempts: [String: Int] = [:]
@@ -167,7 +173,7 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     private var fileTransferAttempts: [String: Int] = [:]
     /// Session ids deleted this launch. A tombstone closes the snapshot window in
     /// `retryPending`/`completeTransfer` (which snapshot under the lock but
-    /// `performTransfer` after unlocking): a deletion that lands in between must not
+    /// enqueue after unlocking): a deletion that lands in between must not
     /// let the deleted session's payload be re-enqueued *after* the deletion message
     /// and resurrected on the phone. In-memory / process-lifetime; growth is bounded
     /// by the user's deletions (rare), so no eviction is needed.
@@ -210,18 +216,6 @@ public final class SyncManager: NSObject, @unchecked Sendable {
         onPendingCountChange?(count)
     }
 
-    /// Hands a payload to the transport. Defaults to `WCSession.transferUserInfo`;
-    /// tests inject a stub.
-    private let performTransfer: (_ id: String, _ data: Data) -> Void
-
-    /// Hands an *explicit-resync* payload to the transport — same wire shape as
-    /// `performTransfer` but with the `resyncKey` envelope flag set, so the phone
-    /// clears its deletion tombstone before importing. Kept a *separate* seam from
-    /// `performTransfer` (rather than adding a flag parameter) so the normal
-    /// send/retry path and all its stubs stay untouched; only `send(isResync: true)`
-    /// routes here. Defaults to `WCSession.transferUserInfo`; tests inject a stub.
-    private let performResyncTransfer: (_ id: String, _ data: Data) -> Void
-
     /// Replaces the shared application context (latest-wins). Defaults to
     /// `WCSession.updateApplicationContext`; tests inject a stub.
     private let applyContext: (_ context: [String: Any]) -> Void
@@ -239,11 +233,8 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     /// `performAck` for audio clips; tests inject a stub.
     private let performAudioAck: (_ fileName: String) -> Void
 
-    /// Cancels the OS's still-queued userInfo transfers whose transfer id is in
-    /// the set. Defaults to filtering `WCSession.outstandingUserInfoTransfers` by
-    /// matching `Self.idKey` and calling `cancel()`; tests inject a stub. Used by
-    /// `sendDeletion` so a deleted session's not-yet-delivered payload can't be
-    /// re-adopted after a relaunch and resurrected.
+    /// Cancels matching session transfers in both WC queues. Used by deletion,
+    /// import acknowledgements, and migration of legacy dictionaries.
     private let cancelTransfers: (_ ids: Set<String>) -> Void
 
     /// The system's still-queued userInfo transfers, as `(id, payload)` pairs.
@@ -251,47 +242,45 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     /// stub. Used at activation to re-adopt transfers that outlived a relaunch.
     private let outstandingTransfers: () -> [(id: String, data: Data)]
 
-    /// Hands a voice-note file to the transport. Defaults to
+    private let outstandingSessionFiles: () -> [(url: URL, metadata: [String: Any])]
+    private let outstandingResyncIDs: () -> Set<String>
+
+    /// Hands a recording payload or voice-note file to the transport. Defaults to
     /// `WCSession.transferFile`, guarded by `WCSession.isSupported()`; tests inject
     /// a stub so the confirmed-delivery/retry logic is unit-testable without a real
     /// `WCSession`.
     private let performFileTransfer: (_ url: URL, _ metadata: [String: Any]) -> Void
 
-    /// Sessions queued but not yet confirmed delivered.
+    /// Sessions not yet confirmed saved on the phone.
     public var pendingCount: Int {
         lock.lock(); defer { lock.unlock() }
         return pending.count
     }
 
+    /// Session-specific status, so one pending recording doesn't make every
+    /// historical session appear to be syncing.
+    public var pendingSessionIDs: Set<UUID> {
+        lock.lock(); defer { lock.unlock() }
+        return Set(pending.values.map(\.sessionID))
+    }
+
     public init(
-        performTransfer: ((_ id: String, _ data: Data) -> Void)? = nil,
-        performResyncTransfer: ((_ id: String, _ data: Data) -> Void)? = nil,
         applyContext: ((_ context: [String: Any]) -> Void)? = nil,
         performDeletion: ((_ id: UUID) -> Void)? = nil,
         performAck: ((_ id: UUID) -> Void)? = nil,
         performAudioAck: ((_ fileName: String) -> Void)? = nil,
         cancelTransfers: ((_ ids: Set<String>) -> Void)? = nil,
         outstandingTransfers: (() -> [(id: String, data: Data)])? = nil,
-        performFileTransfer: ((_ url: URL, _ metadata: [String: Any]) -> Void)? = nil
+        performFileTransfer: ((_ url: URL, _ metadata: [String: Any]) -> Void)? = nil,
+        outstandingSessionFiles: (() -> [(url: URL, metadata: [String: Any])])? = nil,
+        outstandingResyncIDs: (() -> Set<String>)? = nil,
+        sessionTransferDirectory: URL? = nil
     ) {
+        outbox = SessionOutbox(directory: sessionTransferDirectory ?? SessionOutbox.defaultDirectory)
         // Each default transport guards WCSession.isSupported(): WatchConnectivity
         // imports on iPad (canImport is true) but isn't supported there, and calling
         // these on an unactivated session raises an exception. iPad gets its data via
         // CloudKit (#168/#170), so these are correctly no-ops on it.
-        self.performTransfer = performTransfer ?? { id, data in
-            #if canImport(WatchConnectivity)
-            guard WCSession.isSupported() else { return }
-            WCSession.default.transferUserInfo([Self.payloadKey: data, Self.idKey: id])
-            #endif
-        }
-        self.performResyncTransfer = performResyncTransfer ?? { id, data in
-            #if canImport(WatchConnectivity)
-            guard WCSession.isSupported() else { return }
-            WCSession.default.transferUserInfo(
-                [Self.payloadKey: data, Self.idKey: id, Self.resyncKey: true]
-            )
-            #endif
-        }
         self.applyContext = applyContext ?? { context in
             #if canImport(WatchConnectivity)
             guard WCSession.isSupported() else { return }
@@ -323,6 +312,11 @@ public final class SyncManager: NSObject, @unchecked Sendable {
             where (transfer.userInfo[Self.idKey] as? String).map(ids.contains) == true {
                 transfer.cancel()
             }
+            for transfer in WCSession.default.outstandingFileTransfers
+            where transfer.file.metadata?[Self.sessionFileKey] as? Bool == true
+                && (transfer.file.metadata?[Self.idKey] as? String).map(ids.contains) == true {
+                transfer.cancel()
+            }
             #endif
         }
         self.outstandingTransfers = outstandingTransfers ?? {
@@ -338,8 +332,30 @@ public final class SyncManager: NSObject, @unchecked Sendable {
         }
         self.performFileTransfer = performFileTransfer ?? { url, metadata in
             #if canImport(WatchConnectivity)
-            guard WCSession.isSupported() else { return }
+            guard WCSession.isSupported(), WCSession.default.activationState == .activated else { return }
             WCSession.default.transferFile(url, metadata: metadata)
+            #endif
+        }
+        self.outstandingSessionFiles = outstandingSessionFiles ?? {
+            #if canImport(WatchConnectivity)
+            guard WCSession.isSupported() else { return [] }
+            return WCSession.default.outstandingFileTransfers.compactMap {
+                guard let metadata = $0.file.metadata, metadata[Self.sessionFileKey] as? Bool == true else { return nil }
+                return ($0.file.fileURL, metadata)
+            }
+            #else
+            return []
+            #endif
+        }
+        self.outstandingResyncIDs = outstandingResyncIDs ?? {
+            #if canImport(WatchConnectivity)
+            guard WCSession.isSupported() else { return [] }
+            return Set(WCSession.default.outstandingUserInfoTransfers.compactMap {
+                guard $0.userInfo[Self.resyncKey] as? Bool == true else { return nil }
+                return $0.userInfo[Self.idKey] as? String
+            })
+            #else
+            return []
             #endif
         }
         super.init()
@@ -436,58 +452,17 @@ public final class SyncManager: NSObject, @unchecked Sendable {
         #endif
     }
 
-    /// Encodes and queues a session for delivery to the counterpart device.
-    ///
-    /// Tombstoned session ids early-return: a session deleted this launch must
-    /// never be re-queued (including via a resync), or it would resurrect on the
-    /// phone after its deletion message.
-    ///
-    /// Deduped by session id: a session already queued (e.g. re-adopted after a
-    /// relaunch, or re-sent via "Re-send all") must not spawn a second pending
-    /// entry — that would count the same session twice in the badge and enqueue a
-    /// duplicate OS transfer. When an entry already exists we refresh its stored
-    /// payload with the fresh encode (watch sessions mutate after save — e.g. the
-    /// geocode backfill sets `locationName` — so the newest bytes must win) and
-    /// reuse it instead of inserting a new one (and don't fire the count callback):
-    /// - **system-owned** (the OS still holds the transfer's slot from a prior
-    ///   launch): refresh the stored payload only — the OS will deliver it, and
-    ///   re-sending would duplicate it; the fresh bytes go out on a later
-    ///   reclaim/retry.
-    /// - **ours**: refresh the stored payload, then re-transfer the *existing* id
-    ///   with the fresh data as a manual nudge, leaving `attempts` untouched (this
-    ///   isn't a fresh reachability window).
-    ///
-    /// `isResync` marks an *explicit* re-send (watch "Re-send"/"Re-send all"). When
-    /// true the wire payload carries the `resyncKey` envelope flag so the phone
-    /// clears its deletion tombstone before importing — the deliberate recovery of a
-    /// session the user accidentally swipe-deleted. The flag reaches the wire on
-    /// **both** the fresh-send and the dedupe *nudge* path (an already-pending,
-    /// ours entry) by routing them through `performResyncTransfer` instead of
-    /// `performTransfer`. It is also **stored on the Pending** (`isResync`) so the
-    /// OS-driven retry paths (`retryPending`/`completeTransfer`) re-pick the resync
-    /// transport too — a resync that fails its first hop retries as a resync, not a
-    /// plain send that a tombstone would reject (see the `Pending.isResync` note).
-    /// The only residual gap is a re-adopted resync after a relaunch: adoption can't
-    /// recover the flag from the OS envelope, so such a retry loses it — acceptable,
-    /// since the original queued copy still carries `resyncKey` and FIX 3's import ack
-    /// makes the failure non-destructive.
+    /// Queues the complete recording, refreshing an existing entry by session id.
+    /// Explicit resync stays sticky across retries and relaunches.
     public func send(_ session: DiveSession, isResync: Bool = false) throws {
         let data = try encoder.encode(session)
-        let transfer = isResync ? performResyncTransfer : performTransfer
         lock.lock()
-        if deletedSessionIDs.contains(session.id) {
-            lock.unlock()
-            return
-        }
+        guard !deletedSessionIDs.contains(session.id) else { lock.unlock(); return }
         if let existing = pending.first(where: { $0.value.sessionID == session.id }) {
-            let existingID = existing.key
-            let isSystemOwned = existing.value.isSystemOwned
-            pending[existingID]?.data = data
-            // A resync nudge promotes the entry to resync so its retries carry the flag
-            // too; a plain nudge never demotes an entry already marked resync.
-            if isResync { pending[existingID]?.isResync = true }
+            pending[existing.key]?.data = data
+            pending[existing.key]?.isResync = existing.value.isResync || isResync
             lock.unlock()
-            if !isSystemOwned { transfer(existingID, data) }
+            transmitPending(existing.key)
             return
         }
         let id = UUID().uuidString
@@ -496,7 +471,57 @@ public final class SyncManager: NSObject, @unchecked Sendable {
         let generation = nextPendingGeneration()
         lock.unlock()
         publishPendingCount(count, generation: generation)
-        transfer(id, data)
+        transmitPending(id)
+    }
+
+    private func queuedTransferIDs() -> Set<String> {
+        Set(outstandingTransfers().map(\.id)).union(outstandingSessionFiles().compactMap { $0.metadata[Self.idKey] as? String })
+    }
+
+    /// Persist before enqueueing, and never overwrite an in-flight file snapshot.
+    private func transmitPending(_ id: String) {
+        let queued = queuedTransferIDs()
+        lock.lock()
+        guard let entry = pending[id], !deletedSessionIDs.contains(entry.sessionID) else { lock.unlock(); return }
+        let snapshot: URL
+        do {
+            try outbox.save(SessionOutbox.Entry(id: id, sessionID: entry.sessionID, data: entry.data,
+                                               isResync: entry.isResync))
+            guard !entry.isSystemOwned, !queued.contains(id) else { lock.unlock(); return }
+            snapshot = try outbox.makeSnapshot(id: id, data: entry.data)
+        } catch {
+            lock.unlock()
+            reportError(error)
+            return // Keep the pending recording; retry when the transport is ready again.
+        }
+        lock.unlock()
+        // A concurrent delete/import acknowledgement must win over this snapshot.
+        lock.lock()
+        let stillPending = pending[id] != nil && !deletedSessionIDs.contains(entry.sessionID)
+        lock.unlock()
+        guard stillPending else {
+            outbox.removeSnapshot(snapshot)
+            return
+        }
+        log.info("Sending session as file: \(entry.data.count) bytes")
+        performFileTransfer(snapshot, [Self.sessionFileKey: true, Self.idKey: id,
+                                      Self.sessionIDKey: entry.sessionID.uuidString, Self.resyncKey: entry.isResync])
+    }
+
+    private func reportError(_ error: Error) {
+        let details = "\(error.localizedDescription) [\((error as NSError).domain) \((error as NSError).code)]"
+        log.error("Session sync failed: \(details, privacy: .public)")
+        onSyncError?(details)
+    }
+
+    /// Called when the Watch app returns to the foreground as well as by WC's
+    /// activation/reachability callbacks. No active session means defer to activation.
+    public func resumePendingTransfers() {
+        #if canImport(WatchConnectivity)
+        guard WCSession.isSupported(), WCSession.default.activationState == .activated else { return }
+        #endif
+        adoptOutstandingTransfers()
+        retryPending()
     }
 
     /// Tells the counterpart device to delete a session by id. First drops any
@@ -508,22 +533,26 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     /// `retryPending`/`completeTransfer`, leaving only the sub-millisecond TOCTOU
     /// between a concurrent retry's final tombstone check and its `WCSession` call.
     ///
-    /// Dropping the in-memory entry can't stop the OS's still-queued
-    /// `transferUserInfo` copy, so `cancelTransfers` cancels the dropped transfer
-    /// ids at the OS level too — otherwise a relaunch could re-adopt the payload
-    /// (it would still be in `outstandingUserInfoTransfers`) and resurrect the
+    /// Dropping the in-memory entry can't stop the OS's still-queued file copy,
+    /// so `cancelTransfers` cancels the dropped transfer ids at the OS level too
+    /// — otherwise a relaunch could re-adopt the payload and resurrect the
     /// deleted session. Called after releasing the lock, matching the other seams.
     public func sendDeletion(_ id: UUID) {
         lock.lock()
         deletedSessionIDs.insert(id)
         let staleKeys = pending.filter { $0.value.sessionID == id }.map(\.key)
-        for key in staleKeys { pending[key] = nil; attempts[key] = nil }
+        var errors: [Error] = []
+        for key in staleKeys {
+            do { try outbox.remove(key) } catch { errors.append(error) }
+            pending[key] = nil; attempts[key] = nil
+        }
         let count = pending.count
         let generation = nextPendingGeneration()
         lock.unlock()
         publishPendingCount(count, generation: generation)
         cancelTransfers(Set(staleKeys))
         performDeletion(id)
+        errors.forEach(reportError)
     }
 
     /// Sends an application-level import ACK to the watch (phone → watch): confirms
@@ -570,53 +599,43 @@ public final class SyncManager: NSObject, @unchecked Sendable {
 
     // MARK: - Transport-agnostic core (unit-tested directly)
 
-    /// Records the outcome of a transfer: clear on success, re-send on failure
-    /// up to `maxImmediateRetries`, after which the payload waits for the next
-    /// `retryPending` instead of looping.
-    func completeTransfer(id: String, data: Data, error: Error?) {
-        if error == nil {
-            lock.lock()
-            let entry = pending[id]
-            pending[id] = nil; attempts[id] = nil
-            let count = pending.count
-            let generation = nextPendingGeneration()
-            lock.unlock()
-            publishPendingCount(count, generation: generation)
-            // Confirmed on the phone — record the session id so retention can
-            // safely prune it from the watch. Only ever fires on genuine success.
-            // Prefer the stored id; fall back to decoding only for an untracked
-            // entry (e.g. a transfer that finished before we could re-adopt it).
-            if let sessionID = entry?.sessionID {
-                onSessionDelivered?(sessionID)
-            } else if let session = try? decoder.decode(DiveSession.self, from: data) {
-                onSessionDelivered?(session.id)
-            }
-            return
-        }
+    /// Transport delivery is not a saved-session acknowledgement. Keep the entry
+    /// and its durable copy until `importedSessionID` arrives from the phone.
+    func completeTransfer(id: String, error: Error?) {
         lock.lock()
-        // Only track attempts for an entry still in `pending`. If it was dropped
-        // (by `sendDeletion`) or was never tracked (an untracked/cancelled
-        // transfer's `didFinish`), there's nothing to retry — so don't leak a
-        // stale `attempts` counter; clear any left behind instead.
-        guard let entry = pending[id] else {
+        guard let entry = pending[id] else { lock.unlock(); return }
+        pending[id]?.isSystemOwned = false
+        if error == nil {
             attempts[id] = nil
             lock.unlock()
+            onSessionDelivered?(entry.sessionID)
             return
         }
         let count = (attempts[id] ?? 0) + 1
         attempts[id] = count
-        // `didFinish` arrived → the OS no longer owns this transfer's slot; a
-        // re-adopted entry is now ours to retry.
-        pending[id]?.isSystemOwned = false
-        // Never re-enqueue a tombstoned (deleted-this-launch) session: a deletion
-        // that landed after this transfer's snapshot must win.
-        let shouldRetry = !deletedSessionIDs.contains(entry.sessionID)
-            && count <= Self.maxImmediateRetries
-        // Preserve the resync envelope on retry — a resync downgraded to a plain send
-        // would be tombstone-rejected on the phone yet still marked delivered.
-        let transfer = entry.isResync ? performResyncTransfer : performTransfer
+        let shouldRetry = !deletedSessionIDs.contains(entry.sessionID) && count <= Self.maxImmediateRetries
         lock.unlock()
-        if shouldRetry { transfer(id, data) }
+        if let error { reportError(error) }
+        if shouldRetry { transmitPending(id) }
+    }
+
+    private func confirmImport(_ sessionID: UUID) {
+        lock.lock()
+        let ids = pending.filter { $0.value.sessionID == sessionID }.map(\.key)
+        var errors: [Error] = []
+        for id in ids {
+            do { try outbox.remove(id) } catch { errors.append(error) }
+            pending[id] = nil
+            attempts[id] = nil
+        }
+        let count = pending.count
+        let generation = nextPendingGeneration()
+        lock.unlock()
+        cancelTransfers(Set(ids))
+        publishPendingCount(count, generation: generation)
+        if count == 0 { onSyncError?(nil) }
+        errors.forEach(reportError)
+        onSessionImported?(sessionID)
     }
 
     /// Records the outcome of a voice-note file transfer: on success fire
@@ -636,6 +655,13 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     /// reference), falling back to the URL's last path component — and keys the
     /// attempts map so the cap follows the clip across re-sends.
     func completeFileTransfer(fileName: String?, fileURL: URL, metadata: [String: Any]?, error: Error?) {
+        if metadata?[Self.sessionFileKey] as? Bool == true {
+            if let id = metadata?[Self.idKey] as? String {
+                completeTransfer(id: id, error: error)
+            }
+            outbox.removeSnapshot(fileURL)
+            return
+        }
         let name = fileName ?? (metadata?[Self.fileNameKey] as? String) ?? fileURL.lastPathComponent
         if error == nil {
             lock.lock(); fileTransferAttempts[name] = nil; lock.unlock()
@@ -660,12 +686,13 @@ public final class SyncManager: NSObject, @unchecked Sendable {
     /// the per-payload retry budget so a fresh reachability window gets new tries.
     func retryPending() {
         onNoteTransportReady?()
-        // Snapshot the OS's still-queued transfer ids ONCE and use it for both the
+        onSessionTransportReady?()
+        // Snapshot both OS queues ONCE and use them for both the
         // reclaim below and the duplicate-enqueue guard on the main filter. An id
         // still in `outstandingTransfers` — system-owned OR one of ours the OS hasn't
         // finished yet — must not be re-sent, or a reachability flap would enqueue a
         // duplicate transfer per pending session per flap.
-        let stillQueued = Set(outstandingTransfers().map(\.id))
+        let stillQueued = queuedTransferIDs()
         lock.lock()
         for (id, entry) in pending where entry.isSystemOwned && !stillQueued.contains(id) {
             // System-owned but the OS no longer lists it: its transfer was dropped
@@ -688,38 +715,93 @@ public final class SyncManager: NSObject, @unchecked Sendable {
         lock.unlock()
         // Route each entry by its stored resync flag so a queued resync keeps carrying
         // the tombstone-clearing envelope across a reachability-driven retry.
-        for (id, entry) in items {
-            (entry.isResync ? performResyncTransfer : performTransfer)(id, entry.data)
-        }
+        for id in items.keys { transmitPending(id) }
     }
 
-    /// Re-adopts the system's still-queued userInfo transfers into `pending` so a
-    /// relaunch reflects the true backlog (the OS keeps `transferUserInfo` payloads
-    /// across process death, but our in-memory `pending` starts empty). Each
-    /// re-adopted entry is flagged `isSystemOwned` so `retryPending` won't duplicate
-    /// it. Fires `onPendingCountChange` with the corrected count when anything is
-    /// adopted. Called at activation, before `retryPending`.
+    /// Restore the durable outbox, adopt both WC transport queues, and migrate
+    /// legacy dictionaries to files. The original Watch record remains
+    /// untouched, and explicit-resync flags survive a restart.
     func adoptOutstandingTransfers() {
-        // Decode outside the lock — sessions can be sizeable, and the send/status
-        // paths contend on it.
-        let outstanding = outstandingTransfers().compactMap { entry -> (id: String, adopted: Pending)? in
-            guard let session = try? decoder.decode(DiveSession.self, from: entry.data) else { return nil }
-            // The OS envelope carries only the payload, so a re-adopted resync loses its
-            // flag here (isResync: false). Acceptable: the ORIGINAL queued copy still
-            // rides `resyncKey`, and FIX 3's import ack makes a downgraded retry's
-            // failure non-destructive. See `send`'s doc comment.
-            return (entry.id, Pending(sessionID: session.id, data: entry.data, isSystemOwned: true, isResync: false))
+        let inline = outstandingTransfers()
+        let files = outstandingSessionFiles()
+        let fileIDs = Set(files.compactMap { $0.metadata[Self.idKey] as? String })
+        let resyncIDs = outstandingResyncIDs()
+        var entries = outbox.load(onError: reportError)
+        for item in inline where !entries.contains(where: { $0.id == item.id }) {
+            guard let session = try? decoder.decode(DiveSession.self, from: item.data) else { continue }
+            entries.append(.init(id: item.id, sessionID: session.id, data: item.data,
+                                 isResync: resyncIDs.contains(item.id)))
         }
+        for item in files {
+            guard let id = item.metadata[Self.idKey] as? String, !entries.contains(where: { $0.id == id }),
+                  let data = try? Data(contentsOf: item.url),
+                  let session = try? decoder.decode(DiveSession.self, from: data) else { continue }
+            entries.append(.init(id: id, sessionID: session.id, data: data,
+                                 isResync: item.metadata[Self.resyncKey] as? Bool ?? false))
+        }
+        let legacyIDs = Set(inline.map(\.id)).subtracting(fileIDs)
         lock.lock()
         var changed = false
-        for entry in outstanding where pending[entry.id] == nil {
-            pending[entry.id] = entry.adopted
+        var errors: [Error] = []
+        var migratedIDs: Set<String> = []
+        for entry in entries where pending[entry.id] == nil && !deletedSessionIDs.contains(entry.sessionID) {
+            // Validate the saved payload too, so a damaged outbox cannot enqueue
+            // invalid bytes forever. The Watch database can rebuild this entry.
+            guard let session = try? decoder.decode(DiveSession.self, from: entry.data), session.id == entry.sessionID else { continue }
+            pending[entry.id] = Pending(sessionID: entry.sessionID, data: entry.data,
+                                        isSystemOwned: fileIDs.contains(entry.id), isResync: entry.isResync)
+            do {
+                try outbox.save(entry)
+                if legacyIDs.contains(entry.id) { migratedIDs.insert(entry.id) }
+            } catch { errors.append(error) }
             changed = true
+        }
+        // A legacy transfer already tracked this launch must also be migrated.
+        for id in legacyIDs.subtracting(migratedIDs) {
+            guard let entry = pending[id] else { continue }
+            do {
+                try outbox.save(.init(id: id, sessionID: entry.sessionID, data: entry.data, isResync: entry.isResync))
+                migratedIDs.insert(id)
+            } catch { errors.append(error) }
+        }
+        for id in migratedIDs {
+            pending[id]?.isSystemOwned = false
         }
         let count = pending.count
         let generation = changed ? nextPendingGeneration() : 0
         lock.unlock()
+        // Preserve the OS's only queued copy if durable storage failed.
+        if !migratedIDs.isEmpty { cancelTransfers(migratedIDs) }
+        outbox.removeUnusedSnapshots(keeping: Set(files.map(\.url)))
         if changed { publishPendingCount(count, generation: generation) }
+        errors.forEach(reportError)
+    }
+
+    /// Consume incoming session files synchronously before WC deletes its inbox
+    /// file. Voice notes remain on their separate path, even with no audio directory.
+    func handleReceivedFile(_ url: URL, metadata: [String: Any]?) {
+        if metadata?[Self.sessionFileKey] as? Bool == true {
+            do {
+                let data = try Data(contentsOf: url)
+                let session = try decoder.decode(DiveSession.self, from: data)
+                guard metadata?[Self.sessionIDKey] as? String == session.id.uuidString else {
+                    throw CocoaError(.fileReadCorruptFile)
+                }
+                onReceiveSession?(session, metadata?[Self.resyncKey] as? Bool ?? false)
+            } catch { reportError(error) }
+            return
+        }
+        guard let dir = audioDirectory else { return }
+        let fileName = metadata?[Self.fileNameKey] as? String ?? url.lastPathComponent
+        guard fileName == URL(fileURLWithPath: fileName).lastPathComponent else { return }
+        let fileManager = FileManager.default
+        do {
+            try fileManager.createDirectory(at: dir, withIntermediateDirectories: true)
+            let destination = dir.appendingPathComponent(fileName)
+            if fileManager.fileExists(atPath: destination.path) { try fileManager.removeItem(at: destination) }
+            try fileManager.copyItem(at: url, to: destination)
+            onReceiveAudioFile?(destination)
+        } catch { reportError(error) }
     }
 
     /// Decodes an incoming control/payload message and forwards it: a deletion (id
@@ -740,7 +822,7 @@ public final class SyncManager: NSObject, @unchecked Sendable {
             return
         }
         if let idString = userInfo[Self.ackKey] as? String, let id = UUID(uuidString: idString) {
-            onSessionImported?(id)
+            confirmImport(id)
             return
         }
         if let fileName = userInfo[Self.audioAckKey] as? String {
@@ -780,15 +862,7 @@ extension SyncManager: WCSessionDelegate {
     }
 
     public func session(_ session: WCSession, didReceive file: WCSessionFile) {
-        guard let dir = audioDirectory else { return }
-        let fileName = (file.metadata?[Self.fileNameKey] as? String) ?? file.fileURL.lastPathComponent
-        let fileManager = FileManager.default
-        try? fileManager.createDirectory(at: dir, withIntermediateDirectories: true)
-        let destination = dir.appendingPathComponent(fileName)
-        try? fileManager.removeItem(at: destination)
-        // Copy synchronously — the system deletes the temp file once we return.
-        guard (try? fileManager.copyItem(at: file.fileURL, to: destination)) != nil else { return }
-        onReceiveAudioFile?(destination)
+        handleReceivedFile(file.fileURL, metadata: file.metadata)
     }
 
     public func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
@@ -800,8 +874,8 @@ extension SyncManager: WCSessionDelegate {
         didFinish userInfoTransfer: WCSessionUserInfoTransfer,
         error: Error?
     ) {
-        guard let (id, data) = Self.sessionTransfer(from: userInfoTransfer.userInfo) else { return }
-        completeTransfer(id: id, data: data, error: error)
+        guard let (id, _) = Self.sessionTransfer(from: userInfoTransfer.userInfo) else { return }
+        completeTransfer(id: id, error: error)
     }
 
     public func session(

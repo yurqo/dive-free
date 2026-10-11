@@ -219,6 +219,9 @@ struct WatchSettingsView: View {
                         if session.pendingSyncCount > 0 {
                             Text("\(session.pendingSyncCount) waiting to reach your iPhone")
                         }
+                        if let error = session.syncError {
+                            Text(error).foregroundStyle(.red)
+                        }
                     }
                 }
 

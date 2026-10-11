@@ -1,8 +1,10 @@
-Version 1.4.7 updates App Store names, subtitles, descriptions, promotional text and translations across all ten localizations. App functionality is unchanged from approved version 1.4.6 (build 229). The description now explains the existing 6 m depth limit and the approval, independent EN13319 certification and ongoing testing required for full-depth access on Apple Watch Ultra. The reference to 40 m describes that separate access process; Dive Free does not offer 40 m depth recording and is not requesting that entitlement in this submission.
+Version 1.4.9 improves Watch-to-iPhone syncing for long recordings. Every completed session is sent as a JSON file through WatchConnectivity, with a persistent local outbox. Unconfirmed sessions retry when WatchConnectivity activates or reconnects and when the Watch app opens. A session is marked synced only after the iPhone confirms that it saved it. Watch session details display that session’s status directly above the manual resend button. Depth, GPS, heart-rate, temperature and note data are preserved without downsampling.
 
-This release adds no permissions, entitlements, purchases or storage schema changes. The existing approved screenshots are retained. Screenshot demo data is confined to screenshot/test builds and never changes the user’s logbook or Photos library.
+Since the approved 1.4.7 release, this build also adds support for launching Dive Free when submerged on compatible watches, an optional setup reminder on Watch, and updated user-guide instructions. The user enables underwater auto-launch in Watch Settings > General > Auto-Launch > When Submerged. Auto-launch starts a recording session; it does not extend the existing 6 m depth capability or provide dive-computer functionality.
 
-Dive Free is a recreational freediving logbook, not a dive computer. All features are free; core dive recording and logbook features will always be free. In-app purchases are not offered.
+This release adds no permissions, entitlements, purchases or SwiftData/CloudKit storage schema changes. The existing approved screenshots are retained. Screenshot demo data is confined to screenshot/test builds and never changes the user's logbook or Photos library.
+
+Dive Free is a recreational freediving logbook, not a dive computer. All current features are free, and core features will remain free in the future. In-app purchases are not offered.
 
 Recording requires a paired Apple Watch. Depth readings require a compatible Apple Watch Ultra or Series 10/11, with the existing 6 m shallow-depth limit. Other supported watches record GPS and markers.
 

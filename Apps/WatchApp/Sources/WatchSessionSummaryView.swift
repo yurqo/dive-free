@@ -6,7 +6,7 @@ import Persistence
 
 /// Reusable session summary: headline stats, a map with the surface path +
 /// dive/marker points, and the marker breakdown. Shown right after a dive (with
-/// the Done / Dive-again toolbar and a sync badge, `showSync: true`) and when a
+/// the Done / Dive-again toolbar, `showSync: true`) and when a
 /// past session is tapped in the list (pushed with a back button).
 struct WatchSessionSummaryView: View {
     private let initialSession: DiveSession
@@ -18,15 +18,13 @@ struct WatchSessionSummaryView: View {
         let id = session.id
         _savedSessions = Query(filter: #Predicate<SessionRecord> { $0.id == id })
     }
-    /// Show the watch→iPhone sync badge — only meaningful for the session that
-    /// just finished, not historical ones browsed from the list.
+    /// Use post-session actions rather than historical resend/delete actions.
     var showSync = false
 
     @Environment(SessionCoordinator.self) private var coordinator
     @Environment(\.dismiss) private var dismiss
     @State private var showDeleteConfirm = false
     @State private var showDiscardConfirm = false
-    @State private var resynced = false
 
     private var hasGeo: Bool { !session.track.isEmpty || session.location != nil }
 
@@ -53,13 +51,13 @@ struct WatchSessionSummaryView: View {
                     markerSummary
                     WatchNotesList(sessionID: session.id)
 
-                    if showSync { syncStatus }
-
                     // Full session map at the bottom.
                     if hasGeo { mapSection }
 
+                    syncStatus
+
                     // Re-send / delete actions on a browsed past session (not the
-                    // live post-dive summary, which shows its own sync badge).
+                    // live post-dive summary, which has Discard instead).
                     if !showSync {
                         resyncButton
                         deleteButton
@@ -102,15 +100,12 @@ struct WatchSessionSummaryView: View {
     private var resyncButton: some View {
         Button {
             coordinator.resync(session)
-            resynced = true
-            WKInterfaceDevice.current().play(.success)
+            WKInterfaceDevice.current().play(.click)
         } label: {
-            Label(resynced ? "Sent to iPhone" : "Re-send to iPhone",
-                  systemImage: resynced ? "checkmark.circle" : "arrow.triangle.2.circlepath")
+            Label("Re-send to iPhone", systemImage: "arrow.triangle.2.circlepath")
                 .frame(maxWidth: .infinity)
         }
         .tint(.teal)
-        .disabled(resynced)
         .padding(.top, 8)
     }
 
@@ -309,17 +304,26 @@ struct WatchSessionSummaryView: View {
         }
     }
 
-    /// Background-safe transfer status for the just-finished session: still in
-    /// the WatchConnectivity queue, or confirmed delivered to the iPhone.
+    /// Status of this session, confirmed only by the phone's saved-session ACK.
     private var syncStatus: some View {
-        let pending = coordinator.pendingSyncCount > 0
-        return Label(
-            pending ? "Syncing to iPhone…" : "Synced to iPhone",
-            systemImage: pending ? "arrow.triangle.2.circlepath" : "checkmark.icloud"
-        )
+        let status = coordinator.syncStatus(for: session.id)
+        let title: LocalizedStringKey
+        let icon: String
+        switch status {
+        case .pending:
+            title = "Waiting to sync to iPhone"
+            icon = "clock"
+        case .syncing:
+            title = "Syncing to iPhone…"
+            icon = "arrow.triangle.2.circlepath"
+        case .synced:
+            title = "Synced to iPhone"
+            icon = "checkmark.icloud.fill"
+        }
+        return Label(title, systemImage: icon)
         .font(.caption2)
-        .foregroundStyle(pending ? AnyShapeStyle(.secondary) : AnyShapeStyle(.teal))
-        .symbolVariant(pending ? .none : .fill)
+        .foregroundStyle(status == .synced ? AnyShapeStyle(.teal) : AnyShapeStyle(.secondary))
+        .accessibilityIdentifier("watch-session-sync-status")
     }
 
     /// A label-left / value-right row. The label is a `LocalizedStringKey` so the

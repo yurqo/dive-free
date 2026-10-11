@@ -31,11 +31,13 @@ struct WatchRootView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .task {
+            session.resumeSync()
             await startIfPending()
             await checkAutoLaunch()
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
+                session.resumeSync()
                 Task {
                     await startIfPending()
                     await checkAutoLaunch()
