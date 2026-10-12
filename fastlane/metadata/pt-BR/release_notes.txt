@@ -1,6 +1,5 @@
-Melhores perfis de mergulho e sincronização
+Mapas de mergulho mais claros
 
-• Melhorada a sincronização de sessões longas do Watch para o iPhone, com novas tentativas automáticas para gravações pendentes.
-• Os detalhes de cada sessão mostram o status da sincronização acima do botão para reenviá-la ao iPhone.
-• Os perfis começam e terminam em profundidade zero, assim como os intervalos na superfície. A parte final da subida é preservada para registros mais completos.
-• O guia foi atualizado e inclui uma explicação do limite de profundidade de 6 m.
+• Os pontos de início e fim próximos do mesmo mergulho agora compartilham um marcador.
+• Grupos de pontos sobrepostos mostram um contador próprio. Toque nele para ver todos os pontos, com os números dos mergulhos e os horários.
+• Os pontos de início e fim permanecem separados quando estão distantes.

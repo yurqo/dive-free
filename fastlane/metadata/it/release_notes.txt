@@ -1,6 +1,5 @@
-Profili delle immersioni e sincronizzazione migliorati
+Mappe delle immersioni più chiare
 
-• Migliorata la sincronizzazione delle sessioni lunghe dalla Watch all’iPhone, con nuovi tentativi automatici per le registrazioni in attesa.
-• I dettagli di ogni sessione mostrano lo stato della sincronizzazione sopra il pulsante per inviarla di nuovo all’iPhone.
-• I profili iniziano e terminano a profondità zero, come gli intervalli in superficie. La parte finale della risalita viene conservata per registrazioni più complete.
-• La guida è stata aggiornata e include una spiegazione del limite di profondità di 6 m.
+• I punti di inizio e fine vicini della stessa immersione ora condividono un indicatore.
+• I gruppi di punti sovrapposti mostrano un contatore distinto. Toccalo per vedere tutti i punti, con i numeri delle immersioni e gli orari.
+• I punti di inizio e fine restano separati quando sono distanti.

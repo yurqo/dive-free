@@ -21,6 +21,7 @@ struct SessionListView: View {
     #if DEBUG
     @State private var screenshotDivePresented = false
     @State private var screenshotSessionPresented = false
+    @State private var screenshotMapPresented = false
     #endif
 
     var body: some View {
@@ -136,6 +137,11 @@ struct SessionListView: View {
                         .accessibilityIdentifier("screenshot.02-detail")
                 }
             }
+            .navigationDestination(isPresented: $screenshotMapPresented) {
+                SessionTrackMapView(session: SessionMapTestFixture.session())
+                    .navigationTitle("Map")
+                    .navigationBarTitleDisplayMode(.inline)
+            }
             .task(id: sessions.first?.id) {
                 let arguments = ProcessInfo.processInfo.arguments
                 guard !sessions.isEmpty, arguments.contains("--screenshot-demo"),
@@ -148,6 +154,7 @@ struct SessionListView: View {
                 switch arguments[flag + 1] {
                 case "02-dive-profile": screenshotDivePresented = true
                 case "02-detail": screenshotSessionPresented = true
+                case "02-map": screenshotMapPresented = true
                 default: break
                 }
             }

@@ -1,6 +1,5 @@
-Des profils de plongée et une synchronisation améliorés
+Des cartes de plongée plus claires
 
-• Amélioration de la synchronisation des longues sessions de la Watch vers l’iPhone, avec de nouvelles tentatives automatiques pour les enregistrements en attente.
-• Les détails de chaque session affichent son état de synchronisation au-dessus du bouton de renvoi vers l’iPhone.
-• Les profils commencent et se terminent à une profondeur de zéro, comme les intervalles en surface. La fin de la remontée est conservée pour des enregistrements plus complets.
-• Le guide a été mis à jour, notamment avec une explication de la limite de profondeur de 6 m.
+• Les points de départ et de fin proches d’une même plongée partagent désormais un repère.
+• Les groupes de points superposés affichent un compteur distinct. Touchez-le pour voir tous les points, avec les numéros de plongée et les heures.
+• Les points de départ et de fin restent séparés lorsqu’ils sont éloignés.

@@ -1,6 +1,5 @@
-Better dive profiles and syncing
+Clearer dive maps
 
-• Improved Watch-to-iPhone syncing for long sessions, with automatic retries of pending recordings.
-• Session details show each recording’s sync status above Re-send to iPhone.
-• Dive profiles start and finish at zero depth, with surface intervals shown at zero. Shallow ascents are retained for more complete recordings.
-• Updated the user guide, including an explanation of the 6 m depth limit.
+• Nearby starts and finishes from the same dive now share a combined marker.
+• Crowded groups show a distinct point counter. Tap to reveal every point, with dive numbers and times.
+• Starts and finishes remain separate when they are far apart.

@@ -1,6 +1,5 @@
-Bessere Tauchprofile und Synchronisierung
+Übersichtlichere Tauchkarten
 
-• Verbesserte Übertragung langer Sessions von der Watch auf das iPhone. Ausstehende Aufzeichnungen werden automatisch erneut übertragen.
-• Die Session-Details zeigen den Synchronisierungsstatus über der Schaltfläche zum erneuten Senden an das iPhone.
-• Tauchprofile beginnen und enden bei null Tiefe. Oberflächenintervalle werden ebenfalls bei null angezeigt. Der letzte Teil des Aufstiegs bleibt für vollständigere Aufzeichnungen erhalten.
-• Die Anleitung wurde aktualisiert und erklärt auch die Tiefenbegrenzung auf 6 m.
+• Nahe beieinanderliegende Start- und Endpunkte desselben Tauchgangs teilen sich jetzt eine Markierung.
+• Gruppen überlappender Punkte zeigen einen eigenen Punktezähler. Tippe darauf, um alle Punkte mit Tauchgangsnummern und Uhrzeiten anzuzeigen.
+• Weit auseinanderliegende Start- und Endpunkte bleiben getrennt.

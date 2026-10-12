@@ -256,7 +256,8 @@ let project = Project(
             deploymentTargets: .iOS(iOSVersion),
             sources: ["Apps/iPhoneApp/Tests/**", "Apps/iPhoneApp/Sources/ReviewMilestoneAttempt.swift",
                       "Apps/iPhoneApp/Sources/NoteTranscriptionLocale.swift",
-                      "Apps/iPhoneApp/Sources/SessionChartViewport.swift"],
+                      "Apps/iPhoneApp/Sources/SessionChartViewport.swift",
+                      "Apps/iPhoneApp/Sources/SessionMapLayout.swift"],
             dependencies: [.target(name: "Domain")]
         )]
         + module("Domain", resources: ["Packages/Domain/Resources/**"])
