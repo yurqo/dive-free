@@ -18,7 +18,7 @@ public struct DiveDescentBuffer: Sendable {
         let gap = previous.map { sample.timestamp.timeIntervalSince($0.timestamp) } ?? 0
         if sample.depthMeters <= DiveDetectionConfig.surfaceExitDepthMeters
             || gap > max(3, dwell)
-            || (previous.map { sample.depthMeters < $0.depthMeters - 0.05 } ?? false) {
+            || (previous.map { sample.depthMeters < $0.depthMeters - 0.15 } ?? false) {
             samples = [sample]
             lastIncrease = sample.timestamp
             return

@@ -85,6 +85,8 @@ public final class SessionManager {
     public private(set) var currentDiveStart: Date?
     private var currentDiveDeepStart: Date?
     private var descent = DiveDescentBuffer()
+    private var surfaceExit = DiveSurfaceExit()
+    private var lastDetectionSampleTime: Date?
 
     /// Elapsed time of the dive in progress, or `nil` when at the surface/idle.
     public var currentDiveElapsed: TimeInterval? {
@@ -148,11 +150,9 @@ public final class SessionManager {
     /// re-open a dive — wait until the diver is back at the surface.
     @ObservationIgnored private var suppressAutoUntilSurface = false
     /// While a dive is in progress and depth has risen into the shallow band
-    /// (above the surface, below the threshold), the wall-clock time it first
-    /// crossed the threshold — the start of the surface-exit dwell. `nil` while
-    /// deep or surfaced. Mirrors the detector: a shallow spell shorter than
-    /// `surfaceExitDwellSeconds` folds back into the dive; longer ends it, backdated
-    /// to this crossing.
+    /// (above the surface, below the threshold), the measurement time it first
+    /// crossed the threshold. This freezes acceptance at the end of the deep run;
+    /// the separate `surfaceExit` tracker preserves the rest of the ascent.
     @ObservationIgnored private var shallowSince: Date?
     /// Set when `stopManualDive` ran while the diver was still deeper than the exit
     /// threshold, so its `onSurface` callback was DEFERRED (firing it then would
@@ -285,13 +285,6 @@ public final class SessionManager {
 
     private let sensors: SensorManager
 
-    /// Relays the provider's always-on water-state listener to the Watch app.
-    /// The callback is intentionally separate from `onSubmerge`, which is a
-    /// detector transition scoped to an active recording.
-    @ObservationIgnored
-    public var onSubmersionStateChange: (@Sendable (SubmersionStateChange) -> Void)? {
-        didSet { sensors.onSubmersionStateChange = onSubmersionStateChange }
-    }
     /// `var` so the app layer can swap in a diver-tuned config (synced from the
     /// phone) via `setDetectionConfig(_:)` before the next `startSession()`.
     private var detector: DiveDetector
@@ -341,7 +334,7 @@ public final class SessionManager {
     }
 
     /// Starts the depth sensor and marks the session as active.
-    public func startSession(startedAt requestedStartTime: Date? = nil) async throws {
+    public func startSession() async throws {
         guard !isActive else { return }
         // Adopt any config synced since the last session (haptics + acceptance both
         // read `detector.config`, rebuilt just below).
@@ -356,6 +349,8 @@ public final class SessionManager {
         lastSurfacedAt = nil
         currentDiveDeepStart = nil
         descent.reset()
+        surfaceExit.reset()
+        lastDetectionSampleTime = nil
         manualSegments = []
         manualDiveStart = nil
         suppressAutoUntilSurface = false
@@ -380,8 +375,9 @@ public final class SessionManager {
             }
         }
         sensors.onSamplesChanged = { [weak self] in self?.refreshDetection() }
+        let captureStart = Date()
         try await sensors.start()
-        startTime = requestedStartTime ?? Date()
+        startTime = captureStart
         isActive = true
     }
 
@@ -413,6 +409,24 @@ public final class SessionManager {
         maxDepthMeters = max(maxDepthMeters, depth)
         let threshold = detector.config.surfaceThresholdMeters
         let sample = sensors.samples.last
+        let sampleTime = sample?.timestamp ?? Date()
+        let receivedEarlierSample = lastDetectionSampleTime == sampleTime
+        lastDetectionSampleTime = sampleTime
+        if receivedEarlierSample, !isManualDiveActive, currentDiveStart != nil,
+           let deepStart = currentDiveDeepStart {
+            // A late surface-crossing event can fill in the descent prefix after
+            // the first deep reading. Backfill the clock as well as the saved dive.
+            var prefix = DiveDescentBuffer()
+            for earlier in sensors.samples where earlier.timestamp < deepStart {
+                if earlier.depthMeters <= threshold {
+                    prefix.append(earlier, dwell: detector.config.surfaceExitDwellSeconds)
+                } else { prefix.reset() }
+            }
+            if let last = prefix.samples.last,
+               deepStart.timeIntervalSince(last.timestamp) <= max(3, detector.config.surfaceExitDwellSeconds) {
+                currentDiveStart = prefix.samples.first?.timestamp ?? currentDiveStart
+            }
+        }
 
         // Manual (Action + side) owns the in-progress dive when active; otherwise
         // edge-track it from depth — but don't auto-reopen a dive that was just
@@ -425,6 +439,7 @@ public final class SessionManager {
             // Going deep also cancels any surface-exit dwell — whether it was timing
             // out a dive OR the post-manual-stop suppression through a bounce.
             shallowSince = nil
+            surfaceExit.reset()
             if !suppressAutoUntilSurface, currentDiveStart == nil {
                 // A fresh descent starts a new dive; any deferred surface callback from
                 // an earlier manual stop is stale now (the diver never surfaced but is
@@ -449,29 +464,28 @@ public final class SessionManager {
             // end any dive in progress (the ascent through the shallow band counted).
             suppressAutoUntilSurface = false
             shallowSince = nil
-            if currentDiveStart != nil { endCurrentDive(surfacedAt: Date()) }
+            surfaceExit.reset()
+            if currentDiveStart != nil { endCurrentDive(surfacedAt: sampleTime) }
             else { fireDeferredSurfaceCallback() }   // genuine exit after a deep manual stop
             if let sample { descent.append(sample, dwell: detector.config.surfaceExitDwellSeconds) }
         } else if currentDiveStart != nil || suppressAutoUntilSurface {
-            // Shallow band (above the surface, below the threshold) with a dive open,
-            // or auto-detection suppressed after a manual stop: time the dwell from the
-            // crossing. A sub-dwell bounce holds BOTH the dive and the suppression; the
-            // dwell elapsing is a genuine surface exit that clears them, ending any dive
-            // backdated to the crossing. Suppression must NOT clear on a mere shallow
-            // bounce — only on a true surface exit (0 m above, or the dwell here).
-            let crossing = shallowSince ?? Date()
+            // Keep shallow ascent samples in the dive. The surface-rest dwell
+            // restarts as depth decreases, matching the saved detector and haptics.
+            let crossing = shallowSince ?? sampleTime
             shallowSince = crossing
-            if Date().timeIntervalSince(crossing) >= detector.config.surfaceExitDwellSeconds {
+            if let surfacedAt = surfaceExit.update(depthMeters: depth, at: sampleTime,
+                                                    threshold: threshold, dwell: detector.config.surfaceExitDwellSeconds) {
                 suppressAutoUntilSurface = false
-                if currentDiveStart != nil { endCurrentDive(surfacedAt: crossing) }
+                if currentDiveStart != nil { endCurrentDive(surfacedAt: surfacedAt) }
                 else { shallowSince = nil; fireDeferredSurfaceCallback() }   // genuine dwell exit after a deep manual stop
                 if let sample { descent.append(sample, dwell: detector.config.surfaceExitDwellSeconds) }
             }
         } else {
             shallowSince = nil
+            surfaceExit.reset()
             if let sample { descent.append(sample, dwell: detector.config.surfaceExitDwellSeconds) }
         }
-        let events = hapticTracker.update(depthMeters: depth)
+        let events = hapticTracker.update(depthMeters: depth, at: sampleTime)
         for event in events { onHapticEvent?(event) }
     }
 
@@ -494,6 +508,7 @@ public final class SessionManager {
         currentDiveStart = nil
         currentDiveDeepStart = nil
         descent.reset()
+        surfaceExit.reset()
         currentDiveMaxDepth = 0
         shallowSince = nil
         onSurface?()

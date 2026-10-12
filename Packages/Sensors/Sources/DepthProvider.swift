@@ -1,31 +1,9 @@
 import Foundation
 import Domain
 
-/// A water-state transition delivered independently of a recording session.
-/// The Watch app uses this to begin recording when the system launches it
-/// underwater; ordinary depth samples remain session-scoped.
-public struct SubmersionStateChange: Sendable, Equatable {
-    public enum State: Sendable, Equatable {
-        case unknown
-        case notSubmerged
-        case submerged
-    }
-
-    public let state: State
-    public let timestamp: Date
-
-    public init(state: State, timestamp: Date) {
-        self.state = state
-        self.timestamp = timestamp
-    }
-}
-
 /// Source of live depth readings. Implementations may wrap real hardware
 /// (Apple Watch Ultra water-submersion sensor) or synthesize data for previews/tests.
 public protocol DepthProvider: Sendable {
-    /// Register for water-state changes. Providers without a water sensor may
-    /// ignore this; the real Watch provider reports its current state immediately.
-    func setSubmersionStateChangeHandler(_ handler: (@Sendable (SubmersionStateChange) -> Void)?)
     /// Begin producing samples. Throws if the sensor is unavailable or permission is denied.
     func start() async throws
     /// Stop producing samples and release the sensor.
@@ -38,8 +16,6 @@ public protocol DepthProvider: Sendable {
 }
 
 public extension DepthProvider {
-    func setSubmersionStateChangeHandler(_ handler: (@Sendable (SubmersionStateChange) -> Void)?) {}
-
     func temperatureStream() -> AsyncStream<TemperatureSample> {
         AsyncStream { $0.finish() }
     }

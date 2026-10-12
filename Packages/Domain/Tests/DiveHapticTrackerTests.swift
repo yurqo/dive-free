@@ -20,6 +20,17 @@ struct DiveHapticTrackerTests {
         }
     }
 
+    @Test("surface cues wait through a slow ascent even with zero dwell", arguments: [0.0, 3.0])
+    func slowShallowAscent(dwell: TimeInterval) {
+        var tracker = DiveHapticTracker(config: .init(surfaceExitDwellSeconds: dwell, milestoneIntervalMeters: 0))
+        let start = Date(timeIntervalSince1970: 0)
+        _ = tracker.update(depthMeters: 4, at: start)
+        for (offset, depth) in [0.9, 0.75, 0.6, 0.45, 0.3, 0.15].enumerated() {
+            #expect(!tracker.update(depthMeters: depth, at: start.addingTimeInterval(Double(offset + 1))).contains(.surface))
+        }
+        #expect(tracker.update(depthMeters: 0, at: start.addingTimeInterval(7)) == [.surface])
+    }
+
     @Test("emits diveStart when depth crosses surface threshold going down")
     func emitsDiveStart() {
         let events = run([0, 0.5, 1.5])
@@ -120,12 +131,10 @@ struct DiveHapticTrackerTests {
         #expect(events == [.diveStart, .surface, .diveStart, .surface])
     }
 
-    @Test("dwell 0 fires surface on the first shallow-band sample (matches the detector)")
-    func dwellZeroSurfacesOnFirstShallowSample() {
-        // With dwell 0 (the legacy immediate-end value) the FIRST shallow-band sample
-        // (below the 1 m threshold but above 0 m — the wrist never fully clears) is
-        // already the surface exit, matching DiveDetector's first-shallow-sample
-        // immediate end. Without the fix the surface fired one sample late.
+    @Test("zero dwell confirms a stable shallow rest without a time delay")
+    func zeroDwellWaitsForStableShallowDepth() {
+        // Two steady shallow readings confirm rest, even with no timer delay.
+        // A lone shallow reading may still be part of the ascent.
         //  t: 0    1    2     3
         //     0    2    0.5   0.5
         let config = DiveHapticConfig(surfaceExitDwellSeconds: 0)

@@ -1,6 +1,6 @@
-Zuverlässigere Synchronisierung
+Bessere Tauchprofile und Synchronisierung
 
 • Verbesserte Übertragung langer Sessions von der Watch auf das iPhone. Ausstehende Aufzeichnungen werden automatisch erneut übertragen.
-• Die Session-Details zeigen jetzt den Synchronisierungsstatus direkt über der Schaltfläche zum erneuten Senden an das iPhone.
-• Auf kompatiblen Uhren kann sich Dive Free unter Wasser automatisch öffnen. Aktiviere diese Option in den Einstellungen der Uhr. Die App kann dich auf Wunsch an die Einrichtung erinnern.
-• Die Anleitung enthält jetzt Hinweise zum automatischen Start und eine Erklärung der Tiefenbegrenzung auf 6 m.
+• Die Session-Details zeigen den Synchronisierungsstatus über der Schaltfläche zum erneuten Senden an das iPhone.
+• Tauchprofile beginnen und enden bei null Tiefe. Oberflächenintervalle werden ebenfalls bei null angezeigt. Der letzte Teil des Aufstiegs bleibt für vollständigere Aufzeichnungen erhalten.
+• Die Anleitung wurde aktualisiert und erklärt auch die Tiefenbegrenzung auf 6 m.

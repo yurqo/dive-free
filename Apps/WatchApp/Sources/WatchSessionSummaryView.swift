@@ -39,9 +39,7 @@ struct WatchSessionSummaryView: View {
                     // that series is empty — e.g. no temperature on a non-Ultra watch).
                     // Bracket each dive with a surface (0 m) point so the line returns
                     // to the surface between dives instead of drawing straight across.
-                    let depthSamples = session.dives
-                        .sorted { $0.startTime < $1.startTime }
-                        .flatMap { [DepthSample(timestamp: $0.startTime, depthMeters: 0)] + $0.samples + [DepthSample(timestamp: $0.endTime, depthMeters: 0)] }
+                    let depthSamples = session.chartDepthSamples
                     let depthChart = WatchMetricChart(depth: depthSamples, markers: session.markers)
                     if !depthChart.isEmpty { depthChart }
                     watchMetricCharts(heartRate: session.heartRateSamples, temperature: session.temperatureSamples, in: nil)

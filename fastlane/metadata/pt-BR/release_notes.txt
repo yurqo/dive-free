@@ -1,6 +1,6 @@
-Sincronização de sessões mais confiável
+Melhores perfis de mergulho e sincronização
 
 • Melhorada a sincronização de sessões longas do Watch para o iPhone, com novas tentativas automáticas para gravações pendentes.
 • Os detalhes de cada sessão mostram o status da sincronização acima do botão para reenviá-la ao iPhone.
-• Em relógios compatíveis, o Dive Free pode abrir automaticamente debaixo d’água. Ative essa opção nos ajustes do relógio; o app oferece lembretes opcionais de configuração.
-• O guia foi atualizado com instruções de abertura automática e uma explicação do limite de profundidade de 6 m.
+• Os perfis começam e terminam em profundidade zero, assim como os intervalos na superfície. A parte final da subida é preservada para registros mais completos.
+• O guia foi atualizado e inclui uma explicação do limite de profundidade de 6 m.

@@ -20,13 +20,6 @@ public final class SensorManager {
     @ObservationIgnored
     public var onSamplesChanged: (@MainActor () -> Void)?
 
-    /// Water-state events stay active even while a dive is not being recorded,
-    /// allowing the Watch app to react to the system's submerged auto-launch.
-    @ObservationIgnored
-    public var onSubmersionStateChange: (@Sendable (SubmersionStateChange) -> Void)? {
-        didSet { provider.setSubmersionStateChangeHandler(onSubmersionStateChange) }
-    }
-
     private let provider: DepthProvider
     private var streamTask: Task<Void, Never>?
     private var temperatureTask: Task<Void, Never>?
@@ -71,8 +64,15 @@ public final class SensorManager {
     }
 
     private func ingest(_ sample: DepthSample) {
-        samples.append(sample)
-        currentDepthMeters = sample.depthMeters
+        // Core Motion's surface events can arrive after a newer measurement.
+        // Retain that zero boundary without rewinding the current live depth.
+        if let last = samples.last, sample.timestamp < last.timestamp {
+            let index = samples.firstIndex { $0.timestamp > sample.timestamp } ?? samples.endIndex
+            samples.insert(sample, at: index)
+        } else {
+            samples.append(sample)
+        }
+        currentDepthMeters = samples.last?.depthMeters ?? sample.depthMeters
         onSamplesChanged?()
     }
 

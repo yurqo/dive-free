@@ -40,7 +40,7 @@ struct WatchDiveProfileView: View {
     }
 
     var body: some View {
-        let points = dive.depthProfile
+        let points = dive.chartDepthProfile
         GeometryReader { geometry in
             ScrollView {
                 VStack(spacing: 10) {
@@ -59,7 +59,7 @@ struct WatchDiveProfileView: View {
                                     x: .value("Elapsed", point.secondsFromStart),
                                     y: .value("Depth", point.depthMeters)
                                 )
-                                .interpolationMethod(.monotone)
+                                .interpolationMethod(.linear)
                                 .foregroundStyle(.teal)
                             }
                             ForEach(placed) { marker in
@@ -362,7 +362,7 @@ struct WatchMetricChart: View {
         let base = Chart {
             ForEach(points) { point in
                 LineMark(x: .value("Time", point.date), y: .value(title, point.value))
-                    .interpolationMethod(.monotone)
+                    .interpolationMethod(reversedY ? .linear : .monotone)
                     .foregroundStyle(tint)
             }
             ForEach(markers) { marker in

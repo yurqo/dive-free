@@ -11,13 +11,8 @@ struct WatchUserGuideView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     item(
                         "Start",
-                        "Tap Start, or press the Action button if you've assigned Dive Free to it in Settings → Action Button. On Apple Watch Ultra, you can also set Dive Free to open automatically when submerged.",
+                        "Tap Start, or press the Action button if you've assigned Dive Free to it in Settings → Action Button.",
                         systemImage: "play.circle"
-                    )
-                    item(
-                        "Auto-Launch",
-                        "On Apple Watch Ultra, open Settings → General → Auto-Launch → When Submerged → Auto-Launch App, then choose Dive Free. The app can then open when your watch enters the water.",
-                        systemImage: "water.waves"
                     )
                     item(
                         "Underwater",

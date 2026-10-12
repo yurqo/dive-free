@@ -176,7 +176,7 @@ struct SessionChartsSection: View {
         let charts = VStack(spacing: 4) {
             if hasDepth {
                 SessionDepthProfileChart(
-                    dives: session.dives,
+                    samples: session.chartDepthSamples,
                     timeline: chartTimeline,
                     range: chartRange,
                     elapsedTimeOrigin: hidesSurfaceIntervals ? chartTimeline.chartStart : nil,
@@ -320,7 +320,7 @@ struct SessionChartsSection: View {
 }
 
 private struct SessionDepthProfileChart: View {
-    let dives: [Dive]
+    let samples: [DepthSample]
     let timeline: SessionChartTimeline
     let range: ClosedRange<Date>
     let elapsedTimeOrigin: Date?
@@ -329,23 +329,14 @@ private struct SessionDepthProfileChart: View {
     var body: some View {
         VStack(spacing: 0) {
             chartHeader(title: Text("Depth profile"), unit: DepthFormat.unitLabel(), tint: .teal)
-            Chart {
-                ForEach(dives) { dive in
-                    let points = dive.samples.sorted { $0.timestamp < $1.timestamp }.enumerated().compactMap { index, sample in
-                        timeline.chartTime(for: sample.timestamp).map { date in
-                            SessionDepthChartPoint(id: index, timestamp: date, depth: DepthFormat.displayDepth(sample.depthMeters))
-                        }
-                    }.filter { range.contains($0.timestamp) }
-                    ForEach(points) { point in
-                        LineMark(
-                            x: .value("Time", point.timestamp),
-                            y: .value("Depth", point.depth),
-                            series: .value("Dive", dive.id.uuidString)
-                        )
-                        .interpolationMethod(.monotone)
-                        .foregroundStyle(.teal)
-                    }
-                }
+            Chart(points) { point in
+                LineMark(
+                    x: .value("Time", point.timestamp),
+                    y: .value("Depth", point.depth),
+                    series: .value("Timeline segment", point.series)
+                )
+                .interpolationMethod(.linear)
+                .foregroundStyle(.teal)
             }
             .chartXScale(domain: range)
             .chartYScale(domain: .automatic(includesZero: includesSurfaceInScale, reversed: true))
@@ -362,12 +353,37 @@ private struct SessionDepthProfileChart: View {
         }
         .frame(maxWidth: .infinity)
     }
+
+    private var points: [SessionDepthChartPoint] {
+        let all = samples.enumerated().compactMap { index, sample in
+            timeline.chartTime(for: sample.timestamp).map { date in
+                SessionDepthChartPoint(id: index, timestamp: date,
+                                       depth: DepthFormat.displayDepth(sample.depthMeters),
+                                       series: timeline.seriesIndex(for: sample.timestamp))
+            }
+        }
+        var visible = all.filter { range.contains($0.timestamp) }
+        // Interpolate the window edges so scrolling into a surface gap still
+        // shows zero, while the Y scale uses only values currently on screen.
+        for (index, boundary) in [range.lowerBound, range.upperBound].enumerated() {
+            guard !visible.contains(where: { $0.timestamp == boundary }) else { continue }
+            if let (a, b) = zip(all, all.dropFirst()).first(where: {
+                $0.0.series == $0.1.series && $0.0.timestamp < boundary && $0.1.timestamp > boundary
+            }) {
+                let fraction = boundary.timeIntervalSince(a.timestamp) / b.timestamp.timeIntervalSince(a.timestamp)
+                visible.append(.init(id: -index - 1, timestamp: boundary,
+                                     depth: a.depth + (b.depth - a.depth) * fraction, series: a.series))
+            }
+        }
+        return visible.sorted { $0.timestamp < $1.timestamp }
+    }
 }
 
 private struct SessionDepthChartPoint: Identifiable {
     let id: Int
     let timestamp: Date
     let depth: Double
+    let series: Int
 }
 
 private struct SessionMetricPoint: Identifiable {

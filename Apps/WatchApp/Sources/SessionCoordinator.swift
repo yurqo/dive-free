@@ -673,16 +673,6 @@ final class SessionCoordinator {
             self?.stopRecoveryCue()
             self?.recoveryHapticFired = false
         }
-        // The provider reports water-state changes from app launch, before the
-        // session-scoped sample stream starts. If the watch launches Dive Free
-        // while submerged, begin a normal workout/session automatically. This is
-        // idempotent with WatchKit's automatic extended-runtime callback below.
-        sessionManager.onSubmersionStateChange = { [weak self] change in
-            guard change.state == .submerged else { return }
-            Task { @MainActor [weak self] in
-                await self?.startAutomatically(at: change.timestamp)
-            }
-        }
         sessionManager.onSurface = { [weak self] in
             self?.interaction.setSubmerged(false)
             self?.startRecoveryCue()
@@ -860,7 +850,7 @@ final class SessionCoordinator {
         return focusedIndex
     }
 
-    func start(startedAt: Date? = nil) async {
+    func start() async {
         // Allow starting from idle OR straight from the post-session summary, so
         // the diver can begin a new session right after ending one (e.g. via the
         // Action button) without first tapping Done. Only block a double-start.
@@ -874,7 +864,7 @@ final class SessionCoordinator {
         startError = nil
         do {
             try await workout.requestAuthorization()
-            try await workout.start(at: startedAt ?? Date())
+            try await workout.start()
             // Apply the diver's synced detection config (sanitized) before starting,
             // so this session's acceptance tiers + surface-exit dwell reflect it.
             let config = storedDetectionConfig.sanitized()
@@ -886,7 +876,7 @@ final class SessionCoordinator {
             // Fresh session: clear any "rested" flag left set by a prior session, so
             // the one-shot cue arms correctly for this session's first surface.
             recoveryHapticFired = false
-            try await sessionManager.startSession(startedAt: startedAt)
+            try await sessionManager.startSession()
             // Fresh interaction: menu rebuilt, focused on the default marker, end disarmed.
             interaction = SessionInteraction(
                 kinds: EventKind.builtInMarkerKinds + customKinds, defaultMarkerID: defaultMarkerKindID
@@ -908,13 +898,6 @@ final class SessionCoordinator {
             startError = "Couldn't start: \(error.localizedDescription) [\(nsError.domain) \(nsError.code)]\n\nCheck Motion & Health access for Dive Free in Settings."
             state = .idle
         }
-    }
-
-    /// Entry point for water-triggered starts. Uses the exact same setup and
-    /// permissions as a manual start; `start()` guards concurrent triggers from
-    /// the Core Motion event and WatchKit runtime-session handoff.
-    func startAutomatically(at date: Date = Date()) async {
-        await start(startedAt: date)
     }
 
     #if DEBUG

@@ -74,9 +74,7 @@ let watchApp = Target.target(
         "NSLocationWhenInUseUsageDescription": "Used to record where your dives happen.",
         "NSMicrophoneUsageDescription": "Used to record voice notes about a dive while you're at the surface.",
         // Keep the app alive in the background for the HKWorkoutSession, and
-        // receive water-submersion depth (the latter also registers the app
-        // under Settings → General → Auto-Launch → When Submerged so it can
-        // launch automatically on a dive). Depth itself requires the
+        // receive water-submersion depth while recording. Depth requires the
         // submerged-shallow-depth-and-pressure entitlement (see entitlements).
         "WKBackgroundModes": ["workout-processing", "underwater-depth"],
     ]),

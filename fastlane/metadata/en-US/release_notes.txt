@@ -1,6 +1,6 @@
-More reliable session syncing
+Better dive profiles and syncing
 
 • Improved Watch-to-iPhone syncing for long sessions, with automatic retries of pending recordings.
-• Session details now show each recording’s sync status above Re-send to iPhone.
-• On compatible watches, Dive Free can open automatically when submerged. Enable it in Watch settings, with optional setup reminders in the app.
-• Updated the user guide with auto-launch instructions and an explanation of the 6 m depth limit.
+• Session details show each recording’s sync status above Re-send to iPhone.
+• Dive profiles start and finish at zero depth, with surface intervals shown at zero. Shallow ascents are retained for more complete recordings.
+• Updated the user guide, including an explanation of the 6 m depth limit.

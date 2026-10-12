@@ -29464,52 +29464,6 @@
         }
       }
     },
-    "Auto-Launch when submerged": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Automatischer Start beim Eintauchen"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Inicio automático al sumergirse"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Lancement automatique à l’immersion"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Avvio automatico quando ti immergi"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "水中で自動起動"
-          }
-        },
-        "pt": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Início automático ao submergir"
-          }
-        },
-        "uk": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Автозапуск під час занурення"
-          }
-        }
-      }
-    },
     "Depth recording currently stops at **6 m (20 ft)**. Dive Free uses Apple's shallow-depth entitlement. Access to deeper readings on Apple Watch Ultra requires Apple's separate approval, independent EN13319 certification, and ongoing testing. The costs and work involved are beyond this free project's current resources, so deeper depth recording isn't enabled. Dive Free is a recreational logbook, not a dive computer, and doesn't measure or plan deep dives.": {
       "localizations": {
         "de": {
@@ -29644,52 +29598,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Нотатки й голосові записи"
-          }
-        }
-      }
-    },
-    "On Apple Watch Ultra, open **Settings ▸ General ▸ Auto-Launch ▸ When Submerged ▸ Auto-Launch App**, then choose **Dive Free**. The watch can then open Dive Free as you enter the water. The watch app also has an optional startup reminder, which you can turn off or back on in its Settings.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Öffne auf der Apple Watch Ultra **Einstellungen ▸ Allgemein ▸ Automatischer Start ▸ Beim Eintauchen ▸ App für automatischen Start** und wähle **Dive Free**. Danach kann sich Dive Free öffnen, sobald du ins Wasser gehst. Die Watch-App hat außerdem eine optionale Erinnerung beim Start, die du in ihren Einstellungen aus- oder wieder einschalten kannst."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "En el Apple Watch Ultra, abre **Ajustes ▸ General ▸ Inicio automático ▸ Al sumergirse ▸ App de inicio automático** y elige **Dive Free**. Así, Dive Free podrá abrirse al entrar en el agua. La app del reloj también tiene un recordatorio opcional al iniciar, que puedes activar o desactivar en sus Ajustes."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sur l’Apple Watch Ultra, ouvrez **Réglages ▸ Général ▸ Lancement automatique ▸ Lors de l’immersion ▸ App à lancer automatiquement**, puis choisissez **Dive Free**. L’app pourra alors s’ouvrir lorsque vous entrez dans l’eau. L’app de la montre propose aussi un rappel facultatif au démarrage, activable ou désactivable dans ses réglages."
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Su Apple Watch Ultra, apri **Impostazioni ▸ Generali ▸ Avvio automatico ▸ Quando immerso ▸ App da avviare automaticamente** e scegli **Dive Free**. L’app potrà aprirsi quando entri in acqua. L’app Watch offre anche un promemoria facoltativo all’avvio, che puoi riattivare o disattivare nelle impostazioni."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Apple Watch Ultraで**「設定」▸「一般」▸「自動起動」▸「水中に入ったとき」▸「自動起動するアプリ」**を開き、**Dive Free**を選びます。水に入るとDive Freeが開くようになります。Watchアプリには起動時のリマインダーもあり、設定でオン・オフを切り替えられます。"
-          }
-        },
-        "pt": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No Apple Watch Ultra, abra **Ajustes ▸ Geral ▸ Início automático ▸ Ao submergir ▸ App de início automático** e escolha **Dive Free**. Assim, o app poderá abrir quando entrar na água. O app do relógio também tem um lembrete opcional ao iniciar, que pode ser ativado ou desativado nos Ajustes."
-          }
-        },
-        "uk": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "На Apple Watch Ultra відкрийте **Параметри ▸ Загальні ▸ Автозапуск ▸ Під час занурення ▸ Автозапуск програми** та виберіть **Dive Free**. Тоді програма відкриватиметься, коли ви входите у воду. У програмі для годинника також є нагадування під час запуску, яке можна ввімкнути або вимкнути в її параметрах."
           }
         }
       }
@@ -29920,52 +29828,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Усі графіки мають спільну часову шкалу. Натискайте кнопку лупи або масштабуйте двома пальцями — від усього сеансу до 5 секунд; перетягуйте, щоб прокручувати графіки разом. Перемикач **Приховати поверхневі інтервали** зосереджує профіль на зануреннях. У розділі **Місце** ввімкніть **Згладжувати GPS-трек**, щоб зменшити GPS-похибки; відстань сеансу також обчислюється за згладженим треком."
-          }
-        }
-      }
-    },
-    "Wear your Apple Watch snug and open **Dive Free** on it. Tap **Start** — or press the **Action button** on Apple Watch Ultra if you've assigned Dive Free to it. On Ultra, you can also enable Auto-Launch so Dive Free opens when submerged.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Trage deine Apple Watch eng am Handgelenk und öffne **Dive Free**. Tippe auf **Start** oder drücke die **Aktionstaste** auf der Apple Watch Ultra, wenn du Dive Free dort zugewiesen hast. Auf der Ultra kannst du auch den automatischen Start beim Eintauchen aktivieren."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ajusta bien el Apple Watch y abre **Dive Free**. Toca **Iniciar** o pulsa el **botón Acción** del Apple Watch Ultra si has asignado Dive Free. En el Ultra también puedes activar el inicio automático al sumergirte."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Portez l’Apple Watch bien ajustée et ouvrez **Dive Free**. Touchez **Démarrer** ou appuyez sur le **bouton Action** de l’Apple Watch Ultra si vous y avez attribué Dive Free. Sur l’Ultra, vous pouvez aussi activer le lancement automatique à l’immersion."
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Indossa l’Apple Watch ben aderente e apri **Dive Free**. Tocca **Avvia** oppure premi il **tasto Azione** su Apple Watch Ultra se hai assegnato Dive Free. Su Ultra puoi anche attivare l’avvio automatico quando ti immergi."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Apple Watchを手首にしっかり装着して**Dive Free**を開きます。**開始**をタップするか、Dive Freeを割り当てている場合はApple Watch Ultraの**アクションボタン**を押します。Ultraでは、水に入ったときの自動起動も設定できます。"
-          }
-        },
-        "pt": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Use o Apple Watch bem ajustado e abra o **Dive Free**. Toque em **Iniciar** ou pressione o **botão de Ação** no Apple Watch Ultra se tiver atribuído o Dive Free. No Ultra, também pode ativar o início automático ao submergir."
-          }
-        },
-        "uk": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Щільно зафіксуйте Apple Watch і відкрийте на ньому **Dive Free**. Торкніться **Почати** або натисніть **кнопку «Дія»** на Apple Watch Ultra, якщо призначили їй Dive Free. На Ultra також можна ввімкнути автозапуск під час занурення."
           }
         }
       }

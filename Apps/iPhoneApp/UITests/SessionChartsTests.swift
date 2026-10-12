@@ -26,7 +26,7 @@ final class SessionChartsTests: XCTestCase {
         add(zoomedOut)
 
         zoom.tap()
-        XCTAssertEqual(zoom.label, "Zoom to 1 minute")
+        waitForZoomLabel("Zoom to 1 minute", on: zoom)
         let hint = app.descendants(matching: .any)
             .matching(identifier: "session.charts.zoom.hint").firstMatch
         XCTAssertTrue(hint.exists)
@@ -43,16 +43,16 @@ final class SessionChartsTests: XCTestCase {
         add(fiveMinuteScreenshot)
 
         zoom.tap()
-        XCTAssertEqual(zoom.label, "Zoom to full session")
+        waitForZoomLabel("Zoom to full session", on: zoom)
         let oneMinuteScreenshot = XCTAttachment(screenshot: app.screenshot())
         oneMinuteScreenshot.name = "Session profile — zoomed in (1 minute)"
         oneMinuteScreenshot.lifetime = .keepAlways
         add(oneMinuteScreenshot)
 
         zoom.tap()
-        XCTAssertEqual(zoom.label, "Zoom to 5 minutes")
-        XCTAssertFalse(app.descendants(matching: .any)
-            .matching(identifier: "session.charts.zoom.hint").firstMatch.exists)
+        waitForZoomLabel("Zoom to 5 minutes", on: zoom)
+        let hintHidden = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: hint)
+        XCTAssertEqual(XCTWaiter.wait(for: [hintHidden], timeout: 3), .completed)
 
         let screenshot = XCTAttachment(screenshot: app.screenshot())
         screenshot.name = "Session profile — zoomed out"
@@ -62,7 +62,10 @@ final class SessionChartsTests: XCTestCase {
         let hideSurfaceIntervals = app.switches["session.charts.hideSurfaceIntervals"]
         XCTAssertTrue(hideSurfaceIntervals.waitForExistence(timeout: 5))
         XCTAssertTrue(hideSurfaceIntervals.isHittable)
-        hideSurfaceIntervals.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+        // The accessible Toggle includes its label. On iPad, 90% of the row's
+        // width can still miss the switch; target the trailing control itself.
+        hideSurfaceIntervals.coordinate(withNormalizedOffset: CGVector(dx: 1, dy: 0.5))
+            .withOffset(CGVector(dx: -25, dy: 0)).tap()
         let surfaceIntervalsHidden = XCTNSPredicateExpectation(
             predicate: NSPredicate(format: "value == %@", "1"),
             object: hideSurfaceIntervals
@@ -73,5 +76,10 @@ final class SessionChartsTests: XCTestCase {
         compressedTimeline.name = "Session profile — surface intervals hidden"
         compressedTimeline.lifetime = .keepAlways
         add(compressedTimeline)
+    }
+
+    private func waitForZoomLabel(_ expected: String, on button: XCUIElement) {
+        let updated = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", expected), object: button)
+        XCTAssertEqual(XCTWaiter.wait(for: [updated], timeout: 3), .completed)
     }
 }

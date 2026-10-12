@@ -181,7 +181,7 @@ private enum UserGuide {
         title: "Quick Start",
         systemImage: "bolt.fill",
         intro: [
-            .step(1, "Wear your Apple Watch snug and open **Dive Free** on it. Tap **Start** — or press the **Action button** on Apple Watch Ultra if you've assigned Dive Free to it. On Ultra, you can also enable Auto-Launch so Dive Free opens when submerged."),
+            .step(1, "Wear your Apple Watch snug and open **Dive Free** on it. Tap **Start** — or press the **Action button** on Apple Watch Ultra if you've assigned Dive Free to it."),
             .step(2, "Dive. The watch locks its screen in the water and records everything hands-free. Turn the **Digital Crown** to pick a marker and press the **Action button** to drop it."),
             .step(3, "Back at the surface, end the session on the watch. It saves itself and appears on your iPhone and iPad, where you can relive it with depth charts, maps, and photos."),
         ],
@@ -219,8 +219,6 @@ private enum UserGuide {
             .bullet("**Action button** (Apple Watch Ultra) — drops the highlighted marker underwater, and confirms your choice at the surface."),
         ],
         details: [
-            .subheading("Auto-Launch when submerged"),
-            .text("On Apple Watch Ultra, open **Settings ▸ General ▸ Auto-Launch ▸ When Submerged ▸ Auto-Launch App**, then choose **Dive Free**. The watch can then open Dive Free as you enter the water. The watch app also has an optional startup reminder, which you can turn off or back on in its Settings."),
             .subheading("Setting up the Action button"),
             .text("Dive Free runs as a **Workout** on your watch, so you assign the Action button under **Settings ▸ Action Button ▸ Workout ▸ Dive Free** (pick the Freedive workout) — not under “App.” The first press starts a session; while one is running, a press drops a marker."),
             .text("It appears as a *Workout* rather than a dedicated “dive” because Dive Free is a recreational logbook built on Apple's workout tools, not a dive computer — the recording is exactly the same, it's just filed under Workout."),

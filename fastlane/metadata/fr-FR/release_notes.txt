@@ -1,6 +1,6 @@
-Une synchronisation des sessions plus fiable
+Des profils de plongée et une synchronisation améliorés
 
 • Amélioration de la synchronisation des longues sessions de la Watch vers l’iPhone, avec de nouvelles tentatives automatiques pour les enregistrements en attente.
-• Les détails de chaque session affichent désormais son état de synchronisation au-dessus du bouton de renvoi vers l’iPhone.
-• Sur les montres compatibles, Dive Free peut s’ouvrir automatiquement sous l’eau. Activez cette option dans les réglages de la montre ; des rappels de configuration facultatifs sont disponibles dans l’app.
-• Le guide a été mis à jour avec les instructions de lancement automatique et une explication de la limite de profondeur de 6 m.
+• Les détails de chaque session affichent son état de synchronisation au-dessus du bouton de renvoi vers l’iPhone.
+• Les profils commencent et se terminent à une profondeur de zéro, comme les intervalles en surface. La fin de la remontée est conservée pour des enregistrements plus complets.
+• Le guide a été mis à jour, notamment avec une explication de la limite de profondeur de 6 m.

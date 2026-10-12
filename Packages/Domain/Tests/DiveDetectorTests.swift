@@ -145,6 +145,28 @@ struct DiveDetectorTests {
         #expect(dives.first?.maxDepthMeters == 2.4)
     }
 
+    @Test("a slow ascent remains recorded to zero, even with zero dwell", arguments: [0.0, 3.0])
+    func slowAscentReachesZero(dwell: TimeInterval) {
+        let profile = samples([0, 0.3, 0.6, 1.3, 2, 3, 3, 2, 0.95, 0.8, 0.65, 0.5, 0.35, 0.2, 0])
+        let dives = DiveDetector(config: .init(surfaceExitDwellSeconds: dwell, minimumDiveDuration: 0)).detectDives(from: profile)
+        #expect(dives.count == 1)
+        #expect(dives.first?.samples == profile)
+        #expect(dives.first?.startTime == profile.first?.timestamp)
+        #expect(dives.first?.endTime == profile.last?.timestamp)
+    }
+
+    @Test("small depth jitter does not discard the surface and beginning of descent")
+    func descentNoiseKeepsSurfaceBoundary() {
+        let profile = samples([0, 0.3, 0.5, 0.44, 0.7, 1.3, 2, 3, 2, 0.5, 0])
+        #expect(DiveDetector().detectDives(from: profile).first?.samples == profile)
+    }
+
+    @Test("gentle shallow ascent is not treated as a surface rest")
+    func gentleAscentKeepsEverySample() {
+        let profile = samples([0, 3, 3, 3, 0.9, 0.895, 0.89, 0.885, 0.88, 0.875, 0])
+        #expect(DiveDetector().detectDives(from: profile).first?.samples == profile)
+    }
+
     // MARK: - Dive end at the surface (#16)
 
     @Test("a shallow bounce during a dive keeps it a single dive")
@@ -171,30 +193,30 @@ struct DiveDetectorTests {
         #expect(dives.first?.duration == 4)
     }
 
-    @Test("a shallow hang past the dwell ends the dive at the threshold crossing")
-    func dwellExpiryTrimsToCrossing() {
+    @Test("a shallow rest retains the ascent up to the first stable shallow reading")
+    func dwellExpiryPreservesAscent() {
         let detector = DiveDetector(config: DiveDetectionConfig(surfaceExitDwellSeconds: 3, minimumDiveDuration: 0))
         let start = Date(timeIntervalSince1970: 0)
         // Deep for 3 s (t1–t3), then a 0.5 m hang that never reaches 0 m. The dwell
-        // expires at t6 → the dive ends at t3 (the crossing), excluding the hang.
+        // confirms the rest at t7; t4 is retained as the final shallow reading.
         let s = samples([0, 3, 3, 3, 0.5, 0.5, 0.5, 0.5], start: start)
         let dives = detector.detectDives(from: s)
         #expect(dives.count == 1)
-        #expect(dives.first?.endTime == start.addingTimeInterval(3))
-        #expect(dives.first?.samples.count == 4)
+        #expect(dives.first?.endTime == start.addingTimeInterval(4))
+        #expect(dives.first?.samples.count == 5)
         #expect(dives.first?.samples.first?.depthMeters == 0)
     }
 
-    @Test("dwell = 0 restores legacy immediate end at the crossing")
+    @Test("zero dwell still retains the first shallow exit sample")
     func zeroDwellEndsAtCrossing() {
         let detector = DiveDetector(config: DiveDetectionConfig(surfaceExitDwellSeconds: 0, minimumDiveDuration: 0))
         let start = Date(timeIntervalSince1970: 0)
-        // A single shallow sample after the deep run ends the dive immediately at
-        // the crossing (t2), just like the old first-below-threshold rule.
+        // A steady shallow pair confirms the rest without a time delay; keep
+        // its first reading at t3 as the final ascent sample.
         let s = samples([0, 4, 4, 0.5, 0.5, 4, 4, 0], start: start)
         let dives = detector.detectDives(from: s)
         #expect(dives.count == 2)
-        #expect(dives.first?.endTime == start.addingTimeInterval(2))
+        #expect(dives.first?.endTime == start.addingTimeInterval(3))
     }
 
     @Test("dwell timed from the first shallow sample doesn't split a borderline bounce")
