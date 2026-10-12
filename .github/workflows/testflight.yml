@@ -15,6 +15,11 @@ name: Deliver to TestFlight
 # ─────────────────────────────────────────────────────────────────────────────
 on:
   workflow_dispatch:
+    inputs:
+      version_override:
+        description: "Optional marketing version override (use latest tag to upload a replacement build)"
+        required: false
+        type: string
 
 permissions:
   contents: write          # push the version tag after a successful upload
@@ -60,6 +65,8 @@ jobs:
       # ── Auto-increment the patch from the latest release tag ─────────────────
       - name: Compute version & build number
         id: version
+        env:
+          VERSION_OVERRIDE: ${{ inputs.version_override }}
         run: |
           set -euo pipefail
           # The patch auto-increments from the latest vX.Y.Z release tag, so a
@@ -83,6 +90,22 @@ jobs:
               IFS=. read -r major minor patch <<<"$tag"
               version="$major.$minor.$((patch + 1))"     # auto patch bump
             fi
+          fi
+          # An explicit override supports replacement builds for a version that
+          # already has a tag. It must be the latest tagged version or the
+          # configured higher version; older versions are never accepted.
+          requested="$VERSION_OVERRIDE"
+          requested=${requested#v}
+          if [[ -n "$requested" ]]; then
+            if [[ ! "$requested" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "Invalid version override: $requested (expected X.Y.Z)." >&2
+              exit 1
+            fi
+            if [[ -n "$tag" && "$requested" != "$tag" && "$requested" != "$highest" ]]; then
+              echo "Version override must be latest tag $tag or configured version $highest." >&2
+              exit 1
+            fi
+            version="$requested"
           fi
           # Build number is DECOUPLED from the marketing version: use the commit
           # count, which is monotonic across minor bumps. (build=patch would step
@@ -160,6 +183,13 @@ jobs:
             MARKETING_VERSION="${{ steps.version.outputs.version }}" \
             CURRENT_PROJECT_VERSION="${{ steps.version.outputs.build }}" | xcbeautify
 
+      - name: Verify screenshot fixtures are excluded from Release
+        run: |
+          if find DiveFree.xcarchive/Products -name 'Jemeluk-*.jpg' -print | grep -q .; then
+            echo "Screenshot-only photos must not be bundled in the release."
+            exit 1
+          fi
+
       - name: Export IPA
         run: |
           set -o pipefail
@@ -180,7 +210,7 @@ jobs:
             --apiKey ${{ secrets.APP_STORE_CONNECT_KEY_ID }} \
             --apiIssuer ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
 
-      # ── Record the delivered version as a tag (one tag per marketing version) ─
+      # ── Record each marketing version once; replacement builds reuse its tag ──
       - name: Tag delivered version
         if: success()
         run: |

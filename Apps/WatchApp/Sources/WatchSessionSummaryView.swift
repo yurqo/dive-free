@@ -1,67 +1,78 @@
 import SwiftUI
+import SwiftData
 import WatchKit
 import Domain
 import Persistence
 
 /// Reusable session summary: headline stats, a map with the surface path +
 /// dive/marker points, and the marker breakdown. Shown right after a dive (with
-/// the Done / Dive-again toolbar and a sync badge, `showSync: true`) and when a
+/// the Done / Dive-again toolbar, `showSync: true`) and when a
 /// past session is tapped in the list (pushed with a back button).
 struct WatchSessionSummaryView: View {
-    let session: DiveSession
-    /// Show the watch→iPhone sync badge — only meaningful for the session that
-    /// just finished, not historical ones browsed from the list.
+    private let initialSession: DiveSession
+    @Query private var savedSessions: [SessionRecord]
+    private var session: DiveSession { savedSessions.first?.toDomain() ?? initialSession }
+    init(session: DiveSession, showSync: Bool = false) {
+        initialSession = session
+        self.showSync = showSync
+        let id = session.id
+        _savedSessions = Query(filter: #Predicate<SessionRecord> { $0.id == id })
+    }
+    /// Use post-session actions rather than historical resend/delete actions.
     var showSync = false
 
     @Environment(SessionCoordinator.self) private var coordinator
     @Environment(\.dismiss) private var dismiss
     @State private var showDeleteConfirm = false
     @State private var showDiscardConfirm = false
-    @State private var resynced = false
 
     private var hasGeo: Bool { !session.track.isEmpty || session.location != nil }
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 10) {
-                stats
+        GeometryReader { geometry in
+            ScrollView {
+                VStack(spacing: 10) {
+                    stats
 
-                // Whole-session charts: depth profile on top (omitted with no
-                // depth samples), then heart rate / temperature (each omitted when
-                // that series is empty — e.g. no temperature on a non-Ultra watch).
-                // Bracket each dive with a surface (0 m) point so the line returns
-                // to the surface between dives instead of drawing straight across.
-                let depthSamples = session.dives
-                    .sorted { $0.startTime < $1.startTime }
-                    .flatMap { [DepthSample(timestamp: $0.startTime, depthMeters: 0)] + $0.samples + [DepthSample(timestamp: $0.endTime, depthMeters: 0)] }
-                let depthChart = WatchMetricChart(depth: depthSamples, markers: session.markers)
-                if !depthChart.isEmpty { depthChart }
-                watchMetricCharts(heartRate: session.heartRateSamples, temperature: session.temperatureSamples, in: nil)
+                    // Whole-session charts: depth profile on top (omitted with no
+                    // depth samples), then heart rate / temperature (each omitted when
+                    // that series is empty — e.g. no temperature on a non-Ultra watch).
+                    // Bracket each dive with a surface (0 m) point so the line returns
+                    // to the surface between dives instead of drawing straight across.
+                    let depthSamples = session.chartDepthSamples
+                    let depthChart = WatchMetricChart(depth: depthSamples, markers: session.markers)
+                    if !depthChart.isEmpty { depthChart }
+                    watchMetricCharts(heartRate: session.heartRateSamples, temperature: session.temperatureSamples, in: nil)
 
-                segmentsSection
+                    segmentsSection
 
-                markerSummary
+                    markerSummary
+                    WatchNotesList(sessionID: session.id)
 
-                if showSync { syncStatus }
+                    // Full session map at the bottom.
+                    if hasGeo { mapSection }
 
-                // Full session map at the bottom.
-                if hasGeo { mapSection }
+                    syncStatus
 
-                // Re-send / delete actions on a browsed past session (not the
-                // live post-dive summary, which shows its own sync badge).
-                if !showSync {
-                    resyncButton
-                    deleteButton
+                    // Re-send / delete actions on a browsed past session (not the
+                    // live post-dive summary, which has Discard instead).
+                    if !showSync {
+                        resyncButton
+                        deleteButton
+                    }
+
+                    // On the live post-dive summary, a Discard to throw away an
+                    // accidental session (started by mistake, no real dives). Sync
+                    // already happened on stop(); the discard sends a deletion that
+                    // drops it from the phone too (see `discardSummary`).
+                    if showSync { discardButton }
                 }
-
-                // On the live post-dive summary, a Discard to throw away an
-                // accidental session (started by mistake, no real dives). Sync
-                // already happened on stop(); the discard sends a deletion that
-                // drops it from the phone too (see `discardSummary`).
-                if showSync { discardButton }
+                // A vertical ScrollView proposes an unbounded width to its
+                // content. Pin the summary to the watch viewport so long
+                // localized values cannot push rows and charts past the screen.
+                .padding(.horizontal, 4)
+                .frame(width: geometry.size.width)
             }
-            .frame(maxWidth: .infinity)
-            .padding(.horizontal, 4)
         }
         .confirmationDialog("Delete this session?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
             Button("Delete", role: .destructive) {
@@ -87,15 +98,12 @@ struct WatchSessionSummaryView: View {
     private var resyncButton: some View {
         Button {
             coordinator.resync(session)
-            resynced = true
-            WKInterfaceDevice.current().play(.success)
+            WKInterfaceDevice.current().play(.click)
         } label: {
-            Label(resynced ? "Sent to iPhone" : "Re-send to iPhone",
-                  systemImage: resynced ? "checkmark.circle" : "arrow.triangle.2.circlepath")
+            Label("Re-send to iPhone", systemImage: "arrow.triangle.2.circlepath")
                 .frame(maxWidth: .infinity)
         }
         .tint(.teal)
-        .disabled(resynced)
         .padding(.top, 8)
     }
 
@@ -138,7 +146,7 @@ struct WatchSessionSummaryView: View {
             if let average = session.averageSurfaceInterval {
                 summaryRow("Avg surface", Duration.seconds(average).formatted(.time(pattern: .minuteSecond)))
             }
-            summaryRow("Distance", DistanceFormat.string(session.surfaceDistanceMeters))
+            summaryRow(LocalizedStringKey(session.smoothTrack ? "Distance" : "Raw GPS distance"), DistanceFormat.string(session.surfaceDistanceMeters))
             summaryRow("Location", locationText)
         }
     }
@@ -294,17 +302,26 @@ struct WatchSessionSummaryView: View {
         }
     }
 
-    /// Background-safe transfer status for the just-finished session: still in
-    /// the WatchConnectivity queue, or confirmed delivered to the iPhone.
+    /// Status of this session, confirmed only by the phone's saved-session ACK.
     private var syncStatus: some View {
-        let pending = coordinator.pendingSyncCount > 0
-        return Label(
-            pending ? "Syncing to iPhone…" : "Synced to iPhone",
-            systemImage: pending ? "arrow.triangle.2.circlepath" : "checkmark.icloud"
-        )
+        let status = coordinator.syncStatus(for: session.id)
+        let title: LocalizedStringKey
+        let icon: String
+        switch status {
+        case .pending:
+            title = "Waiting to sync to iPhone"
+            icon = "clock"
+        case .syncing:
+            title = "Syncing to iPhone…"
+            icon = "arrow.triangle.2.circlepath"
+        case .synced:
+            title = "Synced to iPhone"
+            icon = "checkmark.icloud.fill"
+        }
+        return Label(title, systemImage: icon)
         .font(.caption2)
-        .foregroundStyle(pending ? AnyShapeStyle(.secondary) : AnyShapeStyle(.teal))
-        .symbolVariant(pending ? .none : .fill)
+        .foregroundStyle(status == .synced ? AnyShapeStyle(.teal) : AnyShapeStyle(.secondary))
+        .accessibilityIdentifier("watch-session-sync-status")
     }
 
     /// A label-left / value-right row. The label is a `LocalizedStringKey` so the

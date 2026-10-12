@@ -55,9 +55,9 @@ enum BackupService {
 
     // MARK: - Export
 
-    /// Builds a `.zip` backup of every session, spot, trip, and photo — always
-    /// including metadata + thumbnails, and the heavy originals selected by `options`
-    /// — and returns the file URL for the share sheet.
+    /// Builds a `.zip` backup of the whole library, or one session and its related
+    /// spot/trip and attachments when `sessionID` is supplied. Metadata + thumbnails
+    /// are always included; `options` controls heavy originals.
     ///
     /// `async` because resolving full-resolution photo/video originals from the Photos
     /// library is asynchronous (and may download iCloud-only originals). The file goes
@@ -67,6 +67,7 @@ enum BackupService {
     static func exportBackup(
         options: BackupExportOptions,
         context: ModelContext,
+        sessionID: UUID? = nil,
         progress: BackupProgressHandler? = nil
     ) async throws -> URL {
         let fm = FileManager.default
@@ -109,6 +110,7 @@ enum BackupService {
             into: staging,
             appVersion: appVersion,
             options: options,
+            sessionID: sessionID,
             progress: progress,
             audioBytes: { VoiceNoteStore.data(for: $0) },
             // Prefer the cached file; `stageArchive` falls back to the record's mirrored
@@ -134,7 +136,18 @@ enum BackupService {
         // `ModelContext` deliberately does not.
         try Task.checkCancellation()
         progress?(BackupProgress(phase: .compressing))
-        let zipURL = work.appendingPathComponent("\(fileName()).zip")
+        let zipBaseName: String
+        if let sessionID {
+            var descriptor = FetchDescriptor<SessionRecord>(predicate: #Predicate { $0.id == sessionID })
+            descriptor.fetchLimit = 1
+            guard let record = try context.fetch(descriptor).first else {
+                throw BackupExportError.sessionNotFound(sessionID)
+            }
+            zipBaseName = sessionBackupFileName(for: record.startTime, includesMedia: options.includesMedia)
+        } else {
+            zipBaseName = fileName()
+        }
+        let zipURL = work.appendingPathComponent("\(zipBaseName).zip")
         try await Task.detached { try ZipContainer.zip(directory: staging, to: zipURL) }.value
         progress?(BackupProgress(phase: .finished))
 
@@ -530,4 +543,18 @@ enum BackupService {
         formatter.dateFormat = "yyyy-MM-dd"
         return "DiveFree Backup \(formatter.string(from: Date()))"
     }
+
+    /// A session-scoped archive names the dive date and selected contents so the two
+    /// share-sheet choices remain easy to distinguish in Files.
+    private static func sessionBackupFileName(for date: Date, includesMedia: Bool) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd HHmm"
+        let kind = includesMedia ? "data+media" : "data"
+        return "Dive Free Backup \(formatter.string(from: date)) (\(kind))"
+    }
+}
+
+private extension BackupExportOptions {
+    var includesMedia: Bool { includeVoiceNotes || includePhotos || includeVideos }
 }

@@ -15,6 +15,14 @@ For _fastlane_ installation instructions, see [Installing _fastlane_](https://do
 
 ## iOS
 
+### ios stage_preview
+
+```sh
+[bundle exec] fastlane ios stage_preview
+```
+
+Stage screenshots and an HTML contact sheet locally; no App Store access.
+
 ### ios metadata
 
 ```sh
@@ -22,6 +30,14 @@ For _fastlane_ installation instructions, see [Installing _fastlane_](https://do
 ```
 
 Upload localized metadata + screenshots to App Store Connect as a DRAFT (no binary, no submit). Run `fastlane ios validate` first to validate.
+
+### ios metadata_only
+
+```sh
+[bundle exec] fastlane ios metadata_only
+```
+
+Upload metadata text to an existing draft, preserving its screenshot sets.
 
 ### ios screenshots_only
 

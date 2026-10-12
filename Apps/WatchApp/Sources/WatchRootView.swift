@@ -21,9 +21,15 @@ struct WatchRootView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .task { await startIfPending() }
+        .task {
+            session.resumeSync()
+            await startIfPending()
+        }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active { Task { await startIfPending() } }
+            if phase == .active {
+                session.resumeSync()
+                Task { await startIfPending() }
+            }
         }
     }
 

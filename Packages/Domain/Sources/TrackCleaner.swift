@@ -1,71 +1,34 @@
 import Foundation
 
-/// Cleans a raw GPS surface track into a Strava/Apple-Fitness-class path: drops
-/// only physically-impossible teleports, then runs an accuracy-weighted,
-/// velocity-aware smoother that stays tight on straights, turns crisply, and
-/// down-weights poor fixes instead of letting them drag their neighbours. Idle
-/// "treading water" jitter collapses to a single point so it doesn't accrete a
-/// fuzzy blob or inflate distance.
+/// Cleans surface GPS fixes without modifying the stored raw track.
 ///
-/// The design deliberately separates three things that a single implied-speed
-/// threshold used to conflate: **genuine teleports** (kilometres in a second),
-/// **ordinary GPS jitter** (a few metres), and **real slow movement**. Teleports
-/// are *deleted* by an absolute-speed gate so high it can only mean a bad fix;
-/// ordinary jitter is *smoothed* (down-weighted, not deleted — more Strava-like)
-/// by the Kalman filter; stationarity is judged from the *smoothed* speed so it
-/// can be fooled neither by jitter (which the filter averages out to the true
-/// ~2 m/s of a swim) nor by a teleport (already removed upstream).
+/// Rejects invalid/duplicate fixes and isolated jumps, then applies an
+/// accuracy-weighted constant-velocity smoother. Isolated outliers are checked
+/// against conservative speed and acceleration bounds with uncertainty allowance;
+/// sustained faster transit is retained rather than capped to swimming speed.
 ///
-/// Pipeline (all shipped together, staged internally):
-///  1. **Soft accuracy gate** — hard-drop only truly wild fixes (accuracy worse
-///     than `maxAccuracyMeters`, a generous cutoff). Marginal fixes stay but
-///     get down-weighted by the filter via their reported accuracy.
-///  2. **Teleport rejection** — drop physically-impossible "teleport" fixes
-///     whose implied speed exceeds `teleportSpeedMetersPerSecond` (a very high
-///     absolute cutoff no swimmer, boat, vehicle, or drift transit reaches —
-///     only a physically-impossible GPS glitch). Ordinary jitter is *not*
-///     touched here — it's left for the smoother to down-weight.
-///  3. **Accuracy-weighted Kalman smoother** — a 1-D-per-axis constant-velocity
-///     Kalman filter run forward then backward (RTS-style two-pass) over the
-///     time-ordered fixes, using each fix's `horizontalAccuracy` as the
-///     measurement variance (unknown accuracy → `defaultAccuracyMeters`). This
-///     keeps position + velocity state, so it tracks straights and turns while
-///     down-weighting a bad fix rather than smearing it into its neighbours.
-///  4. **Stationary clamp (by smoothed speed)** — collapse maximal *interior*
-///     runs whose consecutive smoothed-position speed is below
-///     `stationarySpeedMetersPerSecond` to their mean position. Working from the
-///     smoothed velocity (which integrates over time) makes this robust: a
-///     2 m/s swim reads ~2 m/s regardless of jitter amplitude (not clamped),
-///     while treading water reads ~0 (clamped). Endpoints are never moved.
+/// Stationary windows require enough history and no resolvable displacement
+/// between several parts of the window. An entirely stationary recording collapses
+/// to its weighted centre, including endpoints; moving tracks retain their valid
+/// endpoints. Slow smoothed windows collapse only when the original fixes also
+/// support stationarity, so low speed alone does not erase slow drift.
 ///
-/// **Axis choice:** the Kalman filter runs directly on latitude/longitude, with
-/// the longitude measurement variance scaled by `cos(latitude)` so a metre of
-/// error costs the same on both axes. At surface-swim scales (tens to hundreds of
-/// metres, small angles) a flat lat/lon plane is indistinguishable from a proper
-/// ENU projection, and staying in degrees keeps the filter dependency-free and
-/// the endpoints exactly on their raw coordinates.
+/// Reported horizontal accuracy supplies heuristic weights and tolerances, not
+/// calibrated Gaussian variances. GPS alone cannot reliably separate very short
+/// movements from correlated noise below its uncertainty. Defaults are tuning
+/// parameters, not physiological limits or safety measurements.
 ///
-/// Pure and deterministic, so it is fully unit-testable. Applied **on read** —
-/// the raw track is always retained (see `DiveSession.effectiveTrack`); live
-/// in-session indicators keep using the raw track.
+/// The local metric projection unwraps longitude at the date line. Pure and
+/// deterministic, applied on read (see `DiveSession.effectiveTrack`); live Watch
+/// distance uses the same cleaner and may revise its estimate as fixes arrive.
 public enum TrackCleaner {
     public struct Config: Sendable, Equatable {
         /// Hard-drop fixes whose horizontal accuracy is worse (larger) than this,
         /// in meters — only truly wild fixes. Marginal fixes below this stay and
         /// are down-weighted by the filter. Fixes with no known accuracy are kept.
         public var maxAccuracyMeters: Double
-        /// Drop a fix as a teleport when the implied speed to a neighbour exceeds
-        /// this (m/s) — a deliberately *high* absolute cutoff that only catches
-        /// physically-impossible GPS glitches, never real transit. A "forgot to
-        /// stop" recording can include a real travel leg to/from the dive spot at
-        /// speed-boat or vehicle pace; at 50 m/s (≈ 180 km/h) this cutoff sits
-        /// safely above any boat, vehicle, swim, or drift transit, yet a GPS
-        /// teleport glitch (hundreds to thousands of m/s over a kilometre-scale
-        /// jump in one second) blows straight past it. Deleting real transit fixes
-        /// would corrupt the map and inflate/deflate distance, so the bar is set
-        /// where only a bad fix can cross it. This is only for teleports: ordinary
-        /// few-metre jitter is left for the Kalman smoother to down-weight rather
-        /// than delete (more Strava-like).
+        /// Generous absolute speed gate for isolated jumps. A separate lower
+        /// speed/acceleration check handles smaller outliers with GPS uncertainty.
         public var teleportSpeedMetersPerSecond: Double
         /// Assumed measurement accuracy (meters) for fixes with no reported
         /// horizontal accuracy — a middling value so they weigh neither best nor
@@ -75,25 +38,36 @@ public enum TrackCleaner {
         /// diver's velocity is allowed to change between fixes. Higher tracks
         /// turns more crisply but smooths less; lower is smoother but rounds turns.
         public var processNoiseMetersPerSecond: Double
-        /// Speed threshold (m/s) below which a run of consecutive *smoothed* fixes
-        /// counts as stationary and collapses to its mean position. Judged on the
-        /// Kalman-smoothed positions, whose velocity integrates over time, so
-        /// jitter can't inflate it and a real slow swim isn't clamped. Default
-        /// 0.35 m/s (≈ 1.26 km/h) sits below any real swim or drift.
+        /// Candidate stationary-run speed (m/s), judged after smoothing.
+        /// Raw fixes must also show no resolvable progress before a run collapses.
         public var stationarySpeedMetersPerSecond: Double
+        /// Conservative swim/drift bound for isolated outliers, not a ceiling on
+        /// sustained transit. GPS uncertainty is added before judging each hop.
+        public var swimmingSpeedMetersPerSecond: Double
+        /// Isolated velocity changes above this (plus propagated GPS uncertainty)
+        /// are rejected only when the neighbouring fixes form a plausible bridge.
+        public var accelerationMetersPerSecondSquared: Double
+        /// Enough history to distinguish stationary scatter from genuine progress.
+        public var stationaryMinimumDuration: TimeInterval
 
         public init(
             maxAccuracyMeters: Double = 100,
             teleportSpeedMetersPerSecond: Double = 50,
             defaultAccuracyMeters: Double = 15,
             processNoiseMetersPerSecond: Double = 0.5,
-            stationarySpeedMetersPerSecond: Double = 0.35
+            stationarySpeedMetersPerSecond: Double = 0.35,
+            swimmingSpeedMetersPerSecond: Double = 4,
+            accelerationMetersPerSecondSquared: Double = 2,
+            stationaryMinimumDuration: TimeInterval = 10
         ) {
             self.maxAccuracyMeters = maxAccuracyMeters
             self.teleportSpeedMetersPerSecond = teleportSpeedMetersPerSecond
             self.defaultAccuracyMeters = defaultAccuracyMeters
             self.processNoiseMetersPerSecond = processNoiseMetersPerSecond
             self.stationarySpeedMetersPerSecond = stationarySpeedMetersPerSecond
+            self.swimmingSpeedMetersPerSecond = swimmingSpeedMetersPerSecond
+            self.accelerationMetersPerSecondSquared = accelerationMetersPerSecondSquared
+            self.stationaryMinimumDuration = stationaryMinimumDuration
         }
 
         public static let `default` = Config()
@@ -102,10 +76,14 @@ public enum TrackCleaner {
     /// Returns a time-ordered, cleaned copy of `track`.
     public static func clean(_ track: [TrackPoint], config: Config = .default) -> [TrackPoint] {
         let ordered = track.sorted { $0.timestamp < $1.timestamp }
-        let gated = accuracyGate(ordered, max: config.maxAccuracyMeters)
+        let gated = uniqueFixes(accuracyGate(ordered, max: config.maxAccuracyMeters))
         let dejumped = rejectTeleports(gated, maxSpeed: config.teleportSpeedMetersPerSecond)
-        let smoothed = smooth(dejumped, config: config)
-        return clampStationaryBySpeed(smoothed, config: config)
+        let plausible = rejectIsolatedMotionOutliers(dejumped, config: config)
+        // Do not pin noisy endpoints when the whole recording contains no
+        // resolvable movement: that alone can leave metres of false pool distance.
+        if isStationary(plausible, config: config) { return collapsed(plausible, config: config) }
+        let smoothed = smooth(plausible, config: config)
+        return clampStationaryBySpeed(smoothed, evidence: plausible, config: config)
     }
 
     // MARK: - Stage 1: soft accuracy gate
@@ -115,9 +93,138 @@ public enum TrackCleaner {
     /// fixes below the cutoff survive and are down-weighted later by the filter.
     private static func accuracyGate(_ track: [TrackPoint], max: Double) -> [TrackPoint] {
         track.filter { point in
+            guard point.timestamp.timeIntervalSinceReferenceDate.isFinite,
+                  point.location.latitude.isFinite, point.location.longitude.isFinite,
+                  (-90...90).contains(point.location.latitude),
+                  (-180...180).contains(point.location.longitude) else { return false }
             guard let accuracy = point.location.horizontalAccuracy else { return true }
-            return accuracy <= max
+            return accuracy.isFinite && accuracy >= 0 && accuracy <= max
         }
+    }
+
+    /// A batched or duplicated fix must not create a zero-time velocity jump.
+    private static func uniqueFixes(_ track: [TrackPoint]) -> [TrackPoint] {
+        var result: [TrackPoint] = []
+        for point in track {
+            if let last = result.last, last.timestamp == point.timestamp {
+                if (point.location.horizontalAccuracy ?? .infinity) < (last.location.horizontalAccuracy ?? .infinity) {
+                    result[result.count - 1] = point
+                }
+            } else { result.append(point) }
+        }
+        return result
+    }
+
+    private static func accuracy(_ point: TrackPoint, config: Config) -> Double {
+        max(1, point.location.horizontalAccuracy ?? config.defaultAccuracyMeters)
+    }
+
+    private static func rejectIsolatedMotionOutliers(_ track: [TrackPoint], config: Config) -> [TrackPoint] {
+        guard track.count >= 3 else { return track }
+        var keep = [Bool](repeating: true, count: track.count)
+        func implausibleHop(_ a: TrackPoint, _ b: TrackPoint) -> Bool {
+            let dt = b.timestamp.timeIntervalSince(a.timestamp)
+            guard dt > 0 else { return false }
+            return a.location.distance(to: b.location) > config.swimmingSpeedMetersPerSecond * dt
+                + 2 * hypot(accuracy(a, config: config), accuracy(b, config: config))
+        }
+        if implausibleHop(track[0], track[1]), !implausibleHop(track[1], track[2]) { keep[0] = false }
+        let end = track.count - 1
+        if implausibleHop(track[end - 1], track[end]), !implausibleHop(track[end - 2], track[end - 1]) { keep[end] = false }
+        for i in 1..<(track.count - 1) {
+            let a = track[i - 1], b = track[i], c = track[i + 1]
+            let dt0 = b.timestamp.timeIntervalSince(a.timestamp)
+            let dt1 = c.timestamp.timeIntervalSince(b.timestamp)
+            guard dt0 > 0, dt1 > 0 else { continue }
+            let sa = accuracy(a, config: config), sb = accuracy(b, config: config), sc = accuracy(c, config: config)
+            let bridgeSpeed = a.location.distance(to: c.location) / (dt0 + dt1)
+            let bridgeLimit = config.swimmingSpeedMetersPerSecond + 2 * hypot(sa, sc) / (dt0 + dt1)
+            // Sustained fast movement may be real transit, not faulty GPS.
+            guard bridgeSpeed <= bridgeLimit else { continue }
+            let inLimit = config.swimmingSpeedMetersPerSecond + 2 * hypot(sa, sb) / dt0
+            let outLimit = config.swimmingSpeedMetersPerSecond + 2 * hypot(sb, sc) / dt1
+            let tooFast = a.location.distance(to: b.location) / dt0 > inLimit
+                && b.location.distance(to: c.location) / dt1 > outLimit
+            let scale = metersPerDegree(atLatitude: b.location.latitude)
+            let vx0 = longitudeOffset(b.location.longitude, from: a.location.longitude) * scale.lon / dt0
+            let vy0 = (b.location.latitude - a.location.latitude) * scale.lat / dt0
+            let vx1 = longitudeOffset(c.location.longitude, from: b.location.longitude) * scale.lon / dt1
+            let vy1 = (c.location.latitude - b.location.latitude) * scale.lat / dt1
+            let elapsed = (dt0 + dt1) / 2
+            let acceleration = hypot(vx1 - vx0, vy1 - vy0) / elapsed
+            let central = sb * (1 / dt0 + 1 / dt1)
+            let accelerationError = sqrt(pow(sa / dt0, 2) + pow(central, 2) + pow(sc / dt1, 2)) / elapsed
+            let tooAbrupt = acceleration > config.accelerationMetersPerSecondSquared + 2 * accelerationError
+            let fraction = dt0 / (dt0 + dt1)
+            let expected = GeoPoint(
+                latitude: a.location.latitude + fraction * (c.location.latitude - a.location.latitude),
+                longitude: normalizedLongitude(a.location.longitude + fraction * longitudeOffset(c.location.longitude, from: a.location.longitude))
+            )
+            let positionError = sqrt(sb * sb + pow((1 - fraction) * sa, 2) + pow(fraction * sc, 2))
+            if (tooFast || tooAbrupt), b.location.distance(to: expected) > 2 * positionError { keep[i] = false }
+        }
+        return zip(track, keep).compactMap { $1 ? $0 : nil }
+    }
+
+    private static func centroid(_ track: [TrackPoint], config: Config) -> (location: GeoPoint, error: Double) {
+        let reference = track[0].location.longitude
+        var weight = 0.0, lat = 0.0, lon = 0.0
+        for point in track {
+            let w = 1 / pow(accuracy(point, config: config), 2)
+            weight += w
+            lat += w * point.location.latitude
+            lon += w * longitudeOffset(point.location.longitude, from: reference)
+        }
+        // Neighbouring GPS errors are correlated. Do not treat a burst of fixes
+        // as independent evidence; allow at most one effective fix per five seconds.
+        let span = track.last!.timestamp.timeIntervalSince(track[0].timestamp)
+        let effectiveCount = min(Double(track.count), max(1, 1 + span / 5))
+        let error = sqrt(Double(track.count) / (weight * effectiveCount))
+        return (GeoPoint(latitude: lat / weight, longitude: normalizedLongitude(reference + lon / weight)), error)
+    }
+
+    private static func isStationary(_ track: [TrackPoint], config: Config) -> Bool {
+        guard track.count >= 5,
+              track.last!.timestamp.timeIntervalSince(track[0].timestamp) >= config.stationaryMinimumDuration else { return false }
+        let centre = centroid(track, config: config).location
+        guard track.allSatisfy({ $0.location.distance(to: centre) <= max(2, 2 * accuracy($0, config: config)) }) else { return false }
+        // Compare multiple parts of the window, not just its endpoints: a pool
+        // lap returning to its start is still real movement. Slow, sustained
+        // displacement beyond the uncertainty also stays intact.
+        var groups: [[TrackPoint]] = Array(repeating: [], count: 4)
+        let start = track[0].timestamp
+        let span = track.last!.timestamp.timeIntervalSince(start)
+        for point in track {
+            let index = min(3, Int(4 * point.timestamp.timeIntervalSince(start) / span))
+            groups[index].append(point)
+        }
+        let centres = groups.filter { !$0.isEmpty }.map { centroid($0, config: config) }
+        for i in centres.indices {
+            for j in centres.indices where j > i {
+                if centres[i].location.distance(to: centres[j].location) > max(1.5, 1.5 * hypot(centres[i].error, centres[j].error)) { return false }
+            }
+        }
+        return true
+    }
+
+    private static func collapsed(_ track: [TrackPoint], config: Config) -> [TrackPoint] {
+        let centre = centroid(track, config: config).location
+        return track.map { point in
+            TrackPoint(id: point.id, timestamp: point.timestamp,
+                location: GeoPoint(latitude: centre.latitude, longitude: centre.longitude,
+                                   horizontalAccuracy: point.location.horizontalAccuracy))
+        }
+    }
+
+    private static func longitudeOffset(_ longitude: Double, from reference: Double) -> Double {
+        var delta = (longitude - reference).truncatingRemainder(dividingBy: 360)
+        if delta > 180 { delta -= 360 }
+        if delta < -180 { delta += 360 }
+        return delta
+    }
+
+    private static func normalizedLongitude(_ longitude: Double) -> Double {
+        longitudeOffset(longitude, from: 0)
     }
 
     // MARK: - Stage 2: teleport rejection
@@ -161,23 +268,9 @@ public enum TrackCleaner {
 
     // MARK: - Stage 4: stationary clamp (by smoothed speed)
 
-    /// Collapse idle "treading water" jitter to a single spot so it doesn't
-    /// wander or inflate distance — judged on the *smoothed* track, after the
-    /// Kalman pass. For each interior gap we compute the smoothed-position speed
-    /// (distance between consecutive smoothed points / dt); a maximal contiguous
-    /// run of interior points whose bounding gaps are all below
-    /// `stationarySpeedMetersPerSecond` is collapsed to the run's mean position.
-    ///
-    /// Working from smoothed velocity is what makes this robust where the old
-    /// displacement/path-length heuristic failed: the Kalman velocity integrates
-    /// over time, so a 2 m/s straight swim with ±5 m jitter still reads ~2 m/s
-    /// (not clamped), while treading water reads ~0 (clamped) — jitter amplitude
-    /// no longer decides the outcome, and a teleport (already removed upstream)
-    /// can't drag a whole window to a centroid. The first and last points are
-    /// never part of a run, so endpoints stay pinned to their raw coordinates.
-    /// Timestamps/ids/accuracy are preserved and no points are dropped (a
-    /// collapsed run keeps every point, moved to the shared mean).
-    private static func clampStationaryBySpeed(_ track: [TrackPoint], config: Config) -> [TrackPoint] {
+    /// Low smoothed speed selects candidate interior windows; collapse only
+    /// when their corresponding unsmoothed fixes support stationarity too.
+    private static func clampStationaryBySpeed(_ track: [TrackPoint], evidence: [TrackPoint], config: Config) -> [TrackPoint] {
         guard track.count >= 3 else { return track }
         let threshold = config.stationarySpeedMetersPerSecond
 
@@ -208,19 +301,11 @@ public enum TrackCleaner {
             var j = i
             while j < last && stationary[j] { j += 1 }
             let run = i..<j
-            let count = Double(run.count)
-            let lat = run.reduce(0.0) { $0 + track[$1].location.latitude } / count
-            let lon = run.reduce(0.0) { $0 + track[$1].location.longitude } / count
-            for k in run {
-                result[k] = TrackPoint(
-                    id: track[k].id,
-                    timestamp: track[k].timestamp,
-                    location: GeoPoint(
-                        latitude: lat, longitude: lon,
-                        horizontalAccuracy: track[k].location.horizontalAccuracy
-                    )
-                )
-            }
+            // A low speed alone cannot distinguish resting from a slow drift.
+            // Require no resolvable progress in the original interval as well.
+            guard isStationary(Array(evidence[run]), config: config) else { i = j; continue }
+            let clustered = collapsed(Array(track[run]), config: config)
+            for (offset, k) in run.enumerated() { result[k] = clustered[offset] }
             i = j
         }
         return result
@@ -276,7 +361,7 @@ public enum TrackCleaner {
         let smoothedLat = kalmanSmooth1D(latMeters, dts: dts, measVar: measVar, q: q)
         // Skip the longitude filter at the poles (see `longitudeMetric` above).
         let smoothedLon: [Double] = longitudeMetric
-            ? kalmanSmooth1D(track.map { ($0.location.longitude - lon0) * metersPerDegLon }, dts: dts, measVar: measVar, q: q)
+            ? kalmanSmooth1D(track.map { longitudeOffset($0.location.longitude, from: lon0) * metersPerDegLon }, dts: dts, measVar: measVar, q: q)
             : []
 
         let last = track.count - 1
@@ -285,7 +370,7 @@ public enum TrackCleaner {
             guard index > 0, index < last else { return point }
             let lat = lat0 + smoothedLat[index] / metersPerDegLat
             // Near a pole, longitude is left at its raw value (never divide by 0).
-            let lon = longitudeMetric ? lon0 + smoothedLon[index] / metersPerDegLon : point.location.longitude
+            let lon = longitudeMetric ? normalizedLongitude(lon0 + smoothedLon[index] / metersPerDegLon) : point.location.longitude
             return TrackPoint(
                 id: point.id,
                 timestamp: point.timestamp,

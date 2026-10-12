@@ -228,6 +228,103 @@ struct BackupPipelineTests {
 
     // MARK: - Raw ZipContainer stress (many entries, empty dirs, nesting, boundaries)
 
+    @Test("single-session backups contain only the selected dive and can include all media")
+    func singleSessionBackupScope() async throws {
+        let store = try DiveStore(inMemory: true)
+        let context = store.container.mainContext
+        let start = Date(timeIntervalSince1970: 1_800_000_000)
+        let selectedID = UUID()
+        let otherID = UUID()
+        let selectedVoice = "selected.m4a"
+        let otherVoice = "other.m4a"
+        let selectedVoiceBytes = Data("selected voice".utf8)
+        let selectedPhotoBytes = Data("selected photo original".utf8)
+        let selectedThumbnail = Data("selected thumbnail".utf8)
+
+        let selected = SessionRecord(from: DiveSession(
+            id: selectedID,
+            startTime: start,
+            endTime: start.addingTimeInterval(300),
+            dives: [Dive(startTime: start.addingTimeInterval(10), endTime: start.addingTimeInterval(40), maxDepthMeters: 8)],
+            markers: [EventMarker(timestamp: start.addingTimeInterval(20), kind: .note, audioFileName: selectedVoice)],
+            location: GeoPoint(latitude: 1, longitude: 103)
+        ))
+        let other = SessionRecord(from: DiveSession(
+            id: otherID,
+            startTime: start.addingTimeInterval(10_000),
+            endTime: start.addingTimeInterval(10_300),
+            dives: [Dive(startTime: start.addingTimeInterval(10_010), endTime: start.addingTimeInterval(10_040), maxDepthMeters: 6)],
+            markers: [EventMarker(timestamp: start.addingTimeInterval(10_020), kind: .note, audioFileName: otherVoice)],
+            location: GeoPoint(latitude: 1.1, longitude: 103.1)
+        ))
+        let spot = Spot(name: "Shared spot", centerLatitude: 1, centerLongitude: 103)
+        let trip = Trip(name: "Shared trip", startDate: start, endDate: start.addingTimeInterval(20_000))
+        selected.spot = spot
+        other.spot = spot
+        selected.trip = trip
+        other.trip = trip
+
+        let selectedPhoto = PhotoRecord(
+            id: UUID(), thumbnailData: selectedThumbnail, session: selected,
+            marker: selected.markers?.first
+        )
+        let otherPhoto = PhotoRecord(id: UUID(), thumbnailData: Data("other thumb".utf8), session: other)
+        context.insert(selected)
+        context.insert(other)
+        context.insert(spot)
+        context.insert(trip)
+        context.insert(selectedPhoto)
+        context.insert(otherPhoto)
+        selected.markers?.first?.audioData = selectedVoiceBytes
+        try context.save()
+
+        // Data-only still carries the selected dive's metadata and gallery thumbnail,
+        // while stripping unavailable audio-file references from the exported copy.
+        let dataOnlyDir = try makeDir()
+        let dataOnly = try await BackupRestore(context: context).stageArchive(
+            into: dataOnlyDir,
+            options: BackupExportOptions(),
+            sessionID: selectedID,
+            audioBytes: { $0 == selectedVoice ? selectedVoiceBytes : nil }
+        )
+        #expect(dataOnly.sessions.map(\.id) == [selectedID])
+        #expect(dataOnly.spots.count == 1)
+        #expect(dataOnly.spots[0].sessionIDs == [selectedID])
+        #expect(dataOnly.trips.count == 1)
+        #expect(dataOnly.trips[0].sessionIDs == [selectedID])
+        #expect(dataOnly.photos.map(\.id) == [selectedPhoto.id])
+        #expect(dataOnly.photos[0].mediaFileName == nil)
+        #expect(dataOnly.sessions[0].markers.first?.audioFileName == nil)
+        #expect(dataOnly.photos[0].thumbnailFileName.map {
+            FileManager.default.fileExists(atPath: dataOnlyDir.appendingPathComponent("thumbnails/\($0)").path)
+        } == true)
+
+        // The media option bundles only this session's voice note and photo original.
+        let mediaDir = try makeDir()
+        let media = try await BackupRestore(context: context).stageArchive(
+            into: mediaDir,
+            options: BackupExportOptions(includeVoiceNotes: true, includePhotos: true, includeVideos: true),
+            sessionID: selectedID,
+            audioBytes: { $0 == selectedVoice ? selectedVoiceBytes : Data("other voice".utf8) },
+            mediaFileExtension: { $0.id == selectedPhoto.id ? "heic" : "jpg" },
+            writePhotoMedia: { ref, destination in
+                guard ref.id == selectedPhoto.id else { return false }
+                do {
+                    try selectedPhotoBytes.write(to: destination)
+                    return true
+                } catch {
+                    return false
+                }
+            }
+        )
+        #expect(media.sessions.map { $0.id } == [selectedID])
+        #expect(media.photos.map { $0.id } == [selectedPhoto.id])
+        #expect(media.photos[0].mediaFileName != nil)
+        #expect(media.sessions[0].markers.first?.audioFileName == selectedVoice)
+        #expect(try Data(contentsOf: mediaDir.appendingPathComponent("voice/\(selectedVoice)")) == selectedVoiceBytes)
+        #expect(try Data(contentsOf: mediaDir.appendingPathComponent("photos/\(media.photos[0].mediaFileName!)")) == selectedPhotoBytes)
+    }
+
     /// Snapshots every regular file under `dir` as relative-path → bytes.
     private func snapshot(_ dir: URL) throws -> [String: Data] {
         let fm = FileManager.default

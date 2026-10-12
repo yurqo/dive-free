@@ -9,6 +9,68 @@ import Persistence
 @Suite("SessionManager")
 @MainActor
 struct SessionManagerTests {
+    @Test("batched GPS preserves measurement times and live distance matches the saved session")
+    func timestampedStationaryTrack() async throws {
+        let store = try DiveStore(inMemory: true)
+        defer { _ = store }
+        let base = Date().addingTimeInterval(-120)
+        let fixes: [TrackPoint] = (0..<25).map { i in
+            let lat = 1.3 + Double((i * 5) % 13 - 6) * 0.3 / 111_320
+            let lon = 103.8 + Double((i * 7) % 11 - 5) * 0.4 / 111_320
+            return TrackPoint(timestamp: base.addingTimeInterval(Double(i) * 5), location: GeoPoint(
+                latitude: lat,
+                longitude: lon,
+                horizontalAccuracy: 10
+            ))
+        }
+        let manager = SessionManager(
+            sensors: SensorManager(provider: MockDepthProvider(interval: 0.01, profile: [0])),
+            location: TimestampedLocationProvider(fixes: fixes + [fixes[0]]),
+            modelContext: store.container.mainContext
+        )
+        try await manager.startSession()
+        defer { if manager.isActive { _ = try? manager.stopSession() } }
+        for _ in 0..<100 {
+            if manager.lastLocationFixAt == fixes.last?.timestamp { break }
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        #expect(manager.lastLocationFixAt == fixes.last?.timestamp)
+        let liveDistance = manager.surfaceDistanceMeters
+        let stopped = try manager.stopSession()
+        let saved = try #require(stopped)
+        #expect(saved.track.map(\.timestamp) == fixes.map(\.timestamp))
+        #expect(saved.track.surfaceDistanceMeters > 50)
+        #expect(liveDistance < 0.01)
+        #expect(saved.surfaceDistanceMeters == liveDistance)
+        #expect(manager.surfaceDistanceMeters == 0)
+    }
+
+    @Test("live clock and saved profile retain descent without advancing confirmation")
+    func descentStartsBeforeDetection() async throws {
+        let provider = ScriptedDepthProvider(profile: [0, 0.3, 0.7, 1.3, 2, 3, 3, 3, 3, 0], interval: 0.04)
+        let (manager, store) = try makeManager(provider: provider, config: DiveDetectionConfig(
+            thresholds: [.init(minimumDepthMeters: 2, minimumDuration: 0.15)]
+        ))
+        defer { _ = store }
+        try await manager.startSession()
+        defer { if manager.isActive { _ = try? manager.stopSession() } }
+        for _ in 0..<100 {
+            if manager.currentDepthMeters >= 2 { break }
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        let descentStart = try #require(manager.currentDiveStart)
+        #expect((manager.currentDiveElapsed ?? 0) >= 0.12)
+        #expect(!manager.currentDiveConfirmed)
+        // Finish the genuine deep span and return to the surface.
+        try await Task.sleep(for: .milliseconds(240))
+        let stopped = try manager.stopSession()
+        let session = try #require(stopped)
+        let dive = try #require(session.dives.first)
+        #expect(dive.startTime == descentStart)
+        #expect(dive.samples.first?.depthMeters == 0)
+        #expect(dive.samples.contains { $0.depthMeters == 0.3 })
+    }
+
     /// Returns a session manager wired to a fast mock sensor and an in-memory store.
     /// The caller must keep the returned `DiveStore` alive for the duration of the
     /// test — `ModelContext` does not retain its container, so releasing the store
@@ -219,6 +281,50 @@ struct SessionManagerTests {
         #expect(manager.maxDepthMeters == 0)
     }
 
+    @Test("a late descent boundary backfills the live clock without firing a surface event")
+    func lateDescentBoundaryBackfillsClock() async throws {
+        let start = Date().addingTimeInterval(-3)
+        let readings = [DepthSample(timestamp: start.addingTimeInterval(1), depthMeters: 4),
+                        DepthSample(timestamp: start.addingTimeInterval(2), depthMeters: 4),
+                        DepthSample(timestamp: start, depthMeters: 0)]
+        let (manager, store) = try makeManager(provider: TimestampedDepthProvider(readings: readings))
+        defer { _ = store }
+        var surfaced = 0
+        manager.onSurface = { surfaced += 1 }
+        try await manager.startSession()
+        defer { if manager.isActive { _ = try? manager.stopSession() } }
+        for _ in 0..<200 where manager.currentDiveStart != start {
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        #expect(manager.currentDepthMeters == 4)
+        #expect(manager.currentDiveStart == start)
+        #expect(manager.dives.first?.startTime == start)
+        #expect(surfaced == 0)
+    }
+
+    @Test("live detection and the saved dive include a slow ascent until zero")
+    func slowAscentRemainsOpenUntilZero() async throws {
+        let ascent = [0.9, 0.75, 0.6, 0.45, 0.3, 0.15]
+        let profile = [0] + Array(repeating: 4.0, count: 8) + ascent + [0]
+        let (manager, store) = try makeManager(dwell: 0.1,
+            provider: ScriptedDepthProvider(profile: profile, interval: 0.05))
+        defer { _ = store }
+        try await manager.startSession()
+        defer { if manager.isActive { _ = try? manager.stopSession() } }
+        for _ in 0..<400 where manager.currentDepthMeters != 0 || manager.diveCount == 0 {
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        #expect(manager.currentDiveStart == nil)
+        let dive = try #require(manager.dives.first)
+        #expect(dive.samples.first?.depthMeters == 0)
+        #expect(dive.samples.last?.depthMeters == 0)
+        for depth in ascent { #expect(dive.samples.contains { $0.depthMeters == depth }) }
+        #expect(manager.lastSurfacedAt == dive.samples.last?.timestamp)
+        let stopped = try manager.stopSession()
+        let saved = try #require(stopped)
+        #expect(saved.dives.first?.samples == dive.samples)
+    }
+
     @Test("a shallow surface bounce keeps the session a single dive")
     func bounceStaysOneDive() async throws {
         // Deep → 0.8 m bounce (well under the dwell) → deep → surface, played once.
@@ -240,10 +346,10 @@ struct SessionManagerTests {
         try manager.stopSession()
     }
 
-    @Test("a shallow hang past the dwell ends the dive at the crossing")
+    @Test("a shallow rest retains the final shallow ascent sample")
     func shallowHangEndsAtCrossing() async throws {
-        // Deep, then a long 0.5 m hang that never reaches 0 m; the dwell must expire
-        // and end the dive at the crossing (its last sample is a deep one).
+        // Deep, then a long 0.5 m rest. Dwell confirmation preserves the first
+        // stable shallow reading instead of ending at the last deep reading.
         // A long shallow hang (many samples) well past the dwell, so even a
         // coalesced/late stream under suite load still spans enough real time for the
         // 0.3 s dwell to expire — the flake was too short a shallow tail plus too
@@ -264,9 +370,8 @@ struct SessionManagerTests {
         }
         #expect(manager.diveCount == 1)
         #expect(manager.currentDiveStart == nil)  // dwell expired → surfaced
-        // The single dive ends at the crossing: its last sample is still deep,
-        // the shallow hang is excluded.
-        #expect(manager.dives.first?.samples.last.map { $0.depthMeters > 1 } == true)
+        // Keep the last shallow ascent reading, excluding only the rest after it.
+        #expect(manager.dives.first?.samples.last?.depthMeters == 0.5)
         try manager.stopSession()
     }
 
@@ -591,6 +696,17 @@ private struct StubLocationProvider: LocationProviding {
     func currentLocation() async -> GeoPoint? { point }
 }
 
+private struct TimestampedLocationProvider: LocationProviding {
+    let fixes: [TrackPoint]
+    func currentLocation() async -> GeoPoint? { fixes.first?.location }
+    func trackUpdates() -> AsyncStream<TrackPoint> {
+        AsyncStream { continuation in
+            for fix in fixes { continuation.yield(fix) }
+            continuation.finish()
+        }
+    }
+}
+
 /// Emits a depth profile **once** (unlike `MockDepthProvider`, which loops), at a
 /// real cadence so wall-clock and sample timestamps agree — lets the live
 /// surface-exit dwell in `SessionManager` be exercised deterministically without
@@ -608,6 +724,25 @@ private struct ScriptedDepthProvider: DepthProvider {
                     if Task.isCancelled { break }
                     continuation.yield(DepthSample(timestamp: Date(), depthMeters: depth))
                     try? await Task.sleep(for: .seconds(interval))
+                }
+                continuation.finish()
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+}
+
+private struct TimestampedDepthProvider: DepthProvider {
+    let readings: [DepthSample]
+    func start() async throws {}
+    func stop() {}
+    func depthStream() -> AsyncStream<DepthSample> {
+        AsyncStream { continuation in
+            let task = Task {
+                for sample in readings {
+                    if Task.isCancelled { break }
+                    continuation.yield(sample)
+                    try? await Task.sleep(for: .milliseconds(10))
                 }
                 continuation.finish()
             }

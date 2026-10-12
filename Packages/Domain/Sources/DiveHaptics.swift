@@ -64,9 +64,8 @@ public struct DiveHapticTracker: Sendable {
     private var isSubmerged: Bool = false
     /// Current milestone level: `floor(depth / interval)` while submerged.
     private var lastMilestoneLevel: Int = 0
-    /// Timestamp at which the diver first entered the shallow band during the
-    /// current dive (`nil` while deep or surfaced). Drives the dwell-based exit.
-    private var shallowSince: Date?
+    /// Shared stable-rest detection keeps surface cues aligned with dive boundaries.
+    private var surfaceExit = DiveSurfaceExit()
 
     public init(config: DiveHapticConfig = .default) {
         self.config = config
@@ -91,39 +90,28 @@ public struct DiveHapticTracker: Sendable {
             events.append(.diveStart)
             isSubmerged = true
             lastMilestoneLevel = 0
-            shallowSince = nil
+            surfaceExit.reset()
         } else if isSubmerged, depthMeters > config.surfaceThresholdMeters {
             // Back deep: cancel any pending shallow-band dwell.
-            shallowSince = nil
+            surfaceExit.reset()
         } else if isSubmerged, depthMeters <= DiveDetectionConfig.surfaceExitDepthMeters {
             // Falling edge: fully surfaced (0 m). End immediately.
             events.append(.surface)
             isSubmerged = false
             lastMilestoneLevel = 0
-            shallowSince = nil
+            surfaceExit.reset()
             return events   // No milestone checks at the surface.
         } else if isSubmerged {
-            // Shallow band: time the dwell from first entry; surface at expiry.
-            // With dwell 0 (the legacy immediate-end value) the FIRST shallow sample
-            // is already the exit — match the detector, which ends the dive at the
-            // first below-threshold sample — rather than waiting one more sample for
-            // the elapsed check to pass.
-            if let since = shallowSince {
-                if timestamp.timeIntervalSince(since) >= config.surfaceExitDwellSeconds {
-                    events.append(.surface)
-                    isSubmerged = false
-                    lastMilestoneLevel = 0
-                    shallowSince = nil
-                    return events
-                }
-            } else if config.surfaceExitDwellSeconds <= 0 {
+            // A shallow ascent keeps going; only stable shallow rest or zero
+            // confirms that the diver has surfaced.
+            if surfaceExit.update(depthMeters: depthMeters, at: timestamp,
+                                  threshold: config.surfaceThresholdMeters,
+                                  dwell: config.surfaceExitDwellSeconds) != nil {
                 events.append(.surface)
                 isSubmerged = false
                 lastMilestoneLevel = 0
-                shallowSince = nil
+                surfaceExit.reset()
                 return events
-            } else {
-                shallowSince = timestamp
             }
         }
 

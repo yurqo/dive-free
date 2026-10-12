@@ -22,6 +22,52 @@ struct SyncManagerTests {
         )
     }
 
+    private func makeManager(
+        onSessionSend: ((_ id: String, _ data: Data) -> Void)? = nil,
+        onResyncSend: ((_ id: String, _ data: Data) -> Void)? = nil,
+        applyContext: ((_ context: [String: Any]) -> Void)? = nil,
+        performDeletion: ((_ id: UUID) -> Void)? = nil,
+        performAck: ((_ id: UUID) -> Void)? = nil,
+        performAudioAck: ((_ fileName: String) -> Void)? = nil,
+        cancelTransfers: ((_ ids: Set<String>) -> Void)? = nil,
+        queuedSessions: (() -> [(id: String, data: Data)])? = nil,
+        performFileTransfer: ((_ url: URL, _ metadata: [String: Any]) -> Void)? = nil
+    ) -> SyncManager {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("SyncTests-\(UUID())")
+        return SyncManager(
+            applyContext: applyContext ?? { _ in },
+            performDeletion: performDeletion ?? { _ in },
+            performAck: performAck ?? { _ in },
+            performAudioAck: performAudioAck ?? { _ in },
+            cancelTransfers: cancelTransfers ?? { _ in },
+            outstandingTransfers: { [] },
+            performFileTransfer: { url, metadata in
+                if metadata[SyncManager.sessionFileKey] as? Bool == true {
+                    guard let id = metadata[SyncManager.idKey] as? String,
+                          let data = try? Data(contentsOf: url) else {
+                        Issue.record("Missing session file or transfer id")
+                        return
+                    }
+                    let observer = metadata[SyncManager.resyncKey] as? Bool == true ? onResyncSend : onSessionSend
+                    observer?(id, data)
+                } else {
+                    performFileTransfer?(url, metadata)
+                }
+            },
+            outstandingSessionFiles: {
+                (queuedSessions?() ?? []).compactMap { entry in
+                    let url = directory.appendingPathComponent("queued-\(entry.id).json")
+                    do {
+                        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+                        try entry.data.write(to: url, options: .atomic)
+                        return (url, [SyncManager.sessionFileKey: true, SyncManager.idKey: entry.id])
+                    } catch { Issue.record("Could not create test queue: \(error)"); return nil }
+                }
+            },
+            outstandingResyncIDs: { [] }, sessionTransferDirectory: directory
+        )
+    }
+
     /// Records every (id, data) handed to the transport.
     private final class TransferRecorder: @unchecked Sendable {
         private let lock = NSLock()
@@ -71,7 +117,7 @@ struct SyncManagerTests {
     @Test("send hands the payload to the transport and marks it pending")
     func sendQueuesPayload() throws {
         let recorder = TransferRecorder()
-        let manager = SyncManager(performTransfer: { recorder.record($0, $1) })
+        let manager = makeManager(onSessionSend: { recorder.record($0, $1) })
 
         #expect(manager.pendingCount == 0)
         try manager.send(makeSession())
@@ -80,14 +126,17 @@ struct SyncManagerTests {
         #expect(manager.pendingCount == 1)
     }
 
-    @Test("confirmed delivery clears the pending entry")
+    @Test("only a saved-session acknowledgement clears the pending entry")
     func completionClearsPending() throws {
         let recorder = TransferRecorder()
-        let manager = SyncManager(performTransfer: { recorder.record($0, $1) })
+        let manager = makeManager(onSessionSend: { recorder.record($0, $1) })
         try manager.send(makeSession())
 
         let sent = recorder.calls[0]
-        manager.completeTransfer(id: sent.id, data: sent.data, error: nil)
+        manager.completeTransfer(id: sent.id, error: nil)
+        #expect(manager.pendingCount == 1)
+        let session = try JSONDecoder().decode(DiveSession.self, from: sent.data)
+        manager.handleReceived([SyncManager.ackKey: session.id.uuidString])
         #expect(manager.pendingCount == 0)
     }
 
@@ -95,11 +144,11 @@ struct SyncManagerTests {
     func failureRetries() throws {
         struct TransferError: Error {}
         let recorder = TransferRecorder()
-        let manager = SyncManager(performTransfer: { recorder.record($0, $1) })
+        let manager = makeManager(onSessionSend: { recorder.record($0, $1) })
         try manager.send(makeSession())
 
         let sent = recorder.calls[0]
-        manager.completeTransfer(id: sent.id, data: sent.data, error: TransferError())
+        manager.completeTransfer(id: sent.id, error: TransferError())
 
         #expect(recorder.calls.count == 2)            // original + retry
         #expect(recorder.calls[1].id == sent.id)       // same payload
@@ -110,13 +159,13 @@ struct SyncManagerTests {
     func retryCapStopsStorm() throws {
         struct TransferError: Error {}
         let recorder = TransferRecorder()
-        let manager = SyncManager(performTransfer: { recorder.record($0, $1) })
+        let manager = makeManager(onSessionSend: { recorder.record($0, $1) })
         try manager.send(makeSession())
         let sent = recorder.calls[0]
 
         // Drive far more failures than the cap; auto-retries must not run away.
         for _ in 0..<20 {
-            manager.completeTransfer(id: sent.id, data: sent.data, error: TransferError())
+            manager.completeTransfer(id: sent.id, error: TransferError())
         }
         // 1 original + at most a bounded number of retries (cap is 5).
         #expect(recorder.calls.count <= 6)
@@ -130,7 +179,7 @@ struct SyncManagerTests {
     @Test("retryPending re-sends every outstanding payload")
     func retryResendsAll() throws {
         let recorder = TransferRecorder()
-        let manager = SyncManager(performTransfer: { recorder.record($0, $1) })
+        let manager = makeManager(onSessionSend: { recorder.record($0, $1) })
         try manager.send(makeSession(id: UUID()))
         try manager.send(makeSession(id: UUID()))
 
@@ -142,14 +191,14 @@ struct SyncManagerTests {
     @Test("retryPending does not re-send an id still queued in the OS's outstanding set")
     func retryPendingSkipsStillQueuedOwnEntry() throws {
         // A normal (non-system-owned) send whose transfer the OS hasn't finished yet
-        // is still listed in outstandingTransfers. A reachability flap must NOT
+        // is still listed in queuedSessions. A reachability flap must NOT
         // re-enqueue it — that would duplicate the transfer per flap. (Previously the
         // still-queued guard was applied only to system-owned entries.)
         let recorder = TransferRecorder()
         let stillQueued = Mutex<[(id: String, data: Data)]>([])
-        let manager = SyncManager(
-            performTransfer: { recorder.record($0, $1) },
-            outstandingTransfers: { stillQueued.withLock { $0 } }
+        let manager = makeManager(
+            onSessionSend: { recorder.record($0, $1) },
+            queuedSessions: { stillQueued.withLock { $0 } }
         )
         try manager.send(makeSession())
         // Mirror the OS still holding the just-sent transfer's slot (its id/data).
@@ -169,20 +218,23 @@ struct SyncManagerTests {
     @Test("pending count changes are reported to the observer")
     func reportsPendingCount() throws {
         let recorder = TransferRecorder()
-        let manager = SyncManager(performTransfer: { recorder.record($0, $1) })
+        let manager = makeManager(onSessionSend: { recorder.record($0, $1) })
         let counts = Mutex<[Int]>([])
         manager.onPendingCountChange = { newCount in counts.withLock { $0.append(newCount) } }
 
         try manager.send(makeSession())
         let sent = recorder.calls[0]
-        manager.completeTransfer(id: sent.id, data: sent.data, error: nil)
+        manager.completeTransfer(id: sent.id, error: nil)
+        #expect(counts.withLock { $0 } == [1])
+        let session = try JSONDecoder().decode(DiveSession.self, from: sent.data)
+        manager.handleReceived([SyncManager.ackKey: session.id.uuidString])
 
         #expect(counts.withLock { $0 } == [1, 0])
     }
 
     @Test("received payloads are decoded and forwarded")
     func decodesIncoming() throws {
-        let manager = SyncManager(performTransfer: { _, _ in })
+        let manager = makeManager(onSessionSend: { _, _ in })
         let original = makeSession()
         let data = try JSONEncoder().encode(original)
 
@@ -193,9 +245,28 @@ struct SyncManagerTests {
         #expect(received.withLock { $0 } == original)
     }
 
+    @Test("note edits and persisted acknowledgements use their own control messages")
+    func decodesNoteMutationAndAck() throws {
+        let manager = makeManager(onSessionSend: { _, _ in })
+        let mutation = NoteMutation(sessionID: UUID(), markerID: UUID(), changes: ["title": "Turtle"])
+        let received = Mutex<NoteMutation?>(nil)
+        let acknowledged = Mutex<UUID?>(nil)
+        let session = Mutex<DiveSession?>(nil)
+        manager.onReceiveNoteMutation = { edit in received.withLock { $0 = edit } }
+        manager.onNoteMutationAcknowledged = { id in acknowledged.withLock { $0 = id } }
+        manager.onReceiveSession = { value, _ in session.withLock { $0 = value } }
+        manager.handleReceived(["noteMutation": try JSONEncoder().encode(mutation)])
+        manager.handleReceived(["noteMutationAck": mutation.id.uuidString])
+        #expect(received.withLock { $0 } == mutation)
+        #expect(acknowledged.withLock { $0 } == mutation.id)
+        #expect(session.withLock { $0 } == nil)
+        manager.handleReceived(["noteMutation": Data([0, 1, 2])])
+        #expect(received.withLock { $0 } == mutation)
+    }
+
     @Test("malformed payloads are ignored")
     func ignoresGarbage() {
-        let manager = SyncManager(performTransfer: { _, _ in })
+        let manager = makeManager(onSessionSend: { _, _ in })
         let received = Mutex<DiveSession?>(nil)
         manager.onReceiveSession = { session, _ in received.withLock { $0 = session } }
 
@@ -206,7 +277,7 @@ struct SyncManagerTests {
 
     @Test("a deletion message is forwarded to onDeleteSession, not onReceiveSession")
     func decodesDeletion() {
-        let manager = SyncManager(performTransfer: { _, _ in })
+        let manager = makeManager(onSessionSend: { _, _ in })
         let deleted = Mutex<UUID?>(nil)
         let received = Mutex<DiveSession?>(nil)
         manager.onDeleteSession = { id in deleted.withLock { $0 = id } }
@@ -221,7 +292,7 @@ struct SyncManagerTests {
 
     @Test("deleting a session drops its pending send so a retry can't resurrect it")
     func deletionCancelsPendingSend() throws {
-        let manager = SyncManager(performTransfer: { _, _ in }, performDeletion: { _ in })
+        let manager = makeManager(onSessionSend: { _, _ in }, performDeletion: { _ in })
         let session = makeSession()
         try manager.send(session)
         #expect(manager.pendingCount == 1)
@@ -234,8 +305,8 @@ struct SyncManagerTests {
     func deletionCancelsQueuedTransfer() throws {
         let recorder = TransferRecorder()
         let cancelled = Mutex<Set<String>?>(nil)
-        let manager = SyncManager(
-            performTransfer: { recorder.record($0, $1) },
+        let manager = makeManager(
+            onSessionSend: { recorder.record($0, $1) },
             performDeletion: { _ in },
             cancelTransfers: { ids in cancelled.withLock { $0 = ids } }
         )
@@ -252,8 +323,8 @@ struct SyncManagerTests {
     @Test("a deletion for a session with no pending entry cancels nothing")
     func deletionWithoutPendingCancelsNothing() {
         let cancelled = Mutex<Set<String>?>(nil)
-        let manager = SyncManager(
-            performTransfer: { _, _ in },
+        let manager = makeManager(
+            onSessionSend: { _, _ in },
             performDeletion: { _ in },
             cancelTransfers: { ids in cancelled.withLock { $0 = ids } }
         )
@@ -265,7 +336,7 @@ struct SyncManagerTests {
     @Test("re-sending a session already pending reuses its entry and nudges the transfer")
     func resendDedupesNotSystemOwned() throws {
         let recorder = TransferRecorder()
-        let manager = SyncManager(performTransfer: { recorder.record($0, $1) })
+        let manager = makeManager(onSessionSend: { recorder.record($0, $1) })
         let counts = Mutex<[Int]>([])
         manager.onPendingCountChange = { newCount in counts.withLock { $0.append(newCount) } }
         let session = makeSession()
@@ -284,9 +355,9 @@ struct SyncManagerTests {
         let session = makeSession()
         let data = try JSONEncoder().encode(session)
         let recorder = TransferRecorder()
-        let manager = SyncManager(
-            performTransfer: { recorder.record($0, $1) },
-            outstandingTransfers: { [(id: "transfer-1", data: data)] }
+        let manager = makeManager(
+            onSessionSend: { recorder.record($0, $1) },
+            queuedSessions: { [(id: "transfer-1", data: data)] }
         )
         // Adoption leaves a system-owned entry for this session id.
         manager.adoptOutstandingTransfers()
@@ -301,7 +372,7 @@ struct SyncManagerTests {
     @Test("re-sending an already-pending session nudges with the fresh payload, not the stale one")
     func resendNudgeUsesFreshPayload() throws {
         let recorder = TransferRecorder()
-        let manager = SyncManager(performTransfer: { recorder.record($0, $1) })
+        let manager = makeManager(onSessionSend: { recorder.record($0, $1) })
         let id = UUID()
         // Same session id, but the second value carries a backfilled locationName —
         // the fresh encode must win over the payload stored on the first send.
@@ -321,29 +392,29 @@ struct SyncManagerTests {
         #expect(original.locationName == nil)
     }
 
-    @Test("an explicit resync routes through the resync transport (carrying the envelope flag)")
+    @Test("an explicit resync routes through the resync file metadata (carrying the envelope flag)")
     func resyncUsesResyncTransport() throws {
         let normal = TransferRecorder()
         let resync = TransferRecorder()
-        let manager = SyncManager(
-            performTransfer: { normal.record($0, $1) },
-            performResyncTransfer: { resync.record($0, $1) }
+        let manager = makeManager(
+            onSessionSend: { normal.record($0, $1) },
+            onResyncSend: { resync.record($0, $1) }
         )
 
         try manager.send(makeSession())                  // normal send
         try manager.send(makeSession(), isResync: true)  // explicit resync
 
         #expect(normal.calls.count == 1)
-        #expect(resync.calls.count == 1)                 // resync rode the resync transport
+        #expect(resync.calls.count == 1)                 // resync rode the resync file metadata
     }
 
-    @Test("a resync nudge of an already-pending session still rides the resync transport")
+    @Test("a resync nudge of an already-pending session still rides the resync file metadata")
     func resyncNudgeUsesResyncTransport() throws {
         let normal = TransferRecorder()
         let resync = TransferRecorder()
-        let manager = SyncManager(
-            performTransfer: { normal.record($0, $1) },
-            performResyncTransfer: { resync.record($0, $1) }
+        let manager = makeManager(
+            onSessionSend: { normal.record($0, $1) },
+            onResyncSend: { resync.record($0, $1) }
         )
         let session = makeSession()
 
@@ -352,19 +423,19 @@ struct SyncManagerTests {
 
         #expect(manager.pendingCount == 1)                // not double-counted
         #expect(normal.calls.count == 1)                  // original send only
-        #expect(resync.calls.count == 1)                  // the nudge rode the resync transport
+        #expect(resync.calls.count == 1)                  // the nudge rode the resync file metadata
         #expect(normal.calls[0].id == resync.calls[0].id) // same pending entry
     }
 
-    @Test("the resync envelope flag decodes on receive; absent decodes false")
+    @Test("the resync metadata flag decodes on receive; absent decodes false")
     func receiveDecodesResyncFlag() throws {
-        let manager = SyncManager(performTransfer: { _, _ in })
+        let manager = makeManager(onSessionSend: { _, _ in })
         let session = makeSession()
         let data = try JSONEncoder().encode(session)
         let flags = Mutex<[Bool]>([])
         manager.onReceiveSession = { _, isResync in flags.withLock { $0.append(isResync) } }
 
-        // Wire shape the default resync transport produces.
+        // Wire shape a legacy watch produces.
         manager.handleReceived([
             SyncManager.payloadKey: data,
             SyncManager.idKey: session.id.uuidString,
@@ -379,39 +450,39 @@ struct SyncManagerTests {
         #expect(flags.withLock { $0 } == [true, false])
     }
 
-    @Test("a failed resync retries via the resync transport, not a plain send")
+    @Test("a failed resync retries via the resync file metadata, not a plain send")
     func failedResyncRetriesViaResyncTransport() throws {
         struct TransferError: Error {}
         let normal = TransferRecorder()
         let resync = TransferRecorder()
-        let manager = SyncManager(
-            performTransfer: { normal.record($0, $1) },
-            performResyncTransfer: { resync.record($0, $1) }
+        let manager = makeManager(
+            onSessionSend: { normal.record($0, $1) },
+            onResyncSend: { resync.record($0, $1) }
         )
         try manager.send(makeSession(), isResync: true)   // explicit resync
         let sent = resync.calls[0]
 
-        // The first hop fails — the retry must keep the resync envelope, or the phone
+        // The first hop fails — the retry must keep the resync metadata, or the phone
         // would tombstone-reject it yet still mark it delivered (data loss).
-        manager.completeTransfer(id: sent.id, data: sent.data, error: TransferError())
+        manager.completeTransfer(id: sent.id, error: TransferError())
         #expect(resync.calls.count == 2)                  // original + retry, both resync
         #expect(resync.calls[1].id == sent.id)
         #expect(normal.calls.isEmpty)                     // never downgraded to a plain send
         #expect(manager.pendingCount == 1)
     }
 
-    @Test("retryPending preserves the resync envelope for a queued resync")
+    @Test("retryPending preserves the resync metadata for a queued resync")
     func retryPendingPreservesResyncEnvelope() throws {
         let normal = TransferRecorder()
         let resync = TransferRecorder()
-        let manager = SyncManager(
-            performTransfer: { normal.record($0, $1) },
-            performResyncTransfer: { resync.record($0, $1) }
+        let manager = makeManager(
+            onSessionSend: { normal.record($0, $1) },
+            onResyncSend: { resync.record($0, $1) }
         )
         try manager.send(makeSession(), isResync: true)
         let sentID = resync.calls[0].id
 
-        // A reachability-driven resend must re-route through the resync transport.
+        // A reachability-driven resend must re-route through the resync file metadata.
         manager.retryPending()
         #expect(resync.calls.count == 2)                  // original + retryPending resend
         #expect(resync.calls[1].id == sentID)
@@ -424,13 +495,13 @@ struct SyncManagerTests {
         // transport builds `[ackKey: id]`; the stub mirrors that shape).
         let ackPayload = Mutex<[String: Any]?>(nil)
         let id = UUID()
-        let phone = SyncManager(performAck: { ackedID in
+        let phone = makeManager(performAck: { ackedID in
             ackPayload.withLock { $0 = [SyncManager.ackKey: ackedID.uuidString] }
         })
         phone.sendImportAck(id)
 
         // Watch side: the ack message decodes to onSessionImported, not onReceiveSession.
-        let watch = SyncManager(performTransfer: { _, _ in })
+        let watch = makeManager(onSessionSend: { _, _ in })
         let imported = Mutex<UUID?>(nil)
         let received = Mutex<DiveSession?>(nil)
         watch.onSessionImported = { id in imported.withLock { $0 = id } }
@@ -444,12 +515,12 @@ struct SyncManagerTests {
     @Test("the phone's audio import ack round-trips to the watch's onAudioImported")
     func audioImportAckRoundTrips() {
         let ackPayload = Mutex<[String: Any]?>(nil)
-        let phone = SyncManager(performAudioAck: { name in
+        let phone = makeManager(performAudioAck: { name in
             ackPayload.withLock { $0 = [SyncManager.audioAckKey: name] }
         })
         phone.sendAudioImportAck("voice-1.m4a")
 
-        let watch = SyncManager(performTransfer: { _, _ in })
+        let watch = makeManager(onSessionSend: { _, _ in })
         let imported = Mutex<String?>(nil)
         let receivedFile = Mutex<Bool>(false)
         watch.onAudioImported = { name in imported.withLock { $0 = name } }
@@ -465,9 +536,9 @@ struct SyncManagerTests {
         // The ack shares the deletion's shape (a control message, id only). Adoption
         // maps only session transfers (payloadKey present), so an ack in the OS queue
         // must not become a phantom pending session.
-        let manager = SyncManager(
-            performTransfer: { _, _ in },
-            outstandingTransfers: { [(id: "ack-1", data: Data())] }
+        let manager = makeManager(
+            onSessionSend: { _, _ in },
+            queuedSessions: { [(id: "ack-1", data: Data())] }
         )
         #expect(SyncManager.sessionTransfer(from: [SyncManager.ackKey: UUID().uuidString]) == nil)
         _ = manager
@@ -476,7 +547,7 @@ struct SyncManagerTests {
     @Test("after sendDeletion, re-sending the same session id is a no-op (tombstoned)")
     func sendAfterDeletionIsTombstoned() throws {
         let recorder = TransferRecorder()
-        let manager = SyncManager(performTransfer: { recorder.record($0, $1) }, performDeletion: { _ in })
+        let manager = makeManager(onSessionSend: { recorder.record($0, $1) }, performDeletion: { _ in })
         let session = makeSession()
 
         manager.sendDeletion(session.id)
@@ -492,14 +563,16 @@ struct SyncManagerTests {
         let session = makeSession()
         let data = try JSONEncoder().encode(session)
         let recorder = TransferRecorder()
-        let manager = SyncManager(
-            performTransfer: { recorder.record($0, $1) },
+        let outstanding = Mutex<[(id: String, data: Data)]>([(id: "transfer-1", data: data)])
+        let manager = makeManager(
+            onSessionSend: { recorder.record($0, $1) },
             performDeletion: { _ in },
-            outstandingTransfers: { [(id: "transfer-1", data: data)] }
+            queuedSessions: { outstanding.withLock { $0 } }
         )
         // Adopt, then a failed didFinish hands the entry to us (retryable, ours).
         manager.adoptOutstandingTransfers()
-        manager.completeTransfer(id: "transfer-1", data: data, error: TransferError())
+        outstanding.withLock { $0 = [] } // WC removes a completed/failed queue slot.
+        manager.completeTransfer(id: "transfer-1", error: TransferError())
         #expect(recorder.calls.count == 1)        // the owned retry
 
         // Delete it, then a reachability-driven resync must not re-deliver it.
@@ -515,21 +588,23 @@ struct SyncManagerTests {
         let session = makeSession()
         let data = try JSONEncoder().encode(session)
         let recorder = TransferRecorder()
-        let manager = SyncManager(
-            performTransfer: { recorder.record($0, $1) },
-            outstandingTransfers: { [(id: "transfer-1", data: data)] }
+        let outstanding = Mutex<[(id: String, data: Data)]>([(id: "transfer-1", data: data)])
+        let manager = makeManager(
+            onSessionSend: { recorder.record($0, $1) },
+            queuedSessions: { outstanding.withLock { $0 } }
         )
 
         // A didFinish(error:) for an id we're not tracking (a cancelled/untracked
         // transfer) must not stash an attempts counter — there's nothing to retry.
-        manager.completeTransfer(id: "transfer-1", data: data, error: TransferError())
+        manager.completeTransfer(id: "transfer-1", error: TransferError())
         #expect(recorder.calls.isEmpty)           // not in pending → no retry
 
         // Adopt the same id, then repeatedly fail it. If the untracked call had
         // leaked attempts[transfer-1] = 1, the budget would be one short.
         manager.adoptOutstandingTransfers()
+        outstanding.withLock { $0 = [] } // WC removes a completed/failed queue slot.
         for _ in 0..<10 {
-            manager.completeTransfer(id: "transfer-1", data: data, error: TransferError())
+            manager.completeTransfer(id: "transfer-1", error: TransferError())
         }
         // The full immediate-retry budget (5) is available: 5 re-sends, then it
         // stops. A leaked prior attempt would have cut this to 4.
@@ -540,9 +615,9 @@ struct SyncManagerTests {
     func adoptsOutstandingTransfers() throws {
         let session = makeSession()
         let data = try JSONEncoder().encode(session)
-        let manager = SyncManager(
-            performTransfer: { _, _ in },
-            outstandingTransfers: { [(id: "transfer-1", data: data)] }
+        let manager = makeManager(
+            onSessionSend: { _, _ in },
+            queuedSessions: { [(id: "transfer-1", data: data)] }
         )
         let counts = Mutex<[Int]>([])
         manager.onPendingCountChange = { newCount in counts.withLock { $0.append(newCount) } }
@@ -559,9 +634,9 @@ struct SyncManagerTests {
         let session = makeSession()
         let data = try JSONEncoder().encode(session)
         let recorder = TransferRecorder()
-        let manager = SyncManager(
-            performTransfer: { recorder.record($0, $1) },
-            outstandingTransfers: { [(id: "transfer-1", data: data)] }
+        let manager = makeManager(
+            onSessionSend: { recorder.record($0, $1) },
+            queuedSessions: { [(id: "transfer-1", data: data)] }
         )
         manager.adoptOutstandingTransfers()
 
@@ -579,9 +654,9 @@ struct SyncManagerTests {
         // The OS lists the transfer at adoption, then drops it without a
         // didFinish (unpair / daemon restart) — the outstanding list goes empty.
         let outstanding = Mutex<[(id: String, data: Data)]>([(id: "transfer-1", data: data)])
-        let manager = SyncManager(
-            performTransfer: { recorder.record($0, $1) },
-            outstandingTransfers: { outstanding.withLock { $0 } }
+        let manager = makeManager(
+            onSessionSend: { recorder.record($0, $1) },
+            queuedSessions: { outstanding.withLock { $0 } }
         )
         manager.adoptOutstandingTransfers()
         #expect(manager.pendingCount == 1)
@@ -594,7 +669,9 @@ struct SyncManagerTests {
         #expect(manager.pendingCount == 1)
 
         // The re-send completes normally.
-        manager.completeTransfer(id: "transfer-1", data: data, error: nil)
+        manager.completeTransfer(id: "transfer-1", error: nil)
+        #expect(manager.pendingCount == 1)
+        manager.handleReceived([SyncManager.ackKey: session.id.uuidString])
         #expect(manager.pendingCount == 0)
     }
 
@@ -608,16 +685,16 @@ struct SyncManagerTests {
         // fires (as the real WCSession does) — otherwise retryPending's still-queued
         // guard would correctly skip an id the OS still owns.
         let outstanding = Mutex<[(id: String, data: Data)]>([(id: "transfer-1", data: data)])
-        let manager = SyncManager(
-            performTransfer: { recorder.record($0, $1) },
-            outstandingTransfers: { outstanding.withLock { $0 } }
+        let manager = makeManager(
+            onSessionSend: { recorder.record($0, $1) },
+            queuedSessions: { outstanding.withLock { $0 } }
         )
         manager.adoptOutstandingTransfers()
 
         // A prior-launch transfer that finished with an error clears the system's
         // copy, so the entry becomes ours and is re-sent.
         outstanding.withLock { $0 = [] }
-        manager.completeTransfer(id: "transfer-1", data: data, error: TransferError())
+        manager.completeTransfer(id: "transfer-1", error: TransferError())
         #expect(recorder.calls.count == 1)
         #expect(recorder.calls[0].id == "transfer-1")
         #expect(manager.pendingCount == 1)
@@ -632,9 +709,9 @@ struct SyncManagerTests {
     func adoptIsIdempotent() throws {
         let session = makeSession()
         let data = try JSONEncoder().encode(session)
-        let manager = SyncManager(
-            performTransfer: { _, _ in },
-            outstandingTransfers: { [(id: "transfer-1", data: data)] }
+        let manager = makeManager(
+            onSessionSend: { _, _ in },
+            queuedSessions: { [(id: "transfer-1", data: data)] }
         )
         manager.adoptOutstandingTransfers()
         manager.adoptOutstandingTransfers()
@@ -648,10 +725,10 @@ struct SyncManagerTests {
         let targetData = try JSONEncoder().encode(target)
         let otherData = try JSONEncoder().encode(other)
         let deleted = Mutex<UUID?>(nil)
-        let manager = SyncManager(
-            performTransfer: { _, _ in },
+        let manager = makeManager(
+            onSessionSend: { _, _ in },
             performDeletion: { id in deleted.withLock { $0 = id } },
-            outstandingTransfers: {
+            queuedSessions: {
                 [(id: "transfer-target", data: targetData), (id: "transfer-other", data: otherData)]
             }
         )
@@ -669,24 +746,26 @@ struct SyncManagerTests {
     func adoptedDeliveryReportsSessionID() throws {
         let session = makeSession()
         let data = try JSONEncoder().encode(session)
-        let manager = SyncManager(
-            performTransfer: { _, _ in },
-            outstandingTransfers: { [(id: "transfer-1", data: data)] }
+        let manager = makeManager(
+            onSessionSend: { _, _ in },
+            queuedSessions: { [(id: "transfer-1", data: data)] }
         )
         manager.adoptOutstandingTransfers()
 
         let delivered = Mutex<UUID?>(nil)
         manager.onSessionDelivered = { id in delivered.withLock { $0 = id } }
-        manager.completeTransfer(id: "transfer-1", data: data, error: nil)
+        manager.completeTransfer(id: "transfer-1", error: nil)
 
         #expect(delivered.withLock { $0 } == session.id)
+        #expect(manager.pendingCount == 1)
+        manager.handleReceived([SyncManager.ackKey: session.id.uuidString])
         #expect(manager.pendingCount == 0)
     }
 
     @Test("custom markers round-trip through the application context")
     func customMarkersSync() {
         let captured = Mutex<[String: Any]?>(nil)
-        let manager = SyncManager(applyContext: { ctx in captured.withLock { $0 = ctx } })
+        let manager = makeManager(applyContext: { ctx in captured.withLock { $0 = ctx } })
         let kinds = [MarkerKind(.wildlife), MarkerKind(id: "abc-123", emoji: "🦈", label: "Shark")]
 
         manager.sendCustomMarkers(kinds)
@@ -702,7 +781,7 @@ struct SyncManagerTests {
     @Test("units preference round-trips through the application context")
     func unitPreferenceSync() {
         let captured = Mutex<[String: Any]?>(nil)
-        let manager = SyncManager(applyContext: { ctx in captured.withLock { $0 = ctx } })
+        let manager = makeManager(applyContext: { ctx in captured.withLock { $0 = ctx } })
         let pref = UnitPreference(mode: .custom, customDepth: .meters, customDistance: .imperial, customTemperature: .fahrenheit)
 
         manager.sendUnitPreference(pref)
@@ -718,7 +797,7 @@ struct SyncManagerTests {
     @Test("markers and units share the context without clobbering each other")
     func markersAndUnitsCoexist() {
         let captured = Mutex<[String: Any]?>(nil)
-        let manager = SyncManager(applyContext: { ctx in captured.withLock { $0 = ctx } })
+        let manager = makeManager(applyContext: { ctx in captured.withLock { $0 = ctx } })
 
         manager.sendCustomMarkers([MarkerKind(.wildlife)])
         manager.sendUnitPreference(.imperial)
@@ -732,7 +811,7 @@ struct SyncManagerTests {
     @Test("detection config round-trips through the application context")
     func detectionConfigSync() {
         let captured = Mutex<[String: Any]?>(nil)
-        let manager = SyncManager(applyContext: { ctx in captured.withLock { $0 = ctx } })
+        let manager = makeManager(applyContext: { ctx in captured.withLock { $0 = ctx } })
         let config = DiveDetectionConfig(surfaceExitDwellSeconds: 4, thresholds: [
             .init(minimumDepthMeters: 2.5, minimumDuration: 2),
             .init(minimumDepthMeters: 1.0, minimumDuration: 8),
@@ -751,7 +830,7 @@ struct SyncManagerTests {
     @Test("detection config shares the context without clobbering markers or units")
     func detectionCoexistsWithOthers() {
         let captured = Mutex<[String: Any]?>(nil)
-        let manager = SyncManager(applyContext: { ctx in captured.withLock { $0 = ctx } })
+        let manager = makeManager(applyContext: { ctx in captured.withLock { $0 = ctx } })
 
         manager.sendCustomMarkers([MarkerKind(.wildlife)])
         manager.sendUnitPreference(.imperial)
@@ -767,7 +846,7 @@ struct SyncManagerTests {
     @Test("sendAudioFile hands the file and name metadata to the transport")
     func sendAudioFileRoutesThroughSeam() throws {
         let recorder = FileTransferRecorder()
-        let manager = SyncManager(performTransfer: { _, _ in }, performFileTransfer: { recorder.record($0, $1) })
+        let manager = makeManager(onSessionSend: { _, _ in }, performFileTransfer: { recorder.record($0, $1) })
         let fileURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("voice-\(UUID().uuidString).m4a")
         try Data("x".utf8).write(to: fileURL)
@@ -780,7 +859,7 @@ struct SyncManagerTests {
 
     @Test("a confirmed voice-note delivery fires onAudioFileDelivered with the metadata name")
     func audioDeliveryConfirmed() {
-        let manager = SyncManager(performTransfer: { _, _ in })
+        let manager = makeManager(onSessionSend: { _, _ in })
         let delivered = Mutex<String?>(nil)
         manager.onAudioFileDelivered = { name in delivered.withLock { $0 = name } }
 
@@ -797,7 +876,7 @@ struct SyncManagerTests {
     func audioFailureResendsWhenFileExists() throws {
         struct TransferError: Error {}
         let recorder = FileTransferRecorder()
-        let manager = SyncManager(performTransfer: { _, _ in }, performFileTransfer: { recorder.record($0, $1) })
+        let manager = makeManager(onSessionSend: { _, _ in }, performFileTransfer: { recorder.record($0, $1) })
         let delivered = Mutex<String?>(nil)
         manager.onAudioFileDelivered = { name in delivered.withLock { $0 = name } }
 
@@ -821,7 +900,7 @@ struct SyncManagerTests {
     func audioFailureMissingFileNoResend() {
         struct TransferError: Error {}
         let recorder = FileTransferRecorder()
-        let manager = SyncManager(performTransfer: { _, _ in }, performFileTransfer: { recorder.record($0, $1) })
+        let manager = makeManager(onSessionSend: { _, _ in }, performFileTransfer: { recorder.record($0, $1) })
         let delivered = Mutex<String?>(nil)
         manager.onAudioFileDelivered = { name in delivered.withLock { $0 = name } }
 
@@ -841,7 +920,7 @@ struct SyncManagerTests {
     func audioFailureStopsAfterCap() throws {
         struct TransferError: Error {}
         let recorder = FileTransferRecorder()
-        let manager = SyncManager(performTransfer: { _, _ in }, performFileTransfer: { recorder.record($0, $1) })
+        let manager = makeManager(onSessionSend: { _, _ in }, performFileTransfer: { recorder.record($0, $1) })
 
         // Real file on disk so the "file exists" guard never short-circuits — the cap
         // is the only thing that can stop the storm (unpaired/uninstalled companion:
@@ -868,7 +947,7 @@ struct SyncManagerTests {
     func audioSuccessResetsFileRetryBudget() throws {
         struct TransferError: Error {}
         let recorder = FileTransferRecorder()
-        let manager = SyncManager(performTransfer: { _, _ in }, performFileTransfer: { recorder.record($0, $1) })
+        let manager = makeManager(onSessionSend: { _, _ in }, performFileTransfer: { recorder.record($0, $1) })
 
         let fileURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("voice-\(UUID().uuidString).m4a")
@@ -892,7 +971,7 @@ struct SyncManagerTests {
     func sendAudioFileResetsFileRetryBudget() throws {
         struct TransferError: Error {}
         let recorder = FileTransferRecorder()
-        let manager = SyncManager(performTransfer: { _, _ in }, performFileTransfer: { recorder.record($0, $1) })
+        let manager = makeManager(onSessionSend: { _, _ in }, performFileTransfer: { recorder.record($0, $1) })
 
         let fileURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("voice-\(UUID().uuidString).m4a")
@@ -920,7 +999,7 @@ struct SyncManagerTests {
     @Test("a live session snapshot round-trips through the application context")
     func liveSessionSync() {
         let captured = Mutex<[String: Any]?>(nil)
-        let manager = SyncManager(applyContext: { ctx in captured.withLock { $0 = ctx } })
+        let manager = makeManager(applyContext: { ctx in captured.withLock { $0 = ctx } })
         let snapshot = LiveSessionSnapshot(
             isActive: true,
             startTime: Date(timeIntervalSince1970: 1000),
@@ -944,7 +1023,7 @@ struct SyncManagerTests {
 
     @Test("the terminal live snapshot (isActive false) is delivered to the phone")
     func liveSessionEnded() {
-        let manager = SyncManager(applyContext: { _ in })
+        let manager = makeManager(applyContext: { _ in })
         let ended = LiveSessionSnapshot(
             isActive: false, startTime: Date(timeIntervalSince1970: 0),
             depthMeters: 0, maxDepthMeters: 8, diveCount: 2, isSubmerged: false

@@ -51,7 +51,7 @@ struct WatchUserGuideView: View {
                     )
                     item(
                         "Depth",
-                        "Depth needs an Ultra or Series 10/11. Other watches still log the GPS track and your markers.",
+                        "Depth needs an Ultra or Series 10/11 and is currently limited to 6 m. Deeper readings on Ultra require Apple's separate approval, independent EN13319 certification, and ongoing testing; those costs and requirements are beyond this free project for now. Other watches still log GPS and markers.",
                         systemImage: "gauge.with.dots.needle.bottom.50percent"
                     )
                     item(

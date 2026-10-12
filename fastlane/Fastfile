@@ -22,6 +22,7 @@
 
 require "base64"
 require "fileutils"
+require "cgi"
 require "json"
 require "set"
 require "shellwords"
@@ -48,6 +49,7 @@ EXPECTED_DEVICES_FILENAME = "expected-devices.txt".freeze
 # unfinished). Values are ALWAYS arrays so every call site iterates uniformly.
 LOCALE_MAP = {
   "en"    => ["en-US"],
+  "en-GB" => ["en-GB"],
   "es"    => ["es-ES", "es-MX"],
   "fr"    => ["fr-FR"],
   "it"    => ["it"],
@@ -56,6 +58,37 @@ LOCALE_MAP = {
   "ja"    => ["ja"],
   "uk"    => ["uk"]
 }.freeze
+
+# Keep the App Store listing focused on its six intended phone/tablet screens;
+# session-chart zoom captures remain in the local screenshot output for review.
+STORE_SCREENSHOT_NAMES = {
+  "iPhone 17 Pro Max" => %w[
+    00-watch-and-iphone.png
+    01-dives.png
+    02-detail.png
+    03-trips.png
+    04-spots.png
+    05-passport.png
+  ],
+  "iPad Pro 13-inch (M5)" => %w[
+    00-ipad-iphone-watch.png
+    01-dives.png
+    02-detail.png
+    03-trips.png
+    04-spots.png
+    05-passport.png
+  ],
+  "Apple Watch Ultra 3 (49mm)" => %w[
+    01-live.png
+    02-summary.png
+    03-profile.png
+    04-sessions.png
+    05-start.png
+  ]
+}.freeze
+EXPECTED_STORE_SCREENSHOT_COMPLEMENT = STORE_SCREENSHOT_NAMES.flat_map do |device, names|
+  names.map { |name| "#{device}/#{name}" }
+end.to_set.freeze
 
 # Spaceship's `.all` helpers return a single page (`resp.to_models`, no
 # `.all_pages`) and default to the server's page size of 50, so anything that
@@ -315,13 +348,24 @@ end
 # {"Apple Watch Ultra 3 (49mm)/01-live.png", "iPhone 17 Pro Max/01-dives.png", …}.
 # Uses the SAME readable_name_for the staging step uses, so this measures exactly
 # what would be uploaded.
+# Hero inputs are capture attachments, but not standalone store screenshots.
+def store_screenshot_pngs(device_dir)
+  allowed_names = STORE_SCREENSHOT_NAMES[File.basename(device_dir)]
+  return [] unless allowed_names
+
+  Dir.glob(File.join(device_dir, "*.png")).sort.reject do |png|
+    readable_name = readable_name_for(device_dir, File.basename(png))
+    !allowed_names.include?(readable_name)
+  end
+end
+
 def screenshot_complement_for(short_dir)
   complement = []
   Dir.glob(File.join(short_dir, "*")).sort.each do |device_dir|
     next unless File.directory?(device_dir)
 
     device = File.basename(device_dir)
-    Dir.glob(File.join(device_dir, "*.png")).sort.each do |png|
+    store_screenshot_pngs(device_dir).each do |png|
       complement << "#{device}/#{readable_name_for(device_dir, File.basename(png))}"
     end
   end
@@ -358,7 +402,7 @@ end
 #   1. Device coverage — every device in the run's manifest must have screenshots in
 #      at least one locale. This is the ONLY check that catches a whole device class
 #      absent everywhere (an `--ios`-only run, or a watch capture that failed for all
-#      8 locales): the per-locale union below can't, because a class missing from
+#      locales): the per-locale union below can't, because a class missing from
 #      every locale simply never enters the union.
 #   2. Per-locale completeness — every locale that has ANY screenshots must match the
 #      richest locale's complement (device × screen). Since all locales capture
@@ -366,6 +410,15 @@ end
 #      has is a failed/partial capture.
 # Both abort before a single byte is deleted on ASC.
 def assert_complete_screenshot_set
+  ios_captures = Dir.glob(File.join(SOURCE_SCREENSHOTS_DIR, "*", "i*", "*.png"))
+  unless ios_captures.empty?
+    UI.user_error!("iPhone/iPad screenshots contain blank or loading screens; recapture them.") unless system("swift", File.expand_path("../Scripts/validate-ios-screenshot.swift", __dir__), *ios_captures)
+  end
+  watch_captures = Dir.glob(File.join(SOURCE_SCREENSHOTS_DIR, "*", "Apple Watch*", "*.png"))
+  unless watch_captures.empty?
+    UI.user_error!("Watch screenshots contain dimmed or loading screens; recapture them.") unless system("swift", File.expand_path("../Scripts/validate-watch-screenshot.swift", __dir__), *watch_captures)
+  end
+  UI.user_error!("Missing or stale iPhone/Watch composites. Run Scripts/screenshots.sh --compose-only.") unless system("swift", File.expand_path("../Scripts/compose-screenshots.swift", __dir__), SOURCE_SCREENSHOTS_DIR, "--verify")
   devices = expected_devices # fails closed if the manifest is missing/empty
 
   per_locale = {}
@@ -380,6 +433,15 @@ def assert_complete_screenshot_set
   return if per_locale.empty? # "Staged 0" is handled by the caller.
 
   expected = per_locale.values.map(&:to_set).reduce(:|) # union = the full complement
+
+  unless expected == EXPECTED_STORE_SCREENSHOT_COMPLEMENT
+    missing = (EXPECTED_STORE_SCREENSHOT_COMPLEMENT - expected).to_a.sort
+    unexpected = (expected - EXPECTED_STORE_SCREENSHOT_COMPLEMENT).to_a.sort
+    details = []
+    details << "missing: #{missing.join(', ')}" unless missing.empty?
+    details << "unexpected: #{unexpected.join(', ')}" unless unexpected.empty?
+    UI.user_error!("App Store screenshot set must match the approved 6 iPhone + 6 iPad + 5 Watch images (#{details.join('; ')}).")
+  end
 
   # Guard 1: a device class present in the manifest but in NO locale's output.
   present_devices = expected.map { |entry| entry.split("/", 2).first }.to_set
@@ -437,7 +499,7 @@ def stage_screenshots
         # Sanitize the device name for a filename prefix (spaces/parens -> "-").
         device_prefix = device.gsub(/[^0-9A-Za-z]+/, "-").gsub(/-+/, "-").gsub(/^-|-$/, "")
 
-        Dir.glob(File.join(device_dir, "*.png")).sort.each do |png|
+        store_screenshot_pngs(device_dir).each do |png|
           readable = readable_name_for(device_dir, File.basename(png))
           dest = File.join(dest_dir, "#{device_prefix}-#{readable}")
           FileUtils.cp(png, dest)
@@ -465,6 +527,21 @@ end
 # ends up with. See each lane's `desc` (which DOES survive README regeneration) and
 # the guardrails in `editable_app_store_version` / `screenshots_purge`.
 platform :ios do
+  desc "Stage screenshots and an HTML contact sheet locally; no App Store access."
+  lane :stage_preview do
+    stage_screenshots
+    sections = LOCALE_MAP.values.flatten.map do |locale|
+      images = Dir.glob(File.join(SCREENSHOTS_PATH, locale, "*.png")).sort.map do |path|
+        name = CGI.escapeHTML(File.basename(path))
+        relative = "screenshots/#{locale}/#{File.basename(path)}"
+        %(<figure><img src="#{CGI.escapeHTML(relative)}" alt="#{name}"><figcaption>#{name}</figcaption></figure>)
+      end.join
+      %(<h2>#{CGI.escapeHTML(locale)}</h2><div class="images">#{images}</div>)
+    end.join
+    html = %(<html lang="en"><meta charset="utf-8"><title>Dive Free screenshot preview</title><style>body{font:16px system-ui;background:#edf1f3;padding:24px}.images{display:flex;flex-wrap:wrap;gap:20px}figure{margin:0;width:220px}img{width:220px;height:470px;object-fit:contain;background:#fff}figcaption{font-size:12px;overflow-wrap:anywhere}</style><h1>Dive Free screenshot preview</h1>#{sections}</html>)
+    File.write(File.expand_path("Preview.html", __dir__), html)
+    UI.message("Local preview: fastlane/Preview.html")
+  end
   desc "Upload localized metadata + screenshots to App Store Connect as a DRAFT (no binary, no submit). Run `fastlane ios validate` first to validate."
   lane :metadata do
     key = asc_api_key
@@ -485,18 +562,53 @@ platform :ios do
     )
   end
 
+  desc "Upload metadata text to an existing draft, preserving its screenshot sets."
+  lane :metadata_only do |options|
+    requested_version = options[:version] || "1.4.0"
+    asc_spaceship_login
+    app = Spaceship::ConnectAPI::App.find(APP_IDENTIFIER)
+    UI.user_error!("App not found") unless app
+    draft = editable_app_store_version(app)
+    UI.user_error!("Expected draft #{requested_version}, found #{draft.version_string}") unless draft.version_string == requested_version
+    upload_to_app_store(
+      api_key: asc_api_key,
+      app_identifier: APP_IDENTIFIER,
+      app_version: requested_version,
+      metadata_path: METADATA_PATH,
+      skip_binary_upload: true,
+      skip_screenshots: true,
+      skip_app_version_update: true,
+      submit_for_review: false,
+      force: true,
+      run_precheck_before_submit: false,
+      precheck_include_in_app_purchases: false
+    )
+  end
+
   desc "Stage + upload screenshots only (no metadata text changes)."
-  lane :screenshots_only do
+  lane :screenshots_only do |options|
+    asc_spaceship_login
+    app = Spaceship::ConnectAPI::App.find(APP_IDENTIFIER)
+    UI.user_error!("App #{APP_IDENTIFIER} not found on App Store Connect") unless app
+
+    draft = editable_app_store_version(app)
+    requested_version = options[:version]
+    if requested_version && draft.version_string != requested_version
+      UI.user_error!("Expected draft #{requested_version}, found #{draft.version_string}")
+    end
+    UI.message("Uploading screenshots to editable version #{draft.version_string}")
+
     key = asc_api_key
     stage_screenshots
 
     upload_to_app_store(
       api_key: key,
       app_identifier: APP_IDENTIFIER,
+      app_version: draft.version_string,
       screenshots_path: SCREENSHOTS_PATH,
       skip_binary_upload: true,
       skip_metadata: true,
-      skip_app_version_update: false,
+      skip_app_version_update: true,
       submit_for_review: false,
       force: true,
       overwrite_screenshots: true,
@@ -521,11 +633,10 @@ platform :ios do
     state = version.app_version_state || version.app_store_state
     UI.message("Purging screenshots from version #{version.version_string} (#{state})")
 
-    # Only the locales `metadata` can repopulate. Any other localization (an
-    # `en-GB` added through the ASC web UI, a leftover from an old release) is left
-    # alone: we hold no local screenshots for it, so purging it would strip the
-    # version with nothing able to put the images back. deliver scopes its own
-    # deletion the same way.
+    # Only the locales `metadata` can repopulate. Any localization not in
+    # LOCALE_MAP (such as one added directly through the ASC web UI) is left alone:
+    # we hold no local screenshots for it, so purging it would strip the version
+    # with nothing able to put the images back. deliver scopes its deletion alike.
     localizations = version.get_app_store_version_localizations(limit: ASC_PAGE_LIMIT)
     purgeable_locales = LOCALE_MAP.values.flatten
     targets, skipped = localizations.partition { |localization| purgeable_locales.include?(localization.locale) }

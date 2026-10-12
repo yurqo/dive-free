@@ -1,0 +1,572 @@
+[
+  {
+    "attributes": [
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "createdAt",
+        "type": 900
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "emoji",
+        "type": 700
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "id",
+        "type": 1100
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "label",
+        "type": 700
+      }
+    ],
+    "name": "CustomMarkerRecord",
+    "relationships": []
+  },
+  {
+    "attributes": [
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "endTime",
+        "type": 900
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "id",
+        "type": 1100
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "maxDepthMeters",
+        "type": 500
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "samples",
+        "type": 1000
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "startTime",
+        "type": 900
+      }
+    ],
+    "name": "DiveRecord",
+    "relationships": [
+      {
+        "destination": "SessionRecord",
+        "inverseToMany": true,
+        "name": "session",
+        "toMany": false
+      }
+    ]
+  },
+  {
+    "attributes": [
+      {
+        "encrypted": false,
+        "external": true,
+        "name": "audioData",
+        "type": 1000
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "audioFileName",
+        "type": 700
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "emoji",
+        "type": 700
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "id",
+        "type": 1100
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "kind",
+        "type": 700
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "label",
+        "type": 700
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "summary",
+        "type": 700
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "text",
+        "type": 700
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "timestamp",
+        "type": 900
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "title",
+        "type": 700
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "transcript",
+        "type": 700
+      }
+    ],
+    "name": "MarkerRecord",
+    "relationships": [
+      {
+        "destination": "PhotoRecord",
+        "inverseToMany": false,
+        "name": "photos",
+        "toMany": true
+      },
+      {
+        "destination": "SessionRecord",
+        "inverseToMany": true,
+        "name": "session",
+        "toMany": false
+      }
+    ]
+  },
+  {
+    "attributes": [
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "id",
+        "type": 1100
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "payload",
+        "type": 1000
+      }
+    ],
+    "name": "NoteMutationRecord",
+    "relationships": []
+  },
+  {
+    "attributes": [
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "assetCloudIdentifier",
+        "type": 700
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "assetIdentifier",
+        "type": 700
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "createdAt",
+        "type": 900
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "id",
+        "type": 1100
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "isVideo",
+        "type": 800
+      },
+      {
+        "encrypted": false,
+        "external": true,
+        "name": "thumbnailData",
+        "type": 1000
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "thumbnailFileName",
+        "type": 700
+      }
+    ],
+    "name": "PhotoRecord",
+    "relationships": [
+      {
+        "destination": "MarkerRecord",
+        "inverseToMany": true,
+        "name": "marker",
+        "toMany": false
+      },
+      {
+        "destination": "SessionRecord",
+        "inverseToMany": true,
+        "name": "session",
+        "toMany": false
+      },
+      {
+        "destination": "Spot",
+        "inverseToMany": true,
+        "name": "spot",
+        "toMany": false
+      }
+    ]
+  },
+  {
+    "attributes": [
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "activeEnergyKilocalories",
+        "type": 500
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "airTemperatureCelsius",
+        "type": 500
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "currentRaw",
+        "type": 700
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "endTime",
+        "type": 900
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "heartRateSamples",
+        "type": 1000
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "id",
+        "type": 1100
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "latitude",
+        "type": 500
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "locationName",
+        "type": 700
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "locationNameEdited",
+        "type": 800
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "longitude",
+        "type": 500
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "notes",
+        "type": 700
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "photosAlbumIdentifier",
+        "type": 700
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "rating",
+        "type": 300
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "smoothTrack",
+        "type": 800
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "startTime",
+        "type": 900
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "surfaceRaw",
+        "type": 700
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "temperatureSamples",
+        "type": 1000
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "tideRaw",
+        "type": 700
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "title",
+        "type": 700
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "track",
+        "type": 1000
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "visibilityRaw",
+        "type": 700
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "waterTemperatureCelsius",
+        "type": 500
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "waveHeightMeters",
+        "type": 500
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "weatherCode",
+        "type": 300
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "weatherFetched",
+        "type": 800
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "windDirectionDegrees",
+        "type": 500
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "windSpeedKmh",
+        "type": 500
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "workoutUUID",
+        "type": 1100
+      }
+    ],
+    "name": "SessionRecord",
+    "relationships": [
+      {
+        "destination": "DiveRecord",
+        "inverseToMany": false,
+        "name": "dives",
+        "toMany": true
+      },
+      {
+        "destination": "MarkerRecord",
+        "inverseToMany": false,
+        "name": "markers",
+        "toMany": true
+      },
+      {
+        "destination": "PhotoRecord",
+        "inverseToMany": false,
+        "name": "photos",
+        "toMany": true
+      },
+      {
+        "destination": "Spot",
+        "inverseToMany": true,
+        "name": "spot",
+        "toMany": false
+      },
+      {
+        "destination": "Trip",
+        "inverseToMany": true,
+        "name": "trip",
+        "toMany": false
+      }
+    ]
+  },
+  {
+    "attributes": [
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "centerLatitude",
+        "type": 500
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "centerLongitude",
+        "type": 500
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "country",
+        "type": 700
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "countryCode",
+        "type": 700
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "createdAt",
+        "type": 900
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "id",
+        "type": 1100
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "name",
+        "type": 700
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "notes",
+        "type": 700
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "photosFolderIdentifier",
+        "type": 700
+      }
+    ],
+    "name": "Spot",
+    "relationships": [
+      {
+        "destination": "PhotoRecord",
+        "inverseToMany": false,
+        "name": "photos",
+        "toMany": true
+      },
+      {
+        "destination": "SessionRecord",
+        "inverseToMany": false,
+        "name": "sessions",
+        "toMany": true
+      }
+    ]
+  },
+  {
+    "attributes": [
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "createdAt",
+        "type": 900
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "endDate",
+        "type": 900
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "id",
+        "type": 1100
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "name",
+        "type": 700
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "notes",
+        "type": 700
+      },
+      {
+        "encrypted": false,
+        "external": false,
+        "name": "startDate",
+        "type": 900
+      }
+    ],
+    "name": "Trip",
+    "relationships": [
+      {
+        "destination": "SessionRecord",
+        "inverseToMany": false,
+        "name": "sessions",
+        "toMany": true
+      }
+    ]
+  }
+]

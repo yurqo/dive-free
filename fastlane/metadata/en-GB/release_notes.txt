@@ -1,0 +1,5 @@
+Clearer dive maps
+
+• Nearby starts and finishes from the same dive now share a combined marker.
+• Crowded groups show a distinct point counter. Tap to reveal every point, with dive numbers and times.
+• Starts and finishes remain separate when they are far apart.

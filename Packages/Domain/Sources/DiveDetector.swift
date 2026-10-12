@@ -19,11 +19,11 @@ public struct DiveDetectionConfig: Sendable, Equatable, Codable {
 
     /// Depth (m) below which the diver is considered underwater rather than at the surface.
     public var surfaceThresholdMeters: Double
-    /// How long (s) the diver must stay continuously shallower than
+    /// How long (s) the diver must rest at a stable depth shallower than
     /// `surfaceThresholdMeters` — without reaching the surface (0 m) — before an
     /// in-progress dive is treated as ended. A shorter shallow excursion (a bounce)
-    /// stays part of the same dive. Set to 0 for the legacy "end at the first
-    /// below-threshold sample" behaviour.
+    /// stays part of the same dive. Set to 0 to confirm a stable shallow rest
+    /// without an additional time delay. An ongoing ascent still stays open.
     public var surfaceExitDwellSeconds: TimeInterval
     /// Acceptance rules; a candidate is kept as a dive if it satisfies **any** of them.
     public var thresholds: [DiveThreshold]
@@ -115,8 +115,8 @@ public struct DiveDetectionConfig: Sendable, Equatable, Codable {
     /// Returns a copy with every value clamped to a sane, UI-representable range —
     /// the surface threshold to `[0.5, 2.0]` m, tier depths to
     /// `[surfaceThreshold, DepthFormat.maxMeasurableMeters]`, tier durations to
-    /// `[1, 30]` s, the dwell to `[0, 10]` s (0 is the documented legacy
-    /// "end at the first below-threshold sample" value), and the recovery multiplier to
+    /// `[1, 30]` s, the dwell to `[0, 10]` s (0 confirms stable rest
+    /// without a timer delay), and the recovery multiplier to
     /// `[1.5, 5.0]` — dropping any non-finite / degenerate
     /// tier, and falling back to `.default`'s tiers when none survive (at least one
     /// acceptance rule must remain). Applied before the config drives detection so a
@@ -160,17 +160,10 @@ public struct DiveDetector: Sendable {
         self.config = config
     }
 
-    /// Detects dives from an unordered set of depth samples.
-    ///
-    /// A dive stays open while the diver is deeper than `surfaceThresholdMeters`,
-    /// and ends the moment depth reaches the surface (≤ `surfaceExitDepthMeters`,
-    /// i.e. an explicit 0 m reading) — including the whole ascent through the
-    /// shallow band in the dive. If instead the diver lingers shallow (above the
-    /// surface, below the threshold) for `surfaceExitDwellSeconds` — timed from the
-    /// **first** shallow sample, to match the live layers (`SessionManager` /
-    /// `DiveHapticTracker`) so they agree on when a shallow spell ends the dive —
-    /// the dive ends at the threshold crossing, excluding that shallow hang. A brief
-    /// shallow excursion shorter than the dwell (a bounce) folds back into the same dive.
+    /// Detects dives from an unordered set of depth samples. Acceptance uses the
+    /// deep run; the logged profile includes the retained descent and shallow
+    /// ascent. Zero ends a dive immediately. A stable shallow rest can also end
+    /// it after the configured dwell, which restarts while depth is decreasing.
     public func detectDives(from samples: [DepthSample]) -> [Dive] {
         let ordered = samples.sorted { $0.timestamp < $1.timestamp }
         var dives: [Dive] = []
@@ -179,6 +172,9 @@ public struct DiveDetector: Sendable {
         // Shallow samples buffered since the last threshold crossing, pending a
         // surface-exit decision (bounce → fold back in; dwell → drop).
         var shallowTail: [DepthSample] = []
+        var descent = DiveDescentBuffer()
+        var descentPrefix: [DepthSample] = []
+        var surfaceExit = DiveSurfaceExit()
 
         // Emits a dive from a completed candidate if it clears an acceptance tier.
         // Two spans matter and they differ on purpose:
@@ -188,8 +184,8 @@ public struct DiveDetector: Sendable {
         //    deep sample followed by a shallow tail can't borrow the tail's duration
         //    to sneak past a tier (e.g. [0, 2.3, 0.8, 0.6, 0] would otherwise clear
         //    the 2 m / 2 s tier on a zero-duration deep spike).
-        //  - the LOGGED dive keeps the FULL sample set (`deep` + `tail`): startTime =
-        //    first deep sample, endTime = last overall sample, maxDepth over all. A
+        //  - the LOGGED dive keeps the FULL sample set (descent + deep + tail):
+        //    startTime = descent onset, endTime = last overall sample. A
         //    0 m exit folds the ascent tail in here, so the ascent counts toward the
         //    logged duration even though it doesn't help pass acceptance.
         func finalize(deep: [DepthSample], tail: [DepthSample]) {
@@ -211,12 +207,12 @@ public struct DiveDetector: Sendable {
             guard config.thresholds.contains(where: {
                 deepMaxDepth >= $0.minimumDepthMeters && deepSpan >= $0.minimumDuration
             }) else { return }
-            let all = deep + tail
+            let all = descentPrefix + deep + tail
             let last = all.last ?? deepLast
             let maxDepth = all.map(\.depthMeters).max() ?? deepMaxDepth
             dives.append(
                 Dive(
-                    startTime: deepFirst.timestamp,
+                    startTime: all.first?.timestamp ?? deepFirst.timestamp,
                     endTime: last.timestamp,
                     maxDepthMeters: maxDepth,
                     samples: all
@@ -227,14 +223,23 @@ public struct DiveDetector: Sendable {
         for sample in ordered {
             let depth = sample.depthMeters
             if depth > config.surfaceThresholdMeters {
+                surfaceExit.reset()
+                if current.isEmpty {
+                    // The threshold confirms submersion; it does not mark the
+                    // beginning of the descent stored in the dive profile.
+                    if let last = descent.samples.last,
+                       sample.timestamp.timeIntervalSince(last.timestamp) <= max(3, config.surfaceExitDwellSeconds) {
+                        descentPrefix = descent.samples
+                    } else { descentPrefix = [] }
+                    descent.reset()
+                }
                 // Deep: fold any pending shallow bounce back into the dive, then
                 // extend it with this sample.
                 if !current.isEmpty { current.append(contentsOf: shallowTail) }
                 shallowTail.removeAll()
                 current.append(sample)
             } else if current.isEmpty {
-                // At/near the surface with no dive open — surface bobbing, ignore.
-                continue
+                descent.append(sample, dwell: config.surfaceExitDwellSeconds)
             } else if depth <= DiveDetectionConfig.surfaceExitDepthMeters {
                 // Explicit 0 m: fully surfaced. End the dive; the deep run gates
                 // acceptance while the shallow tail + this 0 m sample are logged so
@@ -242,23 +247,26 @@ public struct DiveDetector: Sendable {
                 finalize(deep: current, tail: shallowTail + [sample])
                 current.removeAll()
                 shallowTail.removeAll()
+                descentPrefix = []
+                surfaceExit.reset()
+                descent.append(sample, dwell: config.surfaceExitDwellSeconds)
             } else {
-                // Shallow band (above the surface, below the threshold): buffer this
-                // sample first, then measure the dwell as the span from the FIRST
-                // buffered shallow sample to it. Appending before reading
-                // `shallowTail.first` makes the anchor equal this sample on the first
-                // shallow reading (a zero span, never past the dwell), and the first
-                // shallow sample thereafter — matching the live layers, which time
-                // the dwell from the first shallow sample rather than the last deep one.
+                // Preserve the ascent, and confirm a surface rest only once
+                // depth has stopped decreasing for the configured dwell.
                 shallowTail.append(sample)
-                if let anchor = shallowTail.first,
-                   sample.timestamp.timeIntervalSince(anchor.timestamp) >= config.surfaceExitDwellSeconds {
-                    // Stayed shallow past the dwell → the diver was at the surface.
-                    // End the dive at the crossing (last deep sample in `current`);
-                    // drop the shallow hang.
-                    finalize(deep: current, tail: [])
+                if let surfacedAt = surfaceExit.update(depthMeters: depth, at: sample.timestamp,
+                                                        threshold: config.surfaceThresholdMeters,
+                                                        dwell: config.surfaceExitDwellSeconds) {
+                    // Keep the whole ascent through the shallow band, excluding
+                    // only the stable surface rest confirmed by the dwell.
+                    finalize(deep: current, tail: shallowTail.filter { $0.timestamp <= surfacedAt })
                     current.removeAll()
+                    descentPrefix = []
+                    // Start the next candidate at the latest shallow reading,
+                    // rather than borrowing the previous dive's ascent.
+                    descent.append(sample, dwell: config.surfaceExitDwellSeconds)
                     shallowTail.removeAll()
+                    surfaceExit.reset()
                 }
             }
         }
@@ -288,9 +296,18 @@ public struct DiveDetector: Sendable {
         let preemption = manualSegments.map { segment in
             DateInterval(start: segment.start, end: firstSurfaceExit(after: segment.end, in: ordered))
         }
-        let auto = detectDives(from: ordered).filter { dive in
-            let window = DateInterval(start: dive.startTime, end: dive.endTime)
-            return !preemption.contains { $0.intersects(window) }
+        let auto = detectDives(from: ordered).compactMap { dive -> Dive? in
+            // Sharing a surface boundary is not an overlapping dive. Keeping
+            // that baseline sample must not suppress the following auto dive.
+            let deepStart = dive.samples.first { $0.depthMeters > config.surfaceThresholdMeters }?.timestamp ?? dive.startTime
+            guard !preemption.contains(where: { $0.start < dive.endTime && $0.end > deepStart }) else { return nil }
+            // A manual stop after surfacing can fall between the retained surface
+            // baseline and the next reading. Drop only that overlapping prefix.
+            let retained = dive.samples.filter { sample in
+                !preemption.contains { $0.start <= sample.timestamp && $0.end > sample.timestamp }
+            }
+            return Dive(id: dive.id, startTime: retained.first?.timestamp ?? deepStart,
+                        endTime: dive.endTime, maxDepthMeters: dive.maxDepthMeters, samples: retained)
         }
         let manual = manualSegments.map { segment -> Dive in
             let inSegment = ordered.filter { segment.contains($0.timestamp) }
@@ -307,8 +324,8 @@ public struct DiveDetector: Sendable {
     /// Timestamp of the first genuine surface exit at or after `time` in `ordered`
     /// (assumed sorted): an explicit 0 m reading (≤ `surfaceExitDepthMeters`), or the
     /// diver lingering in the shallow band (above the surface, below the threshold)
-    /// for `surfaceExitDwellSeconds` — timed from the first shallow sample, and reset
-    /// whenever depth drops back below the threshold. Mirrors the surface-exit rule of
+    /// for `surfaceExitDwellSeconds` — restarted as the ascent continues or
+    /// whenever depth crosses back below the threshold. Mirrors the surface-exit rule of
     /// `detectDives(from:)` and the live layer so all three agree on when a dive ends.
     /// `.distantFuture` when the diver never surfaces again (the session ended deep).
     ///
@@ -361,22 +378,23 @@ public struct DiveDetector: Sendable {
             // suppressed by a `.distantFuture` window.
             return time
         }
-        var shallowAnchor: Date?
+        var surfaceExit = DiveSurfaceExit()
         for sample in ordered {
             // Start the scan just after the last deep sample at/before `time` (the
             // in-progress shallow spell began there); skip everything up to it.
             if let lastDeep = lastDeepBeforeTime, sample.timestamp <= lastDeep.timestamp { continue }
             let depth = sample.depthMeters
             if depth > config.surfaceThresholdMeters {
-                shallowAnchor = nil                              // deep again → dwell resets
+                surfaceExit.reset()
             } else if depth <= DiveDetectionConfig.surfaceExitDepthMeters {
                 if sample.timestamp >= time { return sample.timestamp }  // explicit 0 m → surfaced
-                shallowAnchor = nil                              // a 0 m before `time` resets the spell
+                surfaceExit.reset()
             } else {
-                let anchor = shallowAnchor ?? sample.timestamp
-                shallowAnchor = anchor
+                let surfacedAt = surfaceExit.update(depthMeters: depth, at: sample.timestamp,
+                                                      threshold: config.surfaceThresholdMeters,
+                                                      dwell: config.surfaceExitDwellSeconds)
                 if sample.timestamp >= time,
-                   sample.timestamp.timeIntervalSince(anchor) >= config.surfaceExitDwellSeconds {
+                   surfacedAt != nil {
                     return sample.timestamp                      // shallow past the dwell → surfaced
                 }
             }

@@ -56,6 +56,7 @@ public struct SessionImporter {
         for marker in (record.markers ?? []) {
             _ = mirrorAudio(marker)
         }
+        try NoteMutationStore(context: context).reconcile()
         try context.save()
         return true
     }

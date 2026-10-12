@@ -64,8 +64,15 @@ public final class SensorManager {
     }
 
     private func ingest(_ sample: DepthSample) {
-        samples.append(sample)
-        currentDepthMeters = sample.depthMeters
+        // Core Motion's surface events can arrive after a newer measurement.
+        // Retain that zero boundary without rewinding the current live depth.
+        if let last = samples.last, sample.timestamp < last.timestamp {
+            let index = samples.firstIndex { $0.timestamp > sample.timestamp } ?? samples.endIndex
+            samples.insert(sample, at: index)
+        } else {
+            samples.append(sample)
+        }
+        currentDepthMeters = samples.last?.depthMeters ?? sample.depthMeters
         onSamplesChanged?()
     }
 

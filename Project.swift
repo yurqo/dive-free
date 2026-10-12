@@ -74,13 +74,11 @@ let watchApp = Target.target(
         "NSLocationWhenInUseUsageDescription": "Used to record where your dives happen.",
         "NSMicrophoneUsageDescription": "Used to record voice notes about a dive while you're at the surface.",
         // Keep the app alive in the background for the HKWorkoutSession, and
-        // receive water-submersion depth (the latter also registers the app
-        // under Settings → General → Auto-Launch → When Submerged so it can
-        // launch automatically on a dive). Depth itself requires the
+        // receive water-submersion depth while recording. Depth requires the
         // submerged-shallow-depth-and-pressure entitlement (see entitlements).
         "WKBackgroundModes": ["workout-processing", "underwater-depth"],
     ]),
-    sources: ["Apps/WatchApp/Sources/**"],
+    sources: ["Apps/WatchApp/Sources/**", "Apps/Shared/**"],
     resources: ["Apps/WatchApp/Resources/**"],
     entitlements: .file(path: "Apps/WatchApp/DiveFreeWatch.entitlements"),
     dependencies: [
@@ -134,6 +132,7 @@ let iphoneApp = Target.target(
         "NSHealthShareUsageDescription": "Used to read your dive workouts.",
         "NSHealthUpdateUsageDescription": "Used to store your dive sessions.",
         "NSLocationWhenInUseUsageDescription": "Used to record the location of your dive spots.",
+        "NSSpeechRecognitionUsageDescription": "Transcribe your dive voice notes into editable text on this device.",
         "NSPhotoLibraryUsageDescription": "Used to attach photos to your dive spots, including shots imported from underwater cameras.",
         "NSPhotoLibraryAddUsageDescription": "Used to save dive spot photos to your library.",
         "NSCameraUsageDescription": "Used to take photos at your dive spots.",
@@ -145,8 +144,8 @@ let iphoneApp = Target.target(
             ]
         ],
     ]),
-    sources: ["Apps/iPhoneApp/Sources/**"],
-    resources: ["Apps/iPhoneApp/Resources/**"],
+    sources: ["Apps/iPhoneApp/Sources/**", "Apps/Shared/**"],
+    resources: ["Apps/iPhoneApp/Resources/**", "Apps/iPhoneApp/ScreenshotFixtures/**"],
     entitlements: .file(path: "Apps/iPhoneApp/DiveFree.entitlements"),
     dependencies: [
         .target(name: "Domain"),
@@ -159,7 +158,12 @@ let iphoneApp = Target.target(
         .target(name: "DiveFreeWatch"),
         // Embeds the widget extension hosting the in-progress-dive Live Activity (#118).
         .target(name: "DiveFreeWidgets"),
-    ]
+    ],
+    settings: .settings(configurations: [
+        .debug(name: "Debug"),
+        // User-provided marketing photos are only bundled in screenshot/test builds.
+        .release(name: "Release", settings: ["EXCLUDED_SOURCE_FILE_NAMES": ["Jemeluk-*.jpg"]]),
+    ])
 )
 
 // The widget extension: hosts the in-progress-dive Live Activity (#118). Shares
@@ -228,12 +232,34 @@ let project = Project(
         // across minor bumps (a 1.0.x→1.1.0 jump would otherwise reset build=patch
         // backwards and TestFlight would reject it). Both targets bind their
         // Info.plist to these so the values reach the bundle.
-        "MARKETING_VERSION": "1.3.0",
+        "MARKETING_VERSION": "1.4.5",
         "CURRENT_PROJECT_VERSION": "1",
         "DEVELOPMENT_TEAM": SettingValue(stringLiteral: developmentTeam),
         "CODE_SIGN_STYLE": "Automatic",
     ]),
-    targets: [iphoneApp, watchApp, widgetExtension, screenshotTests]
+    targets: [iphoneApp, watchApp, widgetExtension, screenshotTests,
+        .target(
+            name: "NoteEditorUITests",
+            destinations: .iOS,
+            product: .uiTests,
+            bundleId: "\(bundlePrefix).noteeditor.tests",
+            deploymentTargets: .iOS(iOSVersion),
+            infoPlist: .default,
+            sources: ["Apps/iPhoneApp/UITests/**"],
+            dependencies: [.target(name: "DiveFree")]
+        ),
+        .target(
+            name: "ReviewRequestTests",
+            destinations: .iOS,
+            product: .unitTests,
+            bundleId: "\(bundlePrefix).review.tests",
+            deploymentTargets: .iOS(iOSVersion),
+            sources: ["Apps/iPhoneApp/Tests/**", "Apps/iPhoneApp/Sources/ReviewMilestoneAttempt.swift",
+                      "Apps/iPhoneApp/Sources/NoteTranscriptionLocale.swift",
+                      "Apps/iPhoneApp/Sources/SessionChartViewport.swift",
+                      "Apps/iPhoneApp/Sources/SessionMapLayout.swift"],
+            dependencies: [.target(name: "Domain")]
+        )]
         + module("Domain", resources: ["Packages/Domain/Resources/**"])
         + module("Persistence", dependencies: [.target(name: "Domain")])
         + module(

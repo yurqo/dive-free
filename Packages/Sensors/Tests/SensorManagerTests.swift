@@ -62,6 +62,21 @@ struct SensorManagerTests {
         manager.stop()
     }
 
+    @Test("late zero boundaries preserve chronological samples and current depth")
+    func lateSurfaceBoundary() async throws {
+        let provider = ControlledProvider()
+        let manager = SensorManager(provider: provider)
+        try await manager.start()
+        defer { manager.stop() }
+        let start = Date(timeIntervalSince1970: 100)
+        provider.continuation.yield(.init(timestamp: start.addingTimeInterval(1), depthMeters: 4))
+        try await waitUntil { manager.samples.count == 1 }
+        provider.continuation.yield(.init(timestamp: start, depthMeters: 0))
+        try await waitUntil { manager.samples.count == 2 }
+        #expect(manager.samples.map(\.depthMeters) == [0, 4])
+        #expect(manager.currentDepthMeters == 4)
+    }
+
     @Test("onSamplesChanged fires once per ingested sample")
     func notifiesPerSample() async throws {
         let provider = ControlledProvider()

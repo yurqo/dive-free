@@ -818,6 +818,53 @@
         }
       }
     },
+    "Delete Note": {
+      "extractionState": "manual",
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eliminar nota"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supprimer la note"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Elimina nota"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notiz löschen"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Excluir nota"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "メモを削除"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Видалити нотатку"
+          }
+        }
+      }
+    },
     "Delete Session": {
       "localizations": {
         "es": {
@@ -860,6 +907,53 @@
           "stringUnit": {
             "state": "translated",
             "value": "Excluir sessão"
+          }
+        }
+      }
+    },
+    "Delete this note?": {
+      "extractionState": "manual",
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "¿Eliminar esta nota?"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supprimer cette note ?"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eliminare questa nota?"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Notiz löschen?"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Excluir esta nota?"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このメモを削除しますか？"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Видалити цю нотатку?"
           }
         }
       }
@@ -1688,6 +1782,53 @@
           "stringUnit": {
             "state": "translated",
             "value": "Duração"
+          }
+        }
+      }
+    },
+    "Edit Note": {
+      "extractionState": "manual",
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Editar nota"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modifier la note"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modifica nota"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notiz bearbeiten"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Editar nota"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "メモを編集"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Редагувати нотатку"
           }
         }
       }
@@ -3582,6 +3723,59 @@
         }
       }
     },
+    "Raw GPS distance": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Raw GPS distance"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GPS-Distanz ohne Glättung"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Distancia GPS sin filtrar"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Distance GPS brute"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Distanza GPS non filtrata"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未補正のGPS距離"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Distância GPS sem filtro"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Необроблена відстань GPS"
+          }
+        }
+      }
+    },
     "Re-send all to iPhone": {
       "localizations": {
         "es": {
@@ -3716,6 +3910,100 @@
           "stringUnit": {
             "state": "translated",
             "value": "Reenviar para o iPhone"
+          }
+        }
+      }
+    },
+    "Remove Recording": {
+      "extractionState": "manual",
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eliminar grabación"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supprimer l’enregistrement"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rimuovi registrazione"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufnahme entfernen"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remover gravação"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "録音を削除"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Видалити запис"
+          }
+        }
+      }
+    },
+    "Remove the recording?": {
+      "extractionState": "manual",
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "¿Eliminar la grabación?"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supprimer l’enregistrement ?"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rimuovere la registrazione?"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufnahme entfernen?"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remover a gravação?"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "録音を削除しますか？"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Видалити запис?"
           }
         }
       }
@@ -5146,6 +5434,53 @@
         }
       }
     },
+    "Title": {
+      "extractionState": "manual",
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Título"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Titre"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Titolo"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Titel"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Título"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "タイトル"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Заголовок"
+          }
+        }
+      }
+    },
     "Toggle Dive": {
       "localizations": {
         "es": {
@@ -6070,7 +6405,99 @@
         }
       }
     },
-    "📍%lld": {}
+    "📍%lld": {},
+    "Depth needs an Ultra or Series 10/11 and is currently limited to 6 m. Deeper readings on Ultra require Apple's separate approval, independent EN13319 certification, and ongoing testing; those costs and requirements are beyond this free project for now. Other watches still log GPS and markers.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tiefenmessungen benötigen eine Ultra oder Series 10/11 und sind derzeit auf 6 m begrenzt. Tiefere Messwerte auf der Ultra erfordern eine separate Genehmigung von Apple, eine unabhängige EN13319-Zertifizierung und laufende Tests. Kosten und Aufwand übersteigen derzeit die Möglichkeiten dieses kostenlosen Projekts. Andere Watches erfassen weiterhin GPS und Markierungen."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La medición de profundidad requiere un Ultra o Series 10/11 y actualmente está limitada a 6 m. Para medir más en el Ultra hacen falta una aprobación específica de Apple, una certificación EN13319 independiente y pruebas continuas; el coste y el trabajo superan por ahora los recursos de este proyecto gratuito. Los demás relojes siguen registrando GPS y marcadores."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La mesure de profondeur nécessite une Ultra ou une Series 10/11 et est actuellement limitée à 6 m. Des mesures plus profondes sur l’Ultra exigent une autorisation distincte d’Apple, une certification EN13319 indépendante et des tests continus ; leur coût et le travail requis dépassent pour l’instant les moyens de ce projet gratuit. Les autres montres enregistrent toujours le GPS et les repères."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La misurazione della profondità richiede un modello Ultra o Series 10/11 ed è attualmente limitata a 6 m. Per misurare più in profondità su Ultra servono un’approvazione specifica di Apple, la certificazione EN13319 indipendente e test continui; costi e lavoro superano per ora le risorse di questo progetto gratuito. Gli altri orologi registrano comunque GPS e marcatori."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "水深の記録にはUltraまたはSeries 10/11が必要で、現在は6 mまでに制限されています。Ultraでさらに深い水深を測定するには、Appleの個別承認、独立したEN13319認証、継続的なテストが必要です。その費用と作業は、現在この無料プロジェクトで対応できる範囲を超えています。その他の時計でもGPSとマーカーは記録されます。"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A medição de profundidade requer um Ultra ou Series 10/11 e está atualmente limitada a 6 m. Leituras mais profundas no Ultra exigem aprovação específica da Apple, certificação EN13319 independente e testes contínuos; o custo e o trabalho estão além dos recursos deste projeto gratuito por enquanto. Os outros relógios continuam registrando GPS e marcadores."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Для вимірювання глибини потрібен Ultra або Series 10/11, наразі межа становить 6 м. Глибші вимірювання на Ultra потребують окремого дозволу Apple, незалежної сертифікації EN13319 і постійного тестування; зараз витрати й обсяг роботи перевищують ресурси цього безкоштовного проєкту. Інші годинники й далі записують GPS і позначки."
+          }
+        }
+      }
+    },
+    "Waiting to sync to iPhone": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esperando sincronizar con el iPhone"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En attente de synchronisation avec l’iPhone"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In attesa di sincronizzazione con l’iPhone"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhoneへの同期を待機中"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Очікує синхронізації з iPhone"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wartet auf Synchronisierung mit iPhone"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aguardando sincronização com o iPhone"
+          }
+        }
+      }
+    }
   },
   "version": "1.0"
 }

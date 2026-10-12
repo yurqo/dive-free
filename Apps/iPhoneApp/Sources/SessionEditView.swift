@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 import Domain
 import Persistence
 
@@ -20,6 +21,7 @@ struct SessionEditView: View {
             Form {
                 Section("Title") {
                     TextField("Optional", text: text(\.title))
+                        .accessibilityIdentifier("session.edit.title")
                 }
                 Section {
                     TextField("Area name", text: areaText)

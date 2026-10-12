@@ -46,7 +46,7 @@ struct DepthChartView: View {
     var body: some View {
         // Compute the profile once per body pass (it sorts), then reuse it for
         // both the line and the scrub callout.
-        let points = dive.depthProfile
+        let points = dive.chartDepthProfile
         let selectedPoint = nearestPoint(in: points)
         return Chart {
             ForEach(points) { point in
@@ -54,7 +54,7 @@ struct DepthChartView: View {
                     x: .value("Elapsed", point.secondsFromStart),
                     y: .value("Depth", DepthFormat.displayDepth(point.depthMeters))
                 )
-                .interpolationMethod(.monotone)
+                .interpolationMethod(.linear)
                 .foregroundStyle(.teal)
             }
 

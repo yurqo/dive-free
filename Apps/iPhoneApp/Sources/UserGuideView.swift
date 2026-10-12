@@ -236,7 +236,7 @@ private enum UserGuide {
             .subheading("What the numbers mean"),
             .bullet("**Big timer** — your current dive time underwater, or your surface recovery time between dives."),
             .bullet("**Recovery colour** — after a dive the timer is tinted by how far through your recommended rest you are: red, then orange, then yellow, turning green the moment you reach it. The green clears shortly after, leaving the timer white. A gentle nudge to pace yourself, not medical advice."),
-            .bullet("**Depth** shows underwater on Apple Watch Ultra, Series 10, and Series 11. Other watches skip depth but still log your GPS track, markers, and heart rate."),
+            .bullet("**Depth** is available on Apple Watch Ultra, Series 10, and Series 11, up to 6 m. Other watches skip depth but still log your GPS track, markers, and heart rate."),
             .bullet("**Heart rate** beats on the right on any watch; **water temperature** shows on the left on Ultra while you're under."),
             .bullet("**GPS** (top-left) tags where you dived — let it get a fix at the surface before you drop, since GPS can't reach underwater."),
             .subheading("Time cues"),
@@ -259,7 +259,11 @@ private enum UserGuide {
         ],
         details: [
             .subheading("A single dive"),
-            .text("Tap any session to open it: a **depth-profile chart** for each dive, a map of where you were, your markers along the timeline, photos and videos from that day, voice notes you can play back, plus water temperature, heart rate, and calories where available. Voice notes sync to your other devices automatically, so a clip you recorded on the watch plays back on your iPad too."),
+            .text("Tap any session to open it: a **session profile** with depth, heart-rate, and temperature charts; a map of where you were; dive segments and markers; photos and videos; and voice notes you can play back. Voice notes sync to your other devices automatically, so a clip recorded on the watch plays back on your iPad too."),
+            .subheading("Session profile and map"),
+            .text("The stacked charts share one timeline. Use the magnifying-glass button or pinch to zoom, then drag to scroll all charts together. The **Hide surface intervals** switch focuses the profile on your dives. Under **Location**, turn on **Smooth GPS track** to reduce GPS drift; the session distance follows the smoothed track too."),
+            .subheading("Notes and voice recordings"),
+            .text("Tap a marker and choose **Edit** to change its type, title, description, or attached photos. Play its voice recording, remove the recording while keeping the text, or delete the note. On iPhone and iPad, you can transcribe a recording and review the result before adding it to the description. Where Apple Intelligence is available, **Summarise** suggests a title and short summary from the transcript."),
             .subheading("Editing and rating"),
             .text("Give a session a title, a star rating, and notes. You can tidy up details and remove a session you didn't mean to keep."),
             .subheading("Spots"),
@@ -325,7 +329,7 @@ private enum UserGuide {
             .subheading("Manual dives"),
             .text("For a very shallow or quick drop you want to be sure is logged, mark the dive by hand with **Action + side** (see the watch chapter) — it counts from the moment you press, whatever the depth."),
             .subheading("About depth"),
-            .text("Depth is measured in shallow water only — up to about **6 m (20 ft)**. Dive Free is built for recreational freediving and snorkelling, so it doesn't measure or plan deep dives, and maximum depth stops at that ceiling."),
+            .text("Depth recording currently stops at **6 m (20 ft)**. Dive Free uses Apple's shallow-depth entitlement. Access to deeper readings on Apple Watch Ultra requires Apple's separate approval, independent EN13319 certification, and ongoing testing. The costs and work involved are beyond this free project's current resources, so deeper depth recording isn't enabled. Dive Free is a recreational logbook, not a dive computer, and doesn't measure or plan deep dives."),
         ]
     )
 
@@ -382,7 +386,7 @@ private enum UserGuide {
         title: "Getting your data out",
         systemImage: "square.and.arrow.up",
         intro: [
-            .text("Your dives aren't locked in. You can export any session to standard files — to open in other apps or just to keep as a backup. Exports are free."),
+            .text("Your dives aren't locked in. Export a session to standard files for other apps, or choose a **Dive Free Backup** to save that session as a .zip file. Exports are free."),
         ],
         details: [
             .subheading("How to export"),
@@ -393,8 +397,9 @@ private enum UserGuide {
             .bullet("**GPX** — your surface track plus markers, for maps and Google Earth."),
             .bullet("**CSV** — a spreadsheet with one row per dive, for Numbers or Excel."),
             .bullet("**TCX** — an alternative fitness format."),
+            .bullet("**Dive Free Backup (data)** or **(data+media)** — a backup of this session alone, with optional voice notes, photos, and videos."),
             .tip("FIT needs GPS or heart-rate data, so a session with no location may not produce a FIT file."),
-            .text("Depth, your GPS track, heart rate, water temperature, and markers are all included where available. Photos and voice notes aren't part of these single-file exports."),
+            .text("Standard-format exports include depth, your GPS track, heart rate, water temperature, and markers where available. They don't include photos or voice recordings; choose **Dive Free Backup (data+media)** to include this session's media."),
         ]
     )
 
@@ -402,7 +407,7 @@ private enum UserGuide {
         title: "Backing up & restoring",
         systemImage: "externaldrive",
         intro: [
-            .text("Keep a complete copy of your log in a single **.zip** file — handy before switching phones, or just for peace of mind."),
+            .text("Keep a complete copy of your log in a single **.zip** file — handy before switching phones, or just for peace of mind. To export only one session, use **Dive Free Backup** in that session's Export section."),
         ],
         details: [
             .subheading("What's always included"),

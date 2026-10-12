@@ -13,9 +13,24 @@ public protocol LocationProviding: Sendable {
     /// A stream of surface GPS fixes for the session's track. Yields fixes as
     /// they arrive and ends when the consuming task is cancelled.
     func locationUpdates() -> AsyncStream<GeoPoint>
+    /// Timestamped fixes for motion filtering. Production keeps the sensor's
+    /// timestamps even when CoreLocation delivers several fixes in one batch.
+    func trackUpdates() -> AsyncStream<TrackPoint>
 }
 
 public extension LocationProviding {
+    func trackUpdates() -> AsyncStream<TrackPoint> {
+        AsyncStream { continuation in
+            let task = Task {
+                for await point in locationUpdates() {
+                    if Task.isCancelled { break }
+                    continuation.yield(TrackPoint(timestamp: Date(), location: point))
+                }
+                continuation.finish()
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
     /// Default: a one-element stream from `currentLocation()`, so a provider that
     /// only knows a single fix still produces a (degenerate) track.
     func locationUpdates() -> AsyncStream<GeoPoint> {
@@ -85,6 +100,19 @@ public struct CoreLocationProvider: LocationProviding {
 
     public func locationUpdates() -> AsyncStream<GeoPoint> {
         AsyncStream { continuation in
+            let task = Task {
+                for await point in trackUpdates() {
+                    if Task.isCancelled { break }
+                    continuation.yield(point.location)
+                }
+                continuation.finish()
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
+    public func trackUpdates() -> AsyncStream<TrackPoint> {
+        AsyncStream { continuation in
             let delegate = LocationStreamDelegate(continuation: continuation)
             continuation.onTermination = { _ in delegate.stop() }
             delegate.start()
@@ -97,9 +125,9 @@ public struct CoreLocationProvider: LocationProviding {
 /// independent, mirroring the old per-call `liveUpdates()` model.
 private final class LocationStreamDelegate: NSObject, CLLocationManagerDelegate, @unchecked Sendable {
     private let manager = CLLocationManager()
-    private let continuation: AsyncStream<GeoPoint>.Continuation
+    private let continuation: AsyncStream<TrackPoint>.Continuation
 
-    init(continuation: AsyncStream<GeoPoint>.Continuation) {
+    init(continuation: AsyncStream<TrackPoint>.Continuation) {
         self.continuation = continuation
         super.init()
         manager.delegate = self
@@ -137,7 +165,7 @@ private final class LocationStreamDelegate: NSObject, CLLocationManagerDelegate,
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         for location in locations where location.horizontalAccuracy >= 0 {
-            continuation.yield(GeoPoint(location))
+            if let fix = timestampedLocation(location) { continuation.yield(fix) }
         }
     }
 
@@ -155,4 +183,13 @@ private final class LocationStreamDelegate: NSObject, CLLocationManagerDelegate,
             break
         }
     }
+}
+
+/// Reject a cached/invalid fix before it can anchor the live track. Kept pure
+/// for deterministic timestamp and accuracy tests without a GPS permission prompt.
+func timestampedLocation(_ location: CLLocation, now: Date = Date()) -> TrackPoint? {
+    let age = now.timeIntervalSince(location.timestamp)
+    guard age >= -5, age <= 30, location.horizontalAccuracy.isFinite,
+          location.horizontalAccuracy >= 0, CLLocationCoordinate2DIsValid(location.coordinate) else { return nil }
+    return TrackPoint(timestamp: location.timestamp, location: GeoPoint(location))
 }

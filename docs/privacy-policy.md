@@ -1,6 +1,6 @@
 # DiveFree Privacy Policy
 
-_Effective date: June 25, 2026_
+_Effective date: October 3, 2026_
 
 > The live version of this policy is served at
 > <https://divefree.software-engineer.ing/privacy> by the Cloudflare Worker
@@ -48,11 +48,21 @@ library to attach them to dive spots and sessions, and can organize them into a
 upload them anywhere, and they remain in your photo library.
 
 ### Voice notes
-Voice notes you record are stored as audio files on your device.
+Voice notes you record are stored as audio files on your device. When you choose
+Transcribe, speech recognition processes the recording on your device. When
+available and enabled, Apple Intelligence can create a suggested title and
+summary on your device. These actions do not send recordings or note text to our
+servers or to a third-party AI service. Language models may need to be downloaded
+from Apple before use.
+
+Recordings, editable descriptions, transcripts, summaries, and note-edit records
+can sync through your private iCloud account when iCloud Sync is enabled. Removing
+a recording keeps its text; deleting a note removes its recording and unlinks its
+photos without deleting the originals from Photos.
 
 ### iCloud sync (optional)
 If you turn on **iCloud Sync** (Settings → iCloud), the app syncs your dive log —
-sessions, dives, markers, spots, and photo references — across your own devices
+sessions, dives, markers, voice notes, spots, and photo references — across your own devices
 using Apple's CloudKit, stored in your **private** iCloud database. This data
 lives in your iCloud account under your Apple ID; we operate no server for it and
 have no access to it. It is governed by

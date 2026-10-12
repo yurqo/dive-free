@@ -225,6 +225,9 @@ public final class MarkerRecord {
     // pre-existing rows (built-ins are re-resolved from `EventKind` in toDomain).
     public var emoji: String = ""
     public var label: String = ""
+    public var title: String?
+    public var transcript: String?
+    public var summary: String?
     public var text: String?
     // Filename of the attached surface voice note, stored so the marker→clip link
     // survives persistence and watch→phone sync. Optional → lightweight migration.
@@ -304,7 +307,7 @@ public extension MarkerRecord {
         } else {
             resolved = MarkerKind(id: kind, emoji: emoji, label: label)
         }
-        return EventMarker(id: id, timestamp: timestamp, kind: resolved, text: text, audioFileName: audioFileName)
+        return EventMarker(id: id, timestamp: timestamp, kind: resolved, text: text, audioFileName: audioFileName, title: title, transcript: transcript, summary: summary)
     }
 }
 
@@ -367,6 +370,9 @@ public extension MarkerRecord {
             text: marker.text,
             audioFileName: marker.audioFileName
         )
+        title = marker.title
+        transcript = marker.transcript
+        summary = marker.summary
     }
 }
 

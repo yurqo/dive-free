@@ -121,6 +121,7 @@ struct WatchSettingsView: View {
                     Text("More accurate dive-spot location and surface track. Drains the battery faster. Applies to your next session.")
                 }
 
+
                 Section {
                     Text(session.detectionSummary)
                         .font(.footnote)
@@ -206,6 +207,9 @@ struct WatchSettingsView: View {
                         Text("Re-send every session on this watch to your iPhone — use it if some dives didn't show up there.")
                         if session.pendingSyncCount > 0 {
                             Text("\(session.pendingSyncCount) waiting to reach your iPhone")
+                        }
+                        if let error = session.syncError {
+                            Text(error).foregroundStyle(.red)
                         }
                     }
                 }

@@ -1,9 +1,11 @@
 import SwiftUI
+import SwiftData
 
 /// Top-level tabs: Dives, Trips, Spots, and Passport. The sidebar-adaptable
 /// style keeps a bottom tab bar on iPhone (compact) and shows a sidebar on iPad
 /// (regular width), so the destinations feel native on both (#170).
 struct RootTabView: View {
+    @State private var selectedTab = "tab.dives"
     @Environment(\.modelContext) private var modelContext
     @Environment(PhotoPagerPresenter.self) private var pager
     @Environment(PhotoSuggestionPresenter.self) private var suggestions
@@ -11,30 +13,48 @@ struct RootTabView: View {
     var body: some View {
         @Bindable var pager = pager
         @Bindable var suggestions = suggestions
-        TabView {
+        TabView(selection: $selectedTab) {
             // Stable, locale-independent a11y identifiers per tab. Used by the
             // screenshot UI test to select tabs regardless of localized titles
             // and regardless of layout (bottom tab bar on iPhone vs. sidebar on
             // iPad, where SwiftUI renders rows as cells/buttons rather than
             // tab-bar buttons).
-            Tab("Dives", systemImage: "water.waves") {
+            Tab("Dives", systemImage: "water.waves", value: "tab.dives") {
                 SessionListView()
             }
             .accessibilityIdentifier("tab.dives")
-            Tab("Trips", systemImage: "suitcase") {
+            Tab("Trips", systemImage: "suitcase", value: "tab.trips") {
                 TripsView()
             }
             .accessibilityIdentifier("tab.trips")
-            Tab("Spots", systemImage: "mappin.and.ellipse") {
+            Tab("Spots", systemImage: "mappin.and.ellipse", value: "tab.spots") {
                 SpotsListView()
             }
             .accessibilityIdentifier("tab.spots")
-            Tab("Passport", systemImage: "rosette") {
+            Tab("Passport", systemImage: "rosette", value: "tab.passport") {
                 StatsView()
             }
             .accessibilityIdentifier("tab.passport")
         }
         .tabViewStyle(.sidebarAdaptable)
+        #if DEBUG
+        .overlay(alignment: .topLeading) {
+            if ProcessInfo.processInfo.arguments.contains("--screenshot-demo") {
+                Text(verbatim: "·")
+                    .font(.system(size: 1))
+                    .foregroundStyle(.clear)
+                    .accessibilityIdentifier("screenshot.selected.\(selectedTab)")
+            }
+        }
+        .task {
+            let arguments = ProcessInfo.processInfo.arguments
+            guard arguments.contains("--screenshot-demo"),
+                  let flag = arguments.firstIndex(of: "--screenshot-screen"),
+                  arguments.indices.contains(flag + 1) else { return }
+            let tabs = ["03-trips": "tab.trips", "04-spots": "tab.spots", "05-passport": "tab.passport"]
+            if let tab = tabs[arguments[flag + 1]] { selectedTab = tab }
+        }
+        #endif
         // Repair photos imported before the cross-device fields existed so they
         // resolve on other devices (#169). Idempotent; no-op once filled in.
         .task { await PhotoBackfill.run(in: modelContext) }

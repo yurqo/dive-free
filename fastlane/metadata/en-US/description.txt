@@ -1,28 +1,28 @@
-Dive Free is the Apple Watch companion for recreational freediving and snorkeling — a beautiful logbook for your time in the water, not a dive computer.
+Record recreational freediving and snorkeling sessions with Apple Watch. Keep your depth profiles, favorite places, photos and voice notes together on iPhone and iPad.
 
-Start a session on your Apple Watch before you get in. Dive Free tracks your depth and dives completely hands-free using the Digital Crown and Action button, so you never have to touch a water-locked screen. Back on the surface, relive every dive on your iPhone or iPad with depth charts, maps of your dive spots, and the photos you took that day.
+Made for the love of diving. All current features are free. All core dive recording and logbook features will remain free in the future.
 
-WATCH-FIRST, HANDS-FREE
-• Run a session hands-free with the Digital Crown — plus the Action button on Apple Watch Ultra — no taps needed underwater
-• Automatic dive detection and surface-interval tracking
-• Live depth (to 6 m) and dive duration underwater (Apple Watch Ultra, Series 10, and Series 11)
-• Follow your session live on iPhone — an in-app banner plus a Lock Screen Live Activity and Dynamic Island
-• Drop event markers during a dive
+RECORD FROM YOUR WRIST
+• Automatic dive detection, depth profiles and surface intervals
+• Use the Digital Crown and, on Apple Watch Ultra, the Action button to place markers underwater
+• Follow your session live on iPhone, including the Lock Screen and Dynamic Island
 
-REMEMBER EVERY DIVE
-• Depth-profile chart for each dive
-• Dive spots grouped automatically and shown on a map
-• Group your dives into multi-day trips, and track your totals in a dive passport
-• Attach photos and videos, including shots from your underwater camera
-• Record voice notes and rate your sessions
-• Organize your dive media into a "Dive Free" album in Photos
+REMEMBER THE DETAILS
+• Record voice notes at the surface and rate your sessions
+• Attach photos and videos to remember what you saw
+• Bring your dive media together in a Dive Free album in Photos
 
-SYNC ACROSS YOUR DEVICES
-• Your dive log, spots, and photos sync privately across iPhone and iPad through your own iCloud account — your data stays in your iCloud
+BUILD YOUR DIVE LOGBOOK
+• View session-wide depth, heart rate and water temperature charts together. Zoom to one- or five-minute windows, pinch to zoom, and hide surface intervals
+• Explore automatically grouped dive spots on a map
+• Organize sessions into trips and see your totals in your dive passport
 
-SHARE
-• Export the dives you choose to Strava
+KEEP AND SHARE YOUR MEMORIES
+• Sync your logbook privately between iPhone and iPad with your own iCloud account
+• Export dives to Strava. Back up your whole logbook or export one session as a Dive Free Backup file, with data only or optional voice notes, photos and videos
 
-Dive Free is a logbook and memory platform for recreational freedivers, snorkelers, and travelers. It is NOT a dive computer and has no dive-computer capabilities: it provides no decompression, dive-planning, or safety information, and depth tracking is capped at 6 metres (shallow water). Never use it as a safety device. Always dive within your training, follow your local rules, and never freedive alone.
+Depth recording currently supports up to 6 m on Apple Watch Ultra, Series 10 and Series 11. Other supported Apple Watch models record sessions with location and heart rate, without depth measurements. Apple Watch Ultra adds Action button controls.
 
-Apple Watch Ultra is the best experience: it tracks depth and lets you run the whole session underwater, hands-free — start and stop sessions, log dives, and drop markers with the watch's buttons. Apple Watch Series 10 and 11 also track depth, and other Apple Watch models log your sessions with GPS location and heart rate.
+Access to depth readings down to 40 m on Apple Watch Ultra requires Apple’s approval, independent EN13319 certification and ongoing testing. The cost and work involved are beyond this free project’s current resources, so deeper depth recording isn’t available for now.
+
+Dive Free is a recreational freediving and snorkeling logbook, not a dive computer. It provides no decompression, dive-planning or safety information. Never use it as a safety device. Dive within your training and never freedive alone.

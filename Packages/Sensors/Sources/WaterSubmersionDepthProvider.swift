@@ -31,6 +31,8 @@ public final class WaterSubmersionDepthProvider: NSObject, DepthProvider, CMWate
     private var _stream: AsyncStream<DepthSample>
     private var tempContinuation: AsyncStream<TemperatureSample>.Continuation?
     private var _temperatureStream: AsyncStream<TemperatureSample>
+    private var recordingStart: Date?
+    private var lastEventWasSubmerged = false
 
     override public init() {
         (_stream, continuation) = Self.makeStream()
@@ -53,11 +55,14 @@ public final class WaterSubmersionDepthProvider: NSObject, DepthProvider, CMWate
         // provider is reused for the app's lifetime) would record nothing.
         (_stream, continuation) = Self.makeStream()
         (_temperatureStream, tempContinuation) = Self.makeStream()
+        recordingStart = Date()
+        lastEventWasSubmerged = false
         manager.delegate = self
     }
 
     public func stop() {
         manager.delegate = nil
+        recordingStart = nil
         continuation?.finish()
         continuation = nil
         tempContinuation?.finish()
@@ -70,20 +75,28 @@ public final class WaterSubmersionDepthProvider: NSObject, DepthProvider, CMWate
     // MARK: - CMWaterSubmersionManagerDelegate
 
     public func manager(_ manager: CMWaterSubmersionManager, didUpdate measurement: CMWaterSubmersionMeasurement) {
-        if let depth = measurement.depth {
+        guard let recordingStart, measurement.date >= recordingStart else { return }
+        if measurement.submersionState == .notSubmerged {
+            lastEventWasSubmerged = false
+            continuation?.yield(DepthSample(timestamp: measurement.date, depthMeters: 0))
+        } else if let depth = measurement.depth {
             continuation?.yield(makeDepthSample(depth: depth, date: measurement.date))
         } else if measurement.submersionState == .pastMaxDepth {
             // Deeper than the entitlement can measure: no depth value is provided,
             // so clamp to the ceiling. The UI renders this as "6+".
             continuation?.yield(DepthSample(timestamp: measurement.date, depthMeters: DepthFormat.maxMeasurableMeters))
-        } else if measurement.submersionState == .notSubmerged {
-            // Surfaced with no depth value — emit 0 m so the detector ends the dive
-            // (see the surfacing event below for why this matters).
-            continuation?.yield(DepthSample(timestamp: measurement.date, depthMeters: 0))
         }
     }
 
     public func manager(_ manager: CMWaterSubmersionManager, didUpdate event: CMWaterSubmersionEvent) {
+        guard let recordingStart else { return }
+        let timestamp = max(event.date, recordingStart)
+        if event.state == .submerged, !lastEventWasSubmerged {
+            // A surface crossing is a zero boundary, even when depth samples
+            // arrive later. SensorManager preserves its original place in time.
+            lastEventWasSubmerged = true
+            continuation?.yield(DepthSample(timestamp: timestamp, depthMeters: 0))
+        }
         // The depth-*measurement* stream stops once the diver is out of the water
         // (and a surface measurement carries no depth), so the in-progress dive
         // would never close — leaving the session stuck "submerged". That makes
@@ -91,7 +104,8 @@ public final class WaterSubmersionDepthProvider: NSObject, DepthProvider, CMWate
         // blocks voice notes entirely. Acting on the notSubmerged transition emits
         // a 0 m sample so the detector returns to the surface and ends the dive.
         if event.state == .notSubmerged {
-            continuation?.yield(DepthSample(timestamp: event.date, depthMeters: 0))
+            lastEventWasSubmerged = false
+            continuation?.yield(DepthSample(timestamp: timestamp, depthMeters: 0))
         }
     }
 
